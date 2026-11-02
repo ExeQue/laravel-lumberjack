@@ -6,6 +6,7 @@ use ExeQue\Lumberjack\Agent\Agent;
 use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Agent\Spool;
 use ExeQue\Lumberjack\AgentClient;
+use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\File;
@@ -120,4 +121,38 @@ it('gives up quietly when no agent is listening', function () {
 
     expect((new AgentClient('127.0.0.1', $port))->send(['v' => 1, 'events' => []]))->toBeFalse()
         ->and(microtime(true) - $start)->toBeLessThan(0.5);
+});
+
+it('turns away data from an app of another project, and warns about it once', function () {
+    Http::fake(['*/api/ingest' => Http::response(['accepted' => 1], 202), '*/heartbeat' => Http::response(['ok' => true])]);
+    $warnings = [];
+    $own = ProjectFingerprint::of('secret-token');
+    $agent = new Agent(new Sender(app(Factory::class), 'https://lumberjack.test', 'secret-token'), $this->spool, 5, 'web-1', null, $own, function (string $message) use (&$warnings): void {
+        $warnings[] = $message;
+    });
+    $line = fn (?string $project, string $message): string => (string) json_encode(['v' => 1, 'sdk' => 'test', 'environment' => 'production', 'host' => 'web-1', 'project' => $project, 'events' => [['type' => 'log', 'message' => $message]]]);
+
+    $agent->receive($line($own, 'mine'));
+    $agent->receive($line(ProjectFingerprint::of('other-token'), 'theirs'));
+    $agent->receive($line(ProjectFingerprint::of('other-token'), 'theirs again'));
+    $agent->receive($line(null, 'unmarked, from an older SDK'));
+    $agent->flush(microtime(true));
+
+    $sent = collect(Http::recorded(fn (Request $request) => str_ends_with($request->url(), '/api/ingest')))
+        ->flatMap(fn (array $pair) => array_column(json_decode((string) gzdecode($pair[0]->body()), true)['events'], 'message'));
+
+    expect($sent->all())->toEqualCanonicalizing(['mine', 'unmarked, from an older SDK'])
+        ->and($warnings)->toHaveCount(1)
+        ->and($warnings[0])->toContain(ProjectFingerprint::of('other-token'));
+});
+
+it('never sends the mark on to Lumberjack', function () {
+    Http::fake(['*/api/ingest' => Http::response(['accepted' => 1], 202)]);
+    $agent = new Agent(new Sender(app(Factory::class), 'https://lumberjack.test', 'secret-token'), $this->spool, 5, 'web-1', null, ProjectFingerprint::of('secret-token'));
+
+    $agent->receive((string) json_encode(['v' => 1, 'project' => ProjectFingerprint::of('secret-token'), 'events' => [['type' => 'log', 'message' => 'x']]]));
+    $agent->flush(microtime(true));
+
+    [[$request]] = Http::recorded();
+    expect(json_decode((string) gzdecode($request->body()), true))->not->toHaveKey('project');
 });

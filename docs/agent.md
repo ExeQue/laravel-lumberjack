@@ -31,7 +31,13 @@ RestartSec=5
 User=www-data
 ```
 
-Several apps on one server each run their own agent on their own port (`LUMBERJACK_AGENT_PORT`).
+Several apps on one server each run their own agent on their own port (`LUMBERJACK_AGENT_PORT`). An agent sends everything with the token of the app it runs in, so it serves one project. Each app marks what it hands the agent with a short fingerprint of its token (never the token itself), and an agent turns away data from an app of another project instead of sending it under the wrong token. It warns once per such project in its output:
+
+```
+WARN  Turned away data from an app of another project (mark 3f9c0a1b2d4e). Give each app its own agent and LUMBERJACK_AGENT_PORT.
+```
+
+That warning means two apps point at the same port.
 
 ## Names
 

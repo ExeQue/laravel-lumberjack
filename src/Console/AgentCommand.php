@@ -8,6 +8,7 @@ use ExeQue\Lumberjack\Agent\Agent;
 use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Agent\Spool;
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\Factory as Http;
 use Symfony\Component\Console\Input\InputOption;
@@ -60,6 +61,8 @@ class AgentCommand extends Command
             (int) config('lumberjack.agent.interval', 5),
             gethostname() ?: null,
             $this->agentName(),
+            ProjectFingerprint::of($token),
+            fn (string $message) => $this->components->warn($message),
         );
 
         if (extension_loaded('pcntl')) {

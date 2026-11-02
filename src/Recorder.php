@@ -37,7 +37,7 @@ class Recorder
     private WeakMap $reported;
 
     /**
-     * @param  array{environment?: ?string, release?: ?string}  $config
+     * @param  array{environment?: ?string, release?: ?string, project?: ?string}  $config
      */
     public function __construct(
         private readonly AgentClient $client,
@@ -173,6 +173,7 @@ class Recorder
             'environment' => $this->config['environment'] ?? null,
             'release' => $this->config['release'] ?? null,
             'host' => gethostname() ?: null,
+            'project' => $this->config['project'] ?? null,
             'events' => $events,
         ]);
     }

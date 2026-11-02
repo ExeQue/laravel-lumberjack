@@ -14,6 +14,7 @@ use ExeQue\Lumberjack\Logging\LumberjackHandler;
 use ExeQue\Lumberjack\Support\CallerLocation;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
+use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\Lumberjack\Webhooks\WebhookController;
@@ -47,6 +48,7 @@ class LumberjackServiceProvider extends ServiceProvider
             [
                 'environment' => $this->string('environment'),
                 'release' => $this->string('release'),
+                'project' => ProjectFingerprint::of($this->string('token')),
             ],
             (bool) config('lumberjack.enabled', true),
         ));

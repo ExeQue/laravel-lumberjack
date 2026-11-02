@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -18,7 +19,10 @@ describe('exceptions', function () {
 
         $payload = $this->agent->payloads[0];
         expect($payload)->toMatchArray(['v' => 1, 'environment' => 'testing', 'release' => 'abc123'])
-            ->and($payload['sdk'])->toStartWith('exeque/laravel-lumberjack@');
+            ->and($payload['sdk'])->toStartWith('exeque/laravel-lumberjack@')
+            // The agent turns away data of another project by this mark; the token itself stays in the app.
+            ->and($payload['project'])->toBe(ProjectFingerprint::of('secret-token'))
+            ->and(json_encode($payload))->not->toContain('secret-token');
 
         $exception = $this->sentEvents('exception')[0];
         expect($exception['class'])->toBe(RuntimeException::class)

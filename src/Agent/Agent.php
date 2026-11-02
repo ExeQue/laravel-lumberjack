@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Agent;
 
+use Closure;
 use ExeQue\Lumberjack\Recorder;
 
 /**
- * Collects batches from the apps on this server and sends them on to
- * Lumberjack: every few seconds or at 1 MB, with retry and a disk spool.
+ * Collects batches from one app's processes on this server and sends them on
+ * to Lumberjack with that app's token: every few seconds or at 1 MB, with retry
+ * and a disk spool.
+ *
+ * One agent serves one project. Several apps on a server each run their own
+ * agent on their own port; a batch from an app of another project (one that
+ * points at the wrong port) is turned away, not sent under this token.
  */
 class Agent
 {
@@ -35,12 +41,17 @@ class Agent
 
     private bool $stopRequested = false;
 
+    /** @var array<string, true> Projects already warned about. */
+    private array $foreign = [];
+
     public function __construct(
         private readonly Sender $sender,
         private readonly Spool $spool,
         private readonly int $interval = 5,
         private readonly ?string $host = null,
         private readonly ?string $name = null,
+        private readonly ?string $project = null,
+        private readonly ?Closure $warn = null,
     ) {
         $this->lastFlush = microtime(true);
     }
@@ -60,6 +71,18 @@ class Agent
         }
 
         if (! is_array($payload) || ! is_array($payload['events'] ?? null)) {
+            return;
+        }
+
+        // Without a mark on either side (an older SDK, an app without the token) there is nothing to compare.
+        $from = is_string($payload['project'] ?? null) ? $payload['project'] : null;
+
+        if ($from !== null && $this->project !== null && ! hash_equals($this->project, $from)) {
+            if (! isset($this->foreign[$from])) {
+                $this->foreign[$from] = true;
+                ($this->warn)?->__invoke("Turned away data from an app of another project (mark {$from}). Give each app its own agent and LUMBERJACK_AGENT_PORT.");
+            }
+
             return;
         }
 
