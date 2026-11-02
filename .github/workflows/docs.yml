@@ -51,13 +51,14 @@ jobs:
         run: npm run docs:build
 
       - name: Upload the artifact
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && !github.event.repository.private
         uses: actions/upload-pages-artifact@v3
         with:
           path: .vitepress/dist
 
+  # GitHub Pages needs a public repository (or a paid plan); until then the docs only build.
   deploy:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && !github.event.repository.private
     needs: build
     runs-on: ubuntu-latest
 
