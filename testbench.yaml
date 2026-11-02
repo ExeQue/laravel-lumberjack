@@ -1,0 +1,25 @@
+laravel: '@testbench'
+
+providers:
+  - ExeQue\Lumberjack\LumberjackServiceProvider
+  - Workbench\App\Providers\WorkbenchServiceProvider
+
+env:
+  - APP_NAME="Lumberjack Demo"
+  - APP_ENV=local
+  - APP_DEBUG=true
+  - APP_KEY=base64:Tlk4bnlKZkJTT3hFQW1OZmxKYXBwYXp0VlJMbHZFbmc=
+  - SESSION_DRIVER=file
+  - CACHE_STORE=file
+
+workbench:
+  start: '/'
+  install: false
+  health: false
+  discovers:
+    web: true
+    api: false
+    commands: false
+    components: false
+    factories: false
+    views: true
