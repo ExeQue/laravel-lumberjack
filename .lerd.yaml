@@ -1,0 +1,20 @@
+domains:
+  - lumberjack-laravel
+secured: true
+workers:
+  - agent
+  - queue
+  - schedule
+custom_workers:
+  agent:
+    label: Lumberjack agent
+    command: php vendor/bin/testbench lumberjack:agent --name=lumberjack-agent
+    restart: always
+  queue:
+    label: Queue worker
+    command: php vendor/bin/testbench queue:work --tries=1 --sleep=1
+    restart: always
+  schedule:
+    label: Scheduler
+    command: php vendor/bin/testbench schedule:work
+    restart: always
