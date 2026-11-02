@@ -90,6 +90,34 @@ Every run of a scheduled task: started, finished, failed (an exception or a non-
 
 A task that runs in the background is reported when it finishes, without a duration.
 
+## Spans
+
+Besides queries, a request, job or command records what else it does, each on its trace
+in Lumberjack, so the trace shows it in order with the queries and log lines.
+
+| Kind | Recorded | Left out |
+|---|---|---|
+| `cache` | hit, miss, write and forget, with the key and store | the framework's own keys (`illuminate:*`, cache locks, Horizon, Pulse) |
+| `http` | outgoing calls through Laravel's HTTP client: method, host and path, status, duration | the query string, headers and bodies |
+| `mail` | each message sent: the mailable class and how many recipients | addresses and the subject |
+| `notification` | each notification sent: its class and channel | the notifiable |
+| `redis` | each command, its first argument (usually the key) and duration. Off by default; there can be very many | the values |
+
+```php
+// config/lumberjack.php
+'spans' => [
+    'cache' => true,
+    'http' => true,
+    'mail' => true,
+    'notifications' => true,
+    'redis' => false,
+    'ignore_cache_keys' => ['rate-limit:*'],
+],
+```
+
+Each kind has an environment variable too: `LUMBERJACK_SPANS_CACHE`, `LUMBERJACK_SPANS_HTTP`,
+`LUMBERJACK_SPANS_MAIL`, `LUMBERJACK_SPANS_NOTIFICATIONS` and `LUMBERJACK_SPANS_REDIS`.
+
 ## Scrubbing
 
 Lumberjack blanks passwords, tokens, cookies, authorization headers and the like before anything is stored. Add keys of your own to blank them before they leave the app:

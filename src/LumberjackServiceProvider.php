@@ -10,6 +10,7 @@ use ExeQue\Lumberjack\Console\TestCommand;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
+use ExeQue\Lumberjack\Listeners\RecordsSpans;
 use ExeQue\Lumberjack\Logging\LumberjackHandler;
 use ExeQue\Lumberjack\Support\CallerLocation;
 use ExeQue\Lumberjack\Support\ExceptionContext;
@@ -107,6 +108,12 @@ class LumberjackServiceProvider extends ServiceProvider
 
         $this->app->make('events')->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
         $this->app->make('events')->subscribe(new RecordsScheduledTasks($recorder, $rules));
+        $this->app->make('events')->subscribe(new RecordsSpans($recorder, (array) config('lumberjack.spans', [])));
+
+        // Redis only reports its commands when asked to.
+        if (config('lumberjack.spans.redis') && $this->app->bound('redis')) {
+            $this->app->make('redis')->enableEvents();
+        }
         $this->app->make('events')->subscribe($commands = new RecordsCommands($recorder, $rules));
         $this->app->terminating(fn () => $commands->finishOpen());
 

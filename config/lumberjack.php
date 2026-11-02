@@ -121,6 +121,22 @@ return [
         ],
     ],
 
+    /*
+     * What else a request, job or command does, each on its trace in Lumberjack:
+     * cache reads and writes, outgoing HTTP calls, mail and notifications sent,
+     * and (off by default, as there can be very many) Redis commands.
+     */
+    'spans' => [
+        'cache' => (bool) env('LUMBERJACK_SPANS_CACHE', true),
+        'http' => (bool) env('LUMBERJACK_SPANS_HTTP', true),
+        'mail' => (bool) env('LUMBERJACK_SPANS_MAIL', true),
+        'notifications' => (bool) env('LUMBERJACK_SPANS_NOTIFICATIONS', true),
+        'redis' => (bool) env('LUMBERJACK_SPANS_REDIS', false),
+
+        // Cache keys, e.g. 'illuminate:*'. Framework bookkeeping is left out already.
+        'ignore_cache_keys' => [],
+    ],
+
     'schedule' => [
         'enabled' => (bool) env('LUMBERJACK_SCHEDULE', true),
 
