@@ -5,7 +5,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'Lumberjack for Laravel',
   description: 'Errors, performance, jobs, logs and scheduled tasks from a Laravel app, sent to Lumberjack.',
-  base: '/lumberjack-laravel/',
+  base: '/laravel-lumberjack/',
   lastUpdated: true,
   cleanUrls: true,
 
@@ -62,10 +62,10 @@ export default defineConfig({
 
     search: { provider: 'local' },
 
-    socialLinks: [{ icon: 'github', link: 'https://github.com/ExeQue/lumberjack-laravel' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/ExeQue/laravel-lumberjack' }],
 
     editLink: {
-      pattern: 'https://github.com/ExeQue/lumberjack-laravel/edit/main/:path',
+      pattern: 'https://github.com/ExeQue/laravel-lumberjack/edit/main/:path',
       text: 'Edit this page on GitHub',
     },
 

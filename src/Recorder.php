@@ -169,7 +169,7 @@ class Recorder
 
         $this->client->send([
             'v' => 1,
-            'sdk' => 'exeque/lumberjack-laravel@'.self::VERSION,
+            'sdk' => 'exeque/laravel-lumberjack@'.self::VERSION,
             'environment' => $this->config['environment'] ?? null,
             'release' => $this->config['release'] ?? null,
             'host' => gethostname() ?: null,

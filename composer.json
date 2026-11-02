@@ -1,5 +1,5 @@
 {
-    "name": "exeque/lumberjack-laravel",
+    "name": "exeque/laravel-lumberjack",
     "description": "Laravel SDK for Lumberjack: exceptions, requests, queries, jobs and logs, sent through a local agent.",
     "type": "library",
     "license": "proprietary",

@@ -1,13 +1,13 @@
 # Lumberjack for Laravel
 
-**Documentation: [exeque.github.io/lumberjack-laravel](https://exeque.github.io/lumberjack-laravel/)**, or the [`docs`](docs/README.md) folder.
+**Documentation: [exeque.github.io/laravel-lumberjack](https://exeque.github.io/laravel-lumberjack/)**, or the [`docs`](docs/README.md) folder.
 
 Sends a Laravel app's errors, requests, queries, jobs, artisan commands, scheduled tasks and log lines to [Lumberjack](https://github.com/ExeQue/lumberjack), through a local agent so a slow or unreachable Lumberjack never slows the app down. Browser errors come along with one Blade directive, and the app can react to Lumberjack's alerts through a signed webhook.
 
 Requires PHP 8.3+ and Laravel 12 or 13.
 
 ```bash
-composer require exeque/lumberjack-laravel
+composer require exeque/laravel-lumberjack
 ```
 
 ```dotenv

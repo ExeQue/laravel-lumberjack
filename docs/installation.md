@@ -8,12 +8,12 @@ The package lives in a private GitHub repository. Add it as a VCS repository in 
 
 ```json
 "repositories": [
-    { "type": "vcs", "url": "git@github.com:ExeQue/lumberjack-laravel.git" }
+    { "type": "vcs", "url": "git@github.com:ExeQue/laravel-lumberjack.git" }
 ]
 ```
 
 ```bash
-composer require exeque/lumberjack-laravel
+composer require exeque/laravel-lumberjack
 ```
 
 The service provider and the `Lumberjack` facade register themselves.

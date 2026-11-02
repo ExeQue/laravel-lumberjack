@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>lumberjack-laravel</title>
+    <title>laravel-lumberjack</title>
     @lumberjack
     <style>
         :root { --accent: #d97706; --text: #1c1917; --muted: #57534e; --line: #e7e5e4; --surface: #fff; --background: #f5f5f4; }
@@ -24,7 +24,7 @@
     </style>
 </head>
 <body>
-<header>lumberjack-laravel · demo</header>
+<header>laravel-lumberjack · demo</header>
 <main>
     @if (session('status'))
         <section class="status">{{ session('status') }}</section>

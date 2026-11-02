@@ -18,7 +18,7 @@ describe('exceptions', function () {
 
         $payload = $this->agent->payloads[0];
         expect($payload)->toMatchArray(['v' => 1, 'environment' => 'testing', 'release' => 'abc123'])
-            ->and($payload['sdk'])->toStartWith('exeque/lumberjack-laravel@');
+            ->and($payload['sdk'])->toStartWith('exeque/laravel-lumberjack@');
 
         $exception = $this->sentEvents('exception')[0];
         expect($exception['class'])->toBe(RuntimeException::class)
