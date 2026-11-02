@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Workbench\App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use LogicException;
 use Workbench\App\Jobs\SendInvoice;
+use Workbench\App\Notifications\OrderShipped;
 
 /**
  * Each action makes the SDK record something, then goes back to the demo page.
@@ -59,6 +64,25 @@ class DemoController
         SendInvoice::dispatch(random_int(1000, 9999), fail: true);
 
         return $this->done('A failing job was dispatched.');
+    }
+
+    /**
+     * A checkout that touches the cache, calls an outside API and sends mail and a
+     * notification: one trace with every kind of span on it.
+     */
+    public function spans(): RedirectResponse
+    {
+        $rates = Cache::remember('exchange-rates:dkk', 60, fn () => ['eur' => 0.134]);
+        Cache::get('cart:'.random_int(1, 999));
+
+        Http::timeout(5)->get('https://httpbin.org/status/'.(random_int(0, 3) === 0 ? 503 : 200), ['currency' => 'dkk', 'api_key' => 'never-recorded']);
+
+        Mail::raw('Your order is on its way.', fn ($message) => $message->to('customer@example.test')->subject('Order shipped'));
+        Notification::route('mail', 'ops@example.test')->notify(new OrderShipped());
+
+        DB::select('select ? as rate', [$rates['eur']]);
+
+        return $this->done('A checkout with cache, an API call, mail and a notification.');
     }
 
     private function done(string $status): RedirectResponse

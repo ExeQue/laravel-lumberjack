@@ -46,7 +46,7 @@
         <h2>Server</h2>
         <p>Each button records something and comes back here.</p>
         <div class="actions">
-            @foreach (['exception' => 'Throw an exception', 'queries' => 'Run 20 queries', 'slow' => 'Slow request', 'log' => 'Write log lines', 'job' => 'Dispatch a job', 'failing-job' => 'Dispatch a failing job'] as $action => $label)
+            @foreach (['exception' => 'Throw an exception', 'queries' => 'Run 20 queries', 'slow' => 'Slow request', 'log' => 'Write log lines', 'job' => 'Dispatch a job', 'failing-job' => 'Dispatch a failing job', 'spans' => 'Checkout with cache, API, mail'] as $action => $label)
                 <form method="post" action="/demo/{{ $action }}">@csrf<button>{{ $label }}</button></form>
             @endforeach
         </div>

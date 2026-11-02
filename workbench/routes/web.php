@@ -13,3 +13,4 @@ Route::post('/demo/slow', [DemoController::class, 'slow']);
 Route::post('/demo/log', [DemoController::class, 'log']);
 Route::post('/demo/job', [DemoController::class, 'job']);
 Route::post('/demo/failing-job', [DemoController::class, 'failingJob']);
+Route::post('/demo/spans', [DemoController::class, 'spans']);
