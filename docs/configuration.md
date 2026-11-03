@@ -78,7 +78,9 @@ final class DeployedRelease implements ReleaseResolver
 
     public function resolve(): ?string
     {
-        return $this->cache->get($this->key);
+        $release = $this->cache->get($this->key);
+
+        return is_string($release) ? $release : null;
     }
 }
 ```
