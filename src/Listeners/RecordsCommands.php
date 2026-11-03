@@ -39,6 +39,12 @@ class RecordsCommands
     private bool $scheduled = false;
 
     /**
+     * Whether the outermost running command was called from inside another run (Artisan::call()
+     * in a request, job or task): it is a part of that run, on its trace, not a run of its own.
+     */
+    private bool $nested = false;
+
+    /**
      * @param  (Closure(string): bool)|null  $isScheduled  whether the app's scheduler runs this command
      */
     public function __construct(
@@ -87,6 +93,10 @@ class RecordsCommands
         }
 
         if ($this->running === []) {
+            $this->nested = $this->recorder->inRun();
+        }
+
+        if ($this->running === [] && ! $this->nested) {
             $this->sendFailures();
             $this->recorder->flush();
             $this->recorder->startTrace();
@@ -113,7 +123,7 @@ class RecordsCommands
         $event = $this->event($last, 'finished', $input) + ['exit_code' => $exitCode];
 
         // The outermost run ends: what it held goes out before its last event.
-        if ($this->running === []) {
+        if ($this->running === [] && ! $this->nested) {
             $duration = (microtime(true) - $last['start']) * 1000;
             $slow = $this->scheduled ? $this->rules->scheduleAlwaysSlowerThanMs : $this->rules->commandsAlwaysSlowerThanMs;
             $this->recorder->endRun(keep: $exitCode !== 0 || RecordingRules::isSlow($duration, $slow), slowQueryMs: $this->rules->alwaysSlowerThanMs);
@@ -127,7 +137,7 @@ class RecordsCommands
             $this->recorder->record($event + ['exception' => false]);
         }
 
-        if ($this->running === []) {
+        if ($this->running === [] && ! $this->nested) {
             $this->recorder->flush();
         }
     }

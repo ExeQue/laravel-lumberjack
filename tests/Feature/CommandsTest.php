@@ -99,3 +99,26 @@ describe('artisan commands', function () {
         expect($this->sentEvents('query'))->toHaveCount(1);
     });
 });
+
+describe('a command called from inside a request', function () {
+    it('is a part of that request, on its trace, and the request is still recorded', function () {
+        Illuminate\Support\Facades\Route::get('/report', function () {
+            DB::select('select 1 as before_call');
+            Artisan::call('reports:send', ['period' => 'daily']);
+            DB::select('select 2 as after_call');
+
+            return 'ok';
+        });
+
+        $this->get('/report')->assertOk();
+        app()->terminate();
+
+        $events = $this->sentEvents();
+        $request = $this->sentEvents('request');
+
+        expect($request)->toHaveCount(1)
+            ->and(array_unique(array_column($events, 'trace_id')))->toBe([$request[0]['trace_id']])
+            ->and(array_column($this->sentEvents('query'), 'sql'))->toBe(['select 1 as before_call', 'select 1', 'select 2 as after_call'])
+            ->and(array_column($this->sentEvents('command'), 'status'))->toBe(['started', 'finished']);
+    });
+});

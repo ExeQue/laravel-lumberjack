@@ -105,7 +105,7 @@ When a job is queued, its public properties are sent along as parameters: scalar
 
 ## Artisan commands
 
-Every command with the arguments and options it was given, its exit code and its duration. A command it calls shares its trace. A non-zero exit becomes an issue in Lumberjack, unless the command's own exception already did.
+Every command with the arguments and options it was given, its exit code and its duration. A command it calls shares its trace, and so does a command a request, job or task runs with `Artisan::call()`: it is recorded as part of that run, which keeps its own trace and events. A non-zero exit becomes an issue in Lumberjack, unless the command's own exception already did.
 
 Workers and other commands that never finish are left out by default:
 
