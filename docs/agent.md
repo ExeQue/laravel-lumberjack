@@ -98,6 +98,14 @@ older than their ttl ([health checks](health-checks.md#reading-states)): at most
 per ttl for everything that shares the cache, with a 2 s timeout, and a failure gives
 `Unknown`, never an exception.
 
+### In long-running processes
+
+Queue workers, Octane and `schedule:work` keep the package in memory for hours. What it
+holds is bounded: at most 1,000 events before they go to the agent, each job's or
+command's state dropped when it ends, an unsampled run's queries held only until that
+run ends, and the source files read for a stack trace forgotten before the next one. A
+test runs thousands of jobs with queries, logs and failures and fails if memory grows.
+
 ## Memory
 
 Past 128 MB the agent sends what it has and exits, so the process manager starts a fresh one. Change it with `--memory=256` or `LUMBERJACK_AGENT_MEMORY`; `0` turns the limit off.
