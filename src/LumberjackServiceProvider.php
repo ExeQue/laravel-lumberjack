@@ -57,14 +57,18 @@ class LumberjackServiceProvider extends ServiceProvider
 
         // LUMBERJACK_RELEASE, else what the configured resolver works out.
         $this->app->singleton('lumberjack.release', function (Application $app): ?string {
+            if ($this->string('release') !== null) {
+                return $this->string('release');
+            }
+
             // A class, or [class, 'name' => value, ...] made by the container with those
             // constructor parameters, plus the app's root as path.
             $config = (array) config('lumberjack.release_resolver');
             $class = $config[0] ?? null;
             unset($config[0]);
 
-            if ($this->string('release') !== null || ! is_string($class) || $class === '') {
-                return $this->string('release');
+            if (! is_string($class) || $class === '') {
+                return null;
             }
 
             $resolver = $app->make($class, ['path' => $this->string('base_path') ?? $app->basePath(), ...$config]);
