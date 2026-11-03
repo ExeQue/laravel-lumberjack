@@ -28,6 +28,10 @@ an issue started or came back. `LUMBERJACK_RELEASE` sets it. When it is empty, t
 The default tries two resolvers and uses the first that finds a release:
 
 ```php
+use ExeQue\Lumberjack\Release\ComposerReleaseResolver;
+use ExeQue\Lumberjack\Release\GitReleaseResolver;
+use ExeQue\Lumberjack\Release\StackReleaseResolver;
+
 'release_resolver' => [StackReleaseResolver::class, 'resolvers' => [
     GitReleaseResolver::class,
     ComposerReleaseResolver::class,
@@ -53,6 +57,8 @@ git rev-parse HEAD > latest-release   # before rsync
 
 ```php
 // config/lumberjack.php: the file first, then the defaults
+use ExeQue\Lumberjack\Release\FileReleaseResolver;
+
 'release_resolver' => [StackReleaseResolver::class, 'resolvers' => [
     [FileReleaseResolver::class, 'file' => 'latest-release'],
     GitReleaseResolver::class,

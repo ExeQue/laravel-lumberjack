@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Release\ComposerReleaseResolver;
+use ExeQue\Lumberjack\Release\GitReleaseResolver;
+use ExeQue\Lumberjack\Release\StackReleaseResolver;
+
 return [
 
     /*
@@ -34,15 +38,15 @@ return [
      * installed from, which survives a deploy without .git. A deploy can also write
      * the release to a file:
      *
-     *     [ExeQue\Lumberjack\Release\FileReleaseResolver::class, 'file' => 'REVISION'],
+     *     [\ExeQue\Lumberjack\Release\FileReleaseResolver::class, 'file' => 'REVISION'],
      *
      * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works, as a
      * class or [class, 'parameter' => value, ...] made by the container (it also gets
      * the app's root as path). Null sends no release.
      */
-    'release_resolver' => [ExeQue\Lumberjack\Release\StackReleaseResolver::class, 'resolvers' => [
-        ExeQue\Lumberjack\Release\GitReleaseResolver::class,
-        ExeQue\Lumberjack\Release\ComposerReleaseResolver::class,
+    'release_resolver' => [StackReleaseResolver::class, 'resolvers' => [
+        GitReleaseResolver::class,
+        ComposerReleaseResolver::class,
     ]],
 
     /*
