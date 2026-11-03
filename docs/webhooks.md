@@ -98,4 +98,4 @@ Receiving the webhook without this package: check the same two headers the same 
 }
 ```
 
-`event` is one of `new_issue`, `regression`, `escalation`, `note`, `status_change`, `queue_backlog` or `test`. The **Test** button on the channel sends a `test` event, which the package accepts and does nothing with. A `queue_backlog` event (a queue over its thresholds, or back under) carries a `queue` instead of an `issue`; the package accepts it without running handlers, so read it from your own route if you need it. Its body is described in Lumberjack's alerts documentation.
+`event` is one of `new_issue`, `regression`, `escalation`, `note`, `status_change`, `queue_backlog`, `health_degraded`, `health_down`, `health_recovered` or `test`. The **Test** button on the channel sends a `test` event, which the package accepts and does nothing with. A `queue_backlog` event (a queue over its thresholds, or back under) carries a `queue` instead of an `issue`, and the three health events carry a `check`; the package accepts them without running handlers, so read it from your own route if you need it. Its body is described in Lumberjack's alerts documentation.

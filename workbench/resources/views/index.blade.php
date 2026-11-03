@@ -38,23 +38,69 @@
             <dt>Agent</dt><dd>{{ config('lumberjack.agent.host') }}:{{ config('lumberjack.agent.port') }}</dd>
             <dt>Server token</dt><dd>{{ config('lumberjack.token') ? 'set' : 'missing, see .env.example' }}</dd>
             <dt>Public key</dt><dd>{{ config('lumberjack.public_key') ?: 'missing, see .env.example' }}</dd>
+            <dt>Release</dt><dd>{{ config('lumberjack.release') }}</dd>
             <dt>Trace</dt><dd>{{ app(ExeQue\Lumberjack\Recorder::class)->traceId() }}</dd>
         </dl>
     </section>
 
     <section>
-        <h2>Server</h2>
-        <p>Each button records something and comes back here.</p>
+        <h2>Errors</h2>
+        <p>Each becomes an issue. The second groups by signed-in user, the third escalates.</p>
         <div class="actions">
-            @foreach (['exception' => 'Throw an exception', 'queries' => 'Run 20 queries', 'slow' => 'Slow request', 'log' => 'Write log lines', 'job' => 'Dispatch a job', 'failing-job' => 'Dispatch a failing job', 'spans' => 'Checkout with cache, API, mail'] as $action => $label)
-                <form method="post" action="/demo/{{ $action }}">@csrf<button>{{ $label }}</button></form>
-            @endforeach
+            <form method="post" action="/demo/exception">@csrf<button>Throw an exception</button></form>
+            <form method="post" action="/demo/exception-as-user">@csrf<button>Throw as a signed-in user</button></form>
+            <form method="post" action="/demo/burst">@csrf<button>Burst of 30 errors</button></form>
+            <form method="post" action="/demo/log">@csrf<button>Write log lines</button></form>
+        </div>
+    </section>
+
+    <section>
+        <h2>Performance</h2>
+        <p>Requests, queries, spans and status codes for the Routes, Queries and Traces pages.</p>
+        <div class="actions">
+            <form method="post" action="/demo/queries">@csrf<button>Run 20 queries</button></form>
+            <form method="post" action="/demo/slow">@csrf<button>Slow request</button></form>
+            <form method="post" action="/demo/spans">@csrf<button>Checkout with cache, API, mail</button></form>
+            <form method="post" action="/demo/status/404">@csrf<button>Answer 404</button></form>
+            <form method="post" action="/demo/status/422">@csrf<button>Answer 422</button></form>
+            <form method="post" action="/demo/status/503">@csrf<button>Answer 503</button></form>
+        </div>
+    </section>
+
+    <section>
+        <h2>Jobs, queues and commands</h2>
+        <p>Jobs run in the queue worker. The bulk queue has no worker, so flooding it builds a backlog.</p>
+        <div class="actions">
+            <form method="post" action="/demo/job">@csrf<button>Dispatch a job</button></form>
+            <form method="post" action="/demo/failing-job">@csrf<button>Dispatch a failing job</button></form>
+            <form method="post" action="/demo/queue/flood">@csrf<button>Flood the bulk queue</button></form>
+            <form method="post" action="/demo/queue/drain">@csrf<button>Drain the bulk queue</button></form>
+            <form method="post" action="/demo/command">@csrf<button>Run an artisan command</button></form>
+        </div>
+    </section>
+
+    <section>
+        <h2>Releases</h2>
+        <p>Writes a new release, as a deploy would. Later requests and errors carry it.</p>
+        <div class="actions">
+            <form method="post" action="/demo/release">@csrf<button>Deploy a new release</button></form>
+        </div>
+    </section>
+
+    <section>
+        <h2>Health</h2>
+        <p>database, cache, disk:local and payments-api run every minute from the scheduler. payments-api fails while it is broken.</p>
+        <div class="actions">
+            <form method="post" action="/demo/health/break">@csrf<button>Break payments-api</button></form>
+            <form method="post" action="/demo/health/fix">@csrf<button>Fix payments-api</button></form>
+            <form method="post" action="/demo/health/run">@csrf<button>Run payments-api now</button></form>
+            <form method="post" action="/demo/health/report">@csrf<button>Report a failed disk read</button></form>
         </div>
     </section>
 
     <section>
         <h2>Browser</h2>
-        <p>Sent straight to Lumberjack by the script from <code>@@lumberjack</code>, with this request's trace id.</p>
+        <p>Sent straight to Lumberjack by the script from <code>@@lumberjack</code>, with this request's trace id. Web vitals for this page are sent when you leave it or switch tabs.</p>
         <div class="actions">
             <button onclick="setTimeout(() => { undefinedFunction(); })">Uncaught error</button>
             <button onclick="Promise.reject(new Error('Checkout API answered 500'))">Unhandled rejection</button>

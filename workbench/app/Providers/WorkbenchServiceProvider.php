@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Workbench\App\Providers;
 
 use Dotenv\Dotenv;
+use ExeQue\Lumberjack\Facades\Lumberjack;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
@@ -30,9 +31,13 @@ class WorkbenchServiceProvider extends ServiceProvider
         config()->set('lumberjack.token', env('LUMBERJACK_TOKEN'));
         config()->set('lumberjack.public_key', env('LUMBERJACK_PUBLIC_KEY'));
         config()->set('lumberjack.environment', 'workbench');
-        config()->set('lumberjack.release', env('LUMBERJACK_RELEASE', 'dev'));
+        // The demo's Deploy button writes a release here, as a deploy script would.
+        $release = self::path('storage/release');
+        config()->set('lumberjack.release', is_file($release) ? trim((string) file_get_contents($release)) : env('LUMBERJACK_RELEASE', 'dev'));
+        // The agent reports the size of both queues; nothing works the bulk one.
+        config()->set('lumberjack.queues', ['database:default', 'database:bulk']);
         config()->set('lumberjack.agent.port', (int) env('LUMBERJACK_AGENT_PORT', 2408));
-        config()->set('lumberjack.agent.spool_path', dirname(__DIR__, 3).'/workbench/storage/spool');
+        config()->set('lumberjack.agent.spool_path', self::path('storage/spool'));
 
         config()->set('logging.channels.lumberjack', ['driver' => 'lumberjack']);
         config()->set('logging.channels.payments', ['driver' => 'lumberjack', 'channel' => 'payments']);
@@ -65,6 +70,14 @@ class WorkbenchServiceProvider extends ServiceProvider
             $schedule->call(fn () => DB::select('select 2 as cleanup'))->everyTwoMinutes()->description('demo cleanup');
         });
 
+        // Health checks for the Health page, run by the scheduler every minute.
+        Lumberjack::health()
+            ->database()
+            ->cache()
+            ->disk('local')
+            ->debugMode(environments: ['production'])
+            ->check('payments-api', fn (): bool => ! is_file(self::path('storage/payments-down')), 2, 3);
+
         if (! Schema::hasTable('jobs')) {
             Schema::create('jobs', function (Blueprint $table): void {
                 $table->id();
@@ -78,9 +91,15 @@ class WorkbenchServiceProvider extends ServiceProvider
         }
     }
 
+    /** A path inside workbench/, where the demo keeps its state. */
+    public static function path(string $path): string
+    {
+        return dirname(__DIR__, 3).'/workbench/'.$path;
+    }
+
     private function database(): string
     {
-        $path = dirname(__DIR__, 3).'/workbench/storage/database.sqlite';
+        $path = self::path('storage/database.sqlite');
 
         if (! is_file($path)) {
             @mkdir(dirname($path), 0775, true);
