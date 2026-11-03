@@ -229,7 +229,10 @@ return [
      *
      *     \ExeQue\Lumberjack\Health\Checks\DatabaseHealthCheck::class,
      *     [\ExeQue\Lumberjack\Health\Checks\DiskHealthCheck::class, 'disk' => 's3'],
+     *     [\ExeQue\Lumberjack\Health\Checks\DiskHealthCheck::class, 'disk' => 'backups', 'every' => 15],
      *
+     * 'every' runs that check only once every so many minutes (the registry's, not a
+     * constructor parameter).
      * Lumberjack::healthChecks() registers more from a service provider. The schedule is a
      * cron expression; null leaves scheduling to you. one_server needs a cache store
      * that supports locks shared between servers. cooldown is how many seconds a

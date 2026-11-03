@@ -77,7 +77,7 @@ describe('the Boost resources', function () {
         $listed = boostMatches('/^\| `(\w+)\(/m');
         $builtIns = array_values(array_diff(
             array_map(fn (ReflectionMethod $method) => $method->getName(), (new ReflectionClass(HealthRegistry::class))->getMethods(ReflectionMethod::IS_PUBLIC)),
-            ['__construct', 'add', 'check', 'isEmpty', 'checks', 'find'],
+            ['__construct', 'add', 'check', 'isEmpty', 'checks', 'find', 'every', 'everyMinutes'],
         ));
 
         expect($builtIns)->toHaveCount(12)

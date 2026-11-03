@@ -27,4 +27,10 @@ interface HealthCheck
 
     /** Seconds the check may take before it counts as failed. */
     public function timeout(): int;
+
+    /**
+     * Minutes between runs when the check should run less often than lumberjack:health
+     * is scheduled; null runs it on every run. ->every() on the registry wins over it.
+     */
+    public function everyMinutes(): ?int;
 }

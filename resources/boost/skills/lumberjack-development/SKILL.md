@@ -95,6 +95,10 @@ Every method takes its required parameters first, then `degradeAfter` (2), `reco
 
 `...` stands for `degradeAfter, recoverAfter, downAfter` before the options and `timeout, slug` after them. The same checks go in `config('lumberjack.health.checks')` as a class or `[Class::class, 'parameter' => value]`. `add()` is variadic: one check per argument (an instance, a class, or such an array), so spread a list with `->add(...$checks)`. A later check with the same slug replaces an earlier one.
 
+### Running less often
+
+`->every(int $minutes)` runs the check added just before it (the last argument of `add()`) once per interval instead of on every scheduled run: `->disk('s3')->every(15)`. In config: `[DiskHealthCheck::class, 'disk' => 's3', 'every' => 15]` (taken by the registry, not passed to the constructor). A custom check can override `everyMinutes(): ?int` (on the contract; the trait returns null); `every()` wins. Whole minutes, never fewer than `health.schedule` runs; `every()` before any check was added in code, or too few minutes, throws `ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException`. Not a multiple of the schedule is fine: it runs on the first scheduled run after it is due. The last run is kept per slug in the default cache store. `lumberjack:health --all` (or `--check=<slug>`) runs checks that are not due. Results send `interval_minutes`, so Lumberjack shows the interval and waits 2.5 intervals before calling the check stale.
+
 ### Thresholds
 
 - `degradeAfter`: bad runs (warnings or failures) in a row before the check is degraded.
@@ -319,7 +323,7 @@ user=www-data
 
 ## Commands
 
-`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--no-fail`; exits 1 when a check failed, for deploy scripts).
+`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts).
 
 ## Testing an app that uses the package
 

@@ -27,7 +27,7 @@ Under WSL, run `lerd wsl-hosts:sync` once so the domain resolves.
 php vendor/bin/testbench demo:bucket
 ```
 
-The `disk:rustfs` health check writes, reads back and deletes a file in that bucket every minute. To see it fail, press "Break disk:rustfs" on the demo page (the disk then points at a bucket that does not exist), or stop RustFS with `lerd service stop rustfs`. `php` through lerd's shim starts the site's services again, so while it is stopped leave the runs to the scheduler worker.
+The `disk:rustfs` health check writes, reads back and deletes a file in that bucket every 5 minutes (`->disk('rustfs')->every(5)`, the demo of a check with its own interval): the scheduler runs `lumberjack:health` every minute and skips it in between, and Lumberjack shows it as **every 5 min** without calling it stale. `php vendor/bin/testbench lumberjack:health --all` runs it at once. Since a failure only counts every 5 minutes, it takes about 10 minutes to degrade. To see it fail, press "Break disk:rustfs" on the demo page (the disk then points at a bucket that does not exist), or stop RustFS with `lerd service stop rustfs`. `php` through lerd's shim starts the site's services again, so while it is stopped leave the runs to the scheduler worker.
 
 The workbench app runs on SQLite, which has no connections to report, so `database:mysql`, `database:mariadb` and `database:pgsql` checks run against lerd's MySQL, MariaDB and PostgreSQL services (listed under `services` in `.lerd.yaml`, lerd's default local login, their system databases; see `WORKBENCH_*` in `.env.example`). Each reports connections, the server's limit and the size, and warns at 80 % of the limit.
 

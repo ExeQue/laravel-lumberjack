@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Health;
 
 use Closure;
+use Cron\CronExpression;
 use ExeQue\Lumberjack\Contracts\HealthCheck;
+use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException;
 use ExeQue\Lumberjack\Health\Checks\CacheHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DatabaseHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DebugModeHealthCheck;
@@ -23,6 +25,7 @@ use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
 use Throwable;
+use WeakMap;
 
 /**
  * The checks from config and from Lumberjack::healthChecks(). Entries are kept as given and
@@ -34,6 +37,15 @@ final class HealthRegistry
     /** @var list<mixed> */
     private array $entries = [];
 
+    /** @var array<int, int> minutes between runs, by entry, from ->every() or an entry's 'every' */
+    private array $every = [];
+
+    /** The entry ->every() applies to: the one added last in code. */
+    private ?int $last = null;
+
+    /** @var WeakMap<HealthCheck, int|null> each made check's minutes between runs */
+    private WeakMap $intervals;
+
     /**
      * @param  array<mixed>  $entries  each a class, [class, 'parameter' => value, ...] or a HealthCheck
      */
@@ -41,6 +53,8 @@ final class HealthRegistry
         private readonly Container $container,
         array $entries = [],
     ) {
+        $this->intervals = new WeakMap();
+
         // From config: a bad entry is reported and skipped, never thrown into the app's boot
         // or scheduler. Lumberjack::healthChecks()->add() still throws, at the line that is wrong.
         foreach ($entries as $entry) {
@@ -50,11 +64,15 @@ final class HealthRegistry
                 Safely::problem('Lumberjack skipped a health check in lumberjack.health.checks: '.$e->getMessage());
             }
         }
+
+        // ->every() in code never reaches back into config.
+        $this->last = null;
     }
 
     /**
      * Each argument is one check: a HealthCheck, a class, or [class, 'parameter' => value, ...].
-     * Spread a list: ->add(...$checks).
+     * Spread a list: ->add(...$checks). An array's 'every' => minutes is the registry's, as
+     * ->every(), and not passed to the check.
      *
      * @param  HealthCheck|string|array<mixed>  ...$checks
      */
@@ -68,10 +86,48 @@ final class HealthRegistry
                 Slug::validate($entry['slug']);
             }
 
+            $every = null;
+
+            if (is_array($entry) && array_key_exists('every', $entry)) {
+                $every = is_int($entry['every']) ? self::interval($entry['every']) : throw new InvalidArgumentException('A health check\'s every must be whole minutes.');
+                unset($entry['every']);
+            }
+
             $this->entries[] = $entry;
+            $this->last = array_key_last($this->entries);
+
+            if ($every !== null) {
+                $this->every[$this->last] = $every;
+            }
         }
 
         return $this;
+    }
+
+    /**
+     * Runs the check added just before it once every $minutes instead of on every run of
+     * lumberjack:health: on the first scheduled run after it is due, so a multiple of the
+     * schedule's own interval keeps it even. ->disk('s3')->every(15)
+     *
+     * @throws InvalidHealthCheckIntervalException when nothing was added yet, or for fewer minutes than the schedule's
+     */
+    public function every(int $minutes): self
+    {
+        if ($this->last === null) {
+            throw InvalidHealthCheckIntervalException::nothingAdded();
+        }
+
+        $this->every[$this->last] = self::interval($minutes);
+
+        return $this;
+    }
+
+    /**
+     * Minutes between the check's runs, null for every run of lumberjack:health.
+     */
+    public function everyMinutes(HealthCheck $check): ?int
+    {
+        return $this->intervals[$check] ?? $check->everyMinutes();
     }
 
     /**
@@ -354,7 +410,7 @@ final class HealthRegistry
     {
         $checks = [];
 
-        foreach ($this->entries as $entry) {
+        foreach ($this->entries as $index => $entry) {
             // One check that cannot be made (a class that is gone, a bad parameter) is
             // reported and skipped; the others still run.
             try {
@@ -368,6 +424,8 @@ final class HealthRegistry
                     ));
                 }
 
+                $every = $this->every[$index] ?? $check->everyMinutes();
+                $this->intervals[$check] = $every !== null ? self::interval($every) : null;
                 $checks[$check->slug()] = $check;
             } catch (Throwable $e) {
                 Safely::problem('Lumberjack skipped a health check: '.$e->getMessage());
@@ -375,6 +433,33 @@ final class HealthRegistry
         }
 
         return $checks;
+    }
+
+    /**
+     * Whole minutes, never fewer than lumberjack.health.schedule runs.
+     */
+    private static function interval(int $minutes): int
+    {
+        $minimum = self::scheduleMinutes();
+
+        return $minutes >= $minimum ? $minutes : throw InvalidHealthCheckIntervalException::tooShort($minutes, $minimum);
+    }
+
+    /**
+     * Minutes between two runs of lumberjack.health.schedule; 1 when it is not set or not a cron expression.
+     */
+    private static function scheduleMinutes(): int
+    {
+        $cron = config('lumberjack.health.schedule');
+
+        try {
+            $expression = new CronExpression(is_string($cron) && $cron !== '' ? $cron : '* * * * *');
+            $next = $expression->getNextRunDate();
+
+            return max(1, intdiv($expression->getNextRunDate($next)->getTimestamp() - $next->getTimestamp(), 60));
+        } catch (Throwable) {
+            return 1;
+        }
     }
 
     /**

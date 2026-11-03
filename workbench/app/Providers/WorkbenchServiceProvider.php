@@ -143,7 +143,8 @@ class WorkbenchServiceProvider extends ServiceProvider
             ->database('pgsql', warnAtConnections: 0.8)
             ->cache()
             ->disk('local')
-            ->disk('rustfs')
+            // Every 5 minutes instead of every minute, to show a check with its own interval.
+            ->disk('rustfs')->every(5)
             // The bulk queue no worker runs: the demo's Flood button puts 1200 jobs on it.
             ->queue('database', queue: 'bulk', warnAt: 100, failAt: 1000)
             ->debugMode(environments: ['production'])

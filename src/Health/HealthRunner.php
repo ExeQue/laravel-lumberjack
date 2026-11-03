@@ -17,6 +17,7 @@ final class HealthRunner
 {
     public function __construct(
         private readonly Recorder $recorder,
+        private readonly HealthRegistry $registry,
     ) {
     }
 
@@ -83,6 +84,8 @@ final class HealthRunner
             'degrade_after' => $check->degradeAfter(),
             'recover_after' => $check->recoverAfter(),
             'down_after' => $check->downAfter(),
+            // So Lumberjack knows when to expect the next one; null runs on every scheduled run.
+            'interval_minutes' => $this->registry->everyMinutes($check),
         ]);
     }
 

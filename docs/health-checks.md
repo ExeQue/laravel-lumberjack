@@ -61,6 +61,31 @@ Lumberjack::healthChecks()->disk('s3', degradeAfter: 2, downAfter: 2);
 
 The thresholds are sent with every result; a slug's thresholds set in Lumberjack's UI win over them.
 
+### Running less often
+
+Every check runs on every scheduled run of `lumberjack:health` (every minute by default). `->every($minutes)` runs the check added just before it less often:
+
+```php
+Lumberjack::healthChecks()
+    ->database()
+    ->disk('s3')->every(15)
+    ->add(LicenseServerCheck::class)->every(60);
+```
+
+It applies to the check added last in that chain (the last argument of `add()`); called before any check was added in code it throws `ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException`. In config the same is the entry's `every`, which the registry takes and the check's constructor never sees:
+
+```php
+'checks' => [
+    [DiskHealthCheck::class, 'disk' => 's3', 'every' => 15],
+],
+```
+
+A check class can set its own by overriding `everyMinutes(): ?int` (part of the `HealthCheck` contract; the `ConfiguresHealthCheck` trait returns `null`, every run). `every()` wins over it.
+
+The interval is whole minutes, at least as long as `health.schedule` runs (`every(3)` with `*/5 * * * *` throws; a bad `every` in config skips that check, see [Slugs](#slugs) for how). It need not be a multiple of the schedule: the check runs on the first scheduled run after it is due, so `every(7)` on a five-minute schedule runs every 10 minutes. A run a few seconds late is still on time.
+
+The last run is kept per slug in the app's default cache store, the one the scheduler's overlap lock uses (per server when `health.one_server` is off). While the cache is down, every check runs. Each result sends its `interval_minutes` (null for every run), so Lumberjack shows **every 15 min** next to the check and only calls it stale after 2.5 times the interval without a result.
+
 ### Closure checks
 
 `->check($slug, $callback, $degradeAfter = 2, $recoverAfter = 5, $downAfter = 5, $timeout = 10)` runs the closure. Its parameters are resolved by the container. Return:
@@ -206,7 +231,7 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 php artisan lumberjack:health
 ```
 
-prints a table of every check (slug, status, message, duration) and sends the results through [the agent](agent.md), like everything else the app records: they need the agent running, and while `LUMBERJACK_ENABLED` is `false` it runs no checks and says so. It exits with `1` when a check failed (a warning does not), so a deploy script can stop on it:
+prints a table of every check (slug, status, message, duration; `skipped` for a check with its own interval that is not due) and sends the results through [the agent](agent.md), like everything else the app records: they need the agent running, and while `LUMBERJACK_ENABLED` is `false` it runs no checks and says so. It exits with `1` when a check failed (a warning does not), so a deploy script can stop on it:
 
 ```bash
 php artisan migrate --force
@@ -215,7 +240,8 @@ php artisan lumberjack:health || exit 1
 
 | Option | |
 |---|---|
-| `--check=<slug>` | Run only this check |
+| `--check=<slug>` | Run only this check, due or not |
+| `--all` | Run every check, also those with their own interval that are not due yet |
 | `--no-fail` | Exit with `0` even when a check failed |
 
 ## Firing a check from your code

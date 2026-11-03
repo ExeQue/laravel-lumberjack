@@ -45,6 +45,14 @@ trait ConfiguresHealthCheck
     }
 
     /**
+     * Every scheduled run; override to run less often, or use ->every() on the registry.
+     */
+    public function everyMinutes(): ?int
+    {
+        return null;
+    }
+
+    /**
      * The slug when none is given: the class name in kebab case, e.g. "stripe-health-check".
      */
     protected function defaultSlug(): string

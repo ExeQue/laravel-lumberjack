@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Lumberjack\Contracts\HealthCheck;
+use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException;
 use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckSlugException;
 use ExeQue\Lumberjack\Facades\Lumberjack;
 use ExeQue\Lumberjack\Health\CheckResult;
@@ -50,6 +51,30 @@ final class StripeConnectionCheck implements HealthCheck
     public function run(): CheckResult
     {
         return $this->healthy ? CheckResult::ok() : CheckResult::failed('Stripe is down');
+    }
+}
+
+final class HourlyCheck implements HealthCheck
+{
+    use ConfiguresHealthCheck;
+
+    public function __construct(
+        private readonly int $degradeAfter = 2,
+        private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
+        private readonly int $timeout = 10,
+        private readonly ?string $slug = 'hourly',
+    ) {
+    }
+
+    public function run(): CheckResult
+    {
+        return CheckResult::ok();
+    }
+
+    public function everyMinutes(): ?int
+    {
+        return 60;
     }
 }
 
@@ -136,6 +161,78 @@ describe('registry', function () {
         expect(fn () => Lumberjack::healthChecks()->disk('s3', slug: 'Media Bucket'))->toThrow(InvalidHealthCheckSlugException::class)
             ->and(fn () => Lumberjack::healthChecks()->check('-stripe', fn () => true))->toThrow(InvalidHealthCheckSlugException::class)
             ->and(fn () => Lumberjack::healthChecks()->add([CacheHealthCheck::class, 'slug' => str_repeat('a', 101)]))->toThrow(InvalidHealthCheckSlugException::class);
+    });
+});
+
+describe('intervals', function () {
+    function intervals(): array
+    {
+        $registry = app(HealthRegistry::class);
+
+        return array_map(fn (HealthCheck $check): ?int => $registry->everyMinutes($check), $registry->checks());
+    }
+
+    it('applies every() to the check added just before it, from a fluent method, add() or a config entry', function () {
+        $this->withConfig(['lumberjack.health.checks' => [
+            [DiskHealthCheck::class, 'disk' => 's3', 'every' => 15],
+            CacheHealthCheck::class,
+        ]]);
+
+        Lumberjack::healthChecks()
+            ->disk('local')->every(5)
+            ->add(DatabaseHealthCheck::class, [StripeConnectionCheck::class, 'slug' => 'stripe'])->every(10)
+            ->add(HourlyCheck::class)
+            ->add([HourlyCheck::class, 'slug' => 'hourly-overridden'])->every(30);
+
+        expect(intervals())->toBe([
+            'disk:s3' => 15,
+            'cache:array' => null,
+            'disk:local' => 5,
+            'database:testing' => null,
+            'stripe' => 10,
+            'hourly' => 60,
+            'hourly-overridden' => 30,
+        ]);
+    });
+
+    it('refuses every() before any check was added in code, and fewer minutes than the schedule runs', function () {
+        $this->withConfig(['lumberjack.health.checks' => [CacheHealthCheck::class], 'lumberjack.health.schedule' => '*/5 * * * *']);
+
+        expect(fn () => Lumberjack::healthChecks()->every(15))->toThrow(InvalidHealthCheckIntervalException::class, 'call it right after add()')
+            ->and(fn () => Lumberjack::healthChecks()->cache('file')->every(3))->toThrow(InvalidHealthCheckIntervalException::class, 'at least 5')
+            ->and(fn () => Lumberjack::healthChecks()->cache('file')->every(0))->toThrow(InvalidHealthCheckIntervalException::class)
+            ->and(Lumberjack::healthChecks()->cache('file')->every(7))->toBeInstanceOf(HealthRegistry::class);
+    });
+
+    it('skips a config entry with an every that is not whole minutes or below the schedule', function () {
+        $this->withConfig(['lumberjack.health.checks' => [
+            [DiskHealthCheck::class, 'disk' => 's3', 'every' => '15'],
+            [DiskHealthCheck::class, 'disk' => 'local', 'every' => 0],
+            CacheHealthCheck::class,
+        ]]);
+
+        expect(intervals())->toBe(['cache:array' => null]);
+    });
+
+    it('skips a check until its interval passed, runs every check with --all and sends interval_minutes', function () {
+        $this->travelTo(now()->startOfHour());
+        Lumberjack::healthChecks()->check('often', fn () => true)->check('rare', fn () => true)->every(15);
+
+        $this->artisan('lumberjack:health')->assertExitCode(0);
+        $this->travel(1)->minutes();
+        $this->artisan('lumberjack:health')->expectsOutputToContain('Not due, runs every 15 min')->assertExitCode(0);
+        $this->travel(13)->minutes();
+        $this->travel(40)->seconds();
+        // 14 minutes 40 seconds after it last ran: a tick's few seconds late is still on time.
+        $this->artisan('lumberjack:health')->assertExitCode(0);
+        $this->artisan('lumberjack:health', ['--all' => true])->assertExitCode(0);
+        $this->artisan('lumberjack:health', ['--check' => 'rare'])->assertExitCode(0);
+        $this->artisan('lumberjack:health')->assertExitCode(0);
+
+        $events = healthEvents();
+
+        expect(array_column($events, 'slug'))->toBe(['often', 'rare', 'often', 'often', 'rare', 'often', 'rare', 'rare', 'often'])
+            ->and(array_column($events, 'interval_minutes', 'slug'))->toBe(['often' => null, 'rare' => 15]);
     });
 });
 
@@ -463,7 +560,7 @@ describe('running a check inside a queue worker', function () {
 
         pcntl_alarm(120);
 
-        (new ExeQue\Lumberjack\Health\HealthRunner(app(ExeQue\Lumberjack\Recorder::class)))
+        app(ExeQue\Lumberjack\Health\HealthRunner::class)
             ->run(new ExeQue\Lumberjack\Health\ClosureHealthCheck('quick', fn () => true));
 
         $remaining = pcntl_alarm(0);
