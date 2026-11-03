@@ -11,5 +11,6 @@
 - [Reacting to alerts](webhooks.md) - Webhooks, `Lumberjack::onException()` and signatures
 - [Artisan commands](commands.md) - `lumberjack:install`, `lumberjack:agent`, `lumberjack:health`, `lumberjack:terminate` and `lumberjack:test`
 - [Configuration](configuration.md) - Every option in `config/lumberjack.php`
+- [Laravel Boost](boost.md) - Guidelines and a skill for AI assistants
 
 Working on the package itself: [Contributing](../CONTRIBUTING.md).

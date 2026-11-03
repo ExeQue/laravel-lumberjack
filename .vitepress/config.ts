@@ -52,6 +52,7 @@ export default defineConfig({
           { text: 'Reacting to alerts', link: '/docs/webhooks' },
           { text: 'Artisan commands', link: '/docs/commands' },
           { text: 'Configuration', link: '/docs/configuration' },
+          { text: 'Laravel Boost', link: '/docs/boost' },
         ],
       },
       {

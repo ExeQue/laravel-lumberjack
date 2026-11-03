@@ -29,6 +29,7 @@ Lumberjack::onException(PaymentGatewayException::class, [Status::New, Status::Es
 - [Reacting to alerts](docs/webhooks.md)
 - [Artisan commands](docs/commands.md)
 - [Configuration](docs/configuration.md)
+- [Laravel Boost](docs/boost.md)
 
 ## Development
 
