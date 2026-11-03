@@ -38,11 +38,17 @@ final class StackReleaseResolver implements ReleaseResolver
     }
 
     /**
-     * One resolver from its config entry; null for an empty entry or a class that is
+     * One resolver from its config entry: a class, [class, 'parameter' => value, ...],
+     * or a list of entries to try in order. Null for an empty entry or a class that is
      * no resolver.
      */
     public static function make(Container $container, mixed $entry, string $path): ?ReleaseResolver
     {
+        // A plain list is a stack of its entries; [class, 'name' => value] has names.
+        if (is_array($entry) && array_is_list($entry)) {
+            return new self($container, $path, $entry);
+        }
+
         $parameters = (array) $entry;
         $class = $parameters[0] ?? null;
         unset($parameters[0]);

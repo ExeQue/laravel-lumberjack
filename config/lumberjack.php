@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use ExeQue\Lumberjack\Release\ComposerReleaseResolver;
 use ExeQue\Lumberjack\Release\GitReleaseResolver;
-use ExeQue\Lumberjack\Release\StackReleaseResolver;
 
 return [
 
@@ -40,14 +39,14 @@ return [
      *
      *     [\ExeQue\Lumberjack\Release\FileReleaseResolver::class, 'file' => 'REVISION'],
      *
-     * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works, as a
-     * class or [class, 'parameter' => value, ...] made by the container (it also gets
-     * the app's root as path). Null sends no release.
+     * Each entry is a class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver,
+     * or [class, 'parameter' => value, ...] made by the container (it also gets the
+     * app's root as path). A single entry works without the list; null sends none.
      */
-    'release_resolver' => [StackReleaseResolver::class, 'resolvers' => [
+    'release_resolver' => [
         GitReleaseResolver::class,
         ComposerReleaseResolver::class,
-    ]],
+    ],
 
     /*
      * Whether the browser script says hello in the console. Off unless the

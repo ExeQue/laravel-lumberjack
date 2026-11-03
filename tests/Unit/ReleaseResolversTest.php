@@ -83,6 +83,17 @@ describe('the stack of resolvers', function () {
 });
 
 describe('the configured release', function () {
+    it('tries a plain list in order', function () {
+        file_put_contents($this->root.'/latest-release', 'from-the-file');
+        config(['lumberjack.release' => null, 'lumberjack.base_path' => $this->root, 'lumberjack.release_resolver' => [
+            GitReleaseResolver::class,
+            [FileReleaseResolver::class, 'file' => 'latest-release'],
+        ]]);
+        app()->forgetInstance('lumberjack.release');
+
+        expect(app('lumberjack.release'))->toBe('from-the-file');
+    });
+
     it('makes the resolver with the parameters after the class', function () {
         file_put_contents($this->root.'/latest-release', 'abc123');
         config(['lumberjack.release' => null, 'lumberjack.base_path' => $this->root, 'lumberjack.release_resolver' => [FileReleaseResolver::class, 'file' => 'latest-release']]);
