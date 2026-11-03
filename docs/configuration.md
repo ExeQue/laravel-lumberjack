@@ -113,7 +113,9 @@ Set it to `null` to send no release.
 
 ## Recording
 
-See [What is recorded](recording.md) for what each section covers, and [Sampling](recording.md#sampling) for the sample rates and thresholds. Every `ignore` list takes `*` wildcards.
+See [What is recorded](recording.md) for what each section covers, and [Sampling](recording.md#sampling) for the sample rates and thresholds.
+
+The `ignore` lists of routes, queries, jobs, queues, commands and scheduled tasks take `*` wildcards; a route matches on its URI (`orders/{order}`) or its path (`orders/42`). `ignore_methods`, `ignore_status` and `ignore_connections` match exactly, and `exceptions.ignore` takes classes, which ignore their subclasses too.
 
 | Key | Env | Default |
 |---|---|---|
@@ -146,6 +148,19 @@ See [What is recorded](recording.md) for what each section covers, and [Sampling
 | `schedule.always_slower_than_ms` | `LUMBERJACK_SCHEDULE_ALWAYS_SLOWER_THAN_MS` | `10000` |
 | `schedule.ignore` | | none |
 
+## Spans
+
+See [Spans](recording.md#spans).
+
+| Key | Env | Default | |
+|---|---|---|---|
+| `spans.cache` | `LUMBERJACK_SPANS_CACHE` | `true` | |
+| `spans.http` | `LUMBERJACK_SPANS_HTTP` | `true` | |
+| `spans.mail` | `LUMBERJACK_SPANS_MAIL` | `true` | |
+| `spans.notifications` | `LUMBERJACK_SPANS_NOTIFICATIONS` | `true` | |
+| `spans.redis` | `LUMBERJACK_SPANS_REDIS` | `false` | Turns on Redis events for it |
+| `spans.ignore_cache_keys` | | none | Cache keys to leave out, `*` wildcards; the framework's own are always left out |
+
 ## Health checks
 
 See [Health checks](health-checks.md).
@@ -175,7 +190,7 @@ See [Reacting to alerts](webhooks.md).
 
 | Key | Default | |
 |---|---|---|
-| `base_path` | `base_path()` | Where the app's own code lives, for code lines and in-app frames |
+| `base_path` | `base_path()` | Where the app's own code lives: a frame under it and outside `vendor/` is in-app, query locations are found from it, and the release resolvers look for `.git` and `REVISION` there |
 | `scrub.keys` | none | Extra sensitive keys, on top of the defaults (`*` wildcards). See [Scrubbing](recording.md#scrubbing) |
 | `scrub.replace_defaults` | `false` | `true`: only `scrub.keys`, none of the built-in keys |
 | `scrub.patterns` | none | Regular expressions whose matches are blanked in any string |

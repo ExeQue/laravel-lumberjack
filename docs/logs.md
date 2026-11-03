@@ -15,9 +15,15 @@ Send log lines to Lumberjack with a channel that uses the `lumberjack` driver:
 Log::channel('payments')->warning('Refund took {seconds} seconds', ['seconds' => 12]);
 ```
 
-Add the channel to your `stack` to send everything the app logs:
+Without `level` a channel sends everything from `debug` up.
+
+To send everything the app logs, define a channel for it and add it to your `stack`:
 
 ```php
+'lumberjack' => [
+    'driver' => 'lumberjack',
+],
+
 'stack' => [
     'driver' => 'stack',
     'channels' => ['daily', 'lumberjack'],

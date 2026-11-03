@@ -9,6 +9,7 @@
 - [Browser errors](browser.md) - The `@lumberjack` directive and the browser script
 - [Health checks](health-checks.md) - Checks run from the scheduler: database, disks, queues, backups and your own
 - [Reacting to alerts](webhooks.md) - Webhooks, `Lumberjack::onException()` and signatures
+- [Testing your app](testing.md) - Recording off in tests, and testing checks, states and webhook handlers
 - [Artisan commands](commands.md) - `lumberjack:install`, `lumberjack:agent`, `lumberjack:health`, `lumberjack:terminate` and `lumberjack:test`
 - [Configuration](configuration.md) - Every option in `config/lumberjack.php`
 - [Laravel Boost](boost.md) - Guidelines and a skill for AI assistants

@@ -6,12 +6,14 @@ Put the directive in the `<head>` of your layout:
 @lumberjack
 ```
 
-It renders a script tag that loads Lumberjack's browser script from your Lumberjack server, with:
+It renders a script tag that loads Lumberjack's browser script from your Lumberjack server (`{LUMBERJACK_URL}/sdk/v1.js`, deferred), with:
 
-- the project's public key (`LUMBERJACK_PUBLIC_KEY`; without it the directive renders nothing),
+- the project's public key (`LUMBERJACK_PUBLIC_KEY`; without it, or without `LUMBERJACK_URL`, the directive renders nothing),
 - the environment and release,
 - the signed-in user's id,
-- the request's trace id, so a browser error links to the server request that rendered the page.
+- the request's trace id, so a browser error links to the server request that rendered the page (left out while recording is off).
+
+These are the `data-key`, `data-environment`, `data-release`, `data-user`, `data-trace` and `data-announce` attributes of the script tag; the server's docs describe them for apps that write the tag by hand.
 
 The page's origin must be listed under **allowed origins** in the project's settings.
 

@@ -20,7 +20,7 @@ The service provider and the `Lumberjack` facade register themselves.
 
 ## Set it up
 
-Create a project in Lumberjack; its settings page shows the URL, the server token and the public key under **Install**. Then:
+Create a project in Lumberjack; its settings page shows the URL, the server token and the public key under **Installation**. Then:
 
 ```bash
 php artisan lumberjack:install
@@ -30,11 +30,11 @@ It asks for the three values and walks through the rest:
 
 1. **Connection.** It sends a heartbeat with the token to check the URL and token, and says why when that fails (Lumberjack cannot be reached, the token is refused, another answer), so you can enter them again or carry on. The project's agents in Lumberjack list that heartbeat as an agent named `lumberjack:install`.
 2. **`.env`.** It writes `LUMBERJACK_URL`, `LUMBERJACK_TOKEN` and `LUMBERJACK_PUBLIC_KEY`, and asks before replacing a value that is already there. The rest of the file stays as it was. It offers to add the keys to `.env.example` with empty values.
-3. **Browser errors.** It lists the Blade views with a `</head>` (your layouts, or `app.blade.php` with Inertia) and puts `@lumberjack` before `</head>` in the ones you pick.
-4. **Health checks.** It suggests [checks](health-checks.md) from your config (the database, the cache store, disks other than `local` and `public`, the queue, Horizon when installed, failed jobs, debug mode, migrations, mail over SMTP) and writes the ones you pick to `app/Providers/LumberjackServiceProvider.php`, registered in `bootstrap/providers.php`. Your `AppServiceProvider` is left alone.
-5. **Queues.** It suggests `LUMBERJACK_QUEUES` from `config/queue.php` and Horizon's supervisors, for the [queue sizes](agent.md#queue-sizes) the agent reports.
+3. **Queues.** It suggests `LUMBERJACK_QUEUES` from `config/queue.php` and Horizon's supervisors, for the [queue sizes](agent.md#queue-sizes) the agent reports.
+4. **Browser errors.** It lists the Blade views with a `</head>` (your layouts, or `app.blade.php` with Inertia) and puts `@lumberjack` before `</head>` in the ones you pick.
+5. **Health checks.** It suggests [checks](health-checks.md) from your config (the database, the cache store, Redis when the cache or queue uses it, remote disks, the queue, Horizon when installed, failed jobs, debug mode, migrations, mail over SMTP; every disk but `public` can be picked) and writes the ones you pick to `app/Providers/LumberjackServiceProvider.php`, registered in `bootstrap/providers.php`. Your `AppServiceProvider` is left alone. When the provider exists, it asks before writing it again.
 6. **The agent.** It asks how the app runs (Forge or Supervisor, systemd, Docker, Kubernetes) and prints the config to run [the agent](agent.md) with.
-7. **Check.** With the agent already running, it offers to send a test exception with `lumberjack:test`.
+7. **Check.** When `.env` changed, it tells you to restart the agent and run `lumberjack:test`. When nothing changed and the agent answers, it offers to send the test exception itself.
 
 Running it again changes nothing that is already set up, so it is safe to run to add what is missing.
 

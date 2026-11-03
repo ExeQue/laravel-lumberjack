@@ -49,7 +49,9 @@ export default defineConfig({
       {
         text: 'Around it',
         items: [
+          { text: 'Health checks', link: '/docs/health-checks' },
           { text: 'Reacting to alerts', link: '/docs/webhooks' },
+          { text: 'Testing your app', link: '/docs/testing' },
           { text: 'Artisan commands', link: '/docs/commands' },
           { text: 'Configuration', link: '/docs/configuration' },
           { text: 'Laravel Boost', link: '/docs/boost' },

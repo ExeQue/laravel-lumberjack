@@ -9,11 +9,11 @@ Sets Lumberjack up in the app: checks the URL and token with Lumberjack, writes 
 | `--url=` | The Lumberjack server's URL; `LUMBERJACK_URL` when left out |
 | `--token=` | The server token; `LUMBERJACK_TOKEN` when left out |
 | `--key=` | The public key, for browser errors; `LUMBERJACK_PUBLIC_KEY` when left out |
-| `--checks=` | Health checks, comma separated: `database`, `cache`, `redis`, `disk:<disk>`, `queue`, `queue:<connection>:<queue>`, `horizon`, `failed-jobs`, `debug-mode`, `migrations`, `mail`; `database:<connection>`, `cache:<store>`, `redis:<connection>` and `mail:<mailer>` name one. The suggested checks when left out |
-| `--layout=` | A view to put `@lumberjack` in, relative to the app's root; repeat it or separate with commas for more. `auto` uses the only layout with a `</head>` and stops, writing nothing, when there are several |
+| `--checks=` | Health checks, comma separated: `database`, `cache`, `redis`, `disk:<disk>`, `queue`, `horizon`, `failed-jobs`, `debug-mode`, `migrations`, `mail`. `database:<connection>`, `cache:<store>`, `redis:<connection>`, `queue:<connection>`, `queue:<connection>:<queue>`, `migrations:<connection>` and `mail:<mailer>` name one; `disk` always needs its disk. The suggested checks when left out. An unknown name stops the command before it writes anything |
+| `--layout=` | A view to put `@lumberjack` in, relative to the app's root or absolute; repeat it or separate with commas for more. A file that does not exist is skipped with a warning. `auto` uses the only view under `resources/views` with a `</head>` and no `@lumberjack` yet, does nothing when there is none, and stops, writing nothing, when there are several |
 | `--queues=` | `LUMBERJACK_QUEUES`, e.g. `default,redis:emails` |
 | `--no-verify` | Do not check the URL and token with Lumberjack |
-| `--force` | Replace values in `.env` and the provider without asking |
+| `--force` | Replace values in `.env` and rewrite the provider without asking |
 
 With `--no-interaction` it asks nothing: it uses the options and the suggested checks, leaves the views alone without `--layout`, keeps what exists without `--force`, and stops with exit code 1, writing nothing, when Lumberjack refuses the token or cannot be reached.
 
@@ -28,16 +28,16 @@ Runs [the agent](agent.md): it listens for the app's batches and sends them to L
 | `--port=2407` | The port to listen on (`LUMBERJACK_AGENT_PORT`) |
 | `--memory=128` | Exit past this many MB so a fresh agent starts; 0 is no limit (`LUMBERJACK_AGENT_MEMORY`) |
 
-It needs `LUMBERJACK_URL` and `LUMBERJACK_TOKEN`, and stops on `SIGTERM`, `SIGINT` or `SIGQUIT` after sending what it has.
+It needs `LUMBERJACK_URL` and `LUMBERJACK_TOKEN` and exits with 1 without them, or when it cannot listen on its port. With the `pcntl` extension it stops on `SIGTERM`, `SIGINT` or `SIGQUIT` after sending what it has; without it, use `lumberjack:terminate`. The agent records nothing of its own.
 
 ## `lumberjack:terminate`
 
-Asks the running agent to send what it has and exit, so the process manager starts it again with the new code. Use it after a deploy, like `horizon:terminate`. It talks to the agent over the same local port as the app.
+Asks the running agent to send what it has and exit, so the process manager starts it again with the new code. Use it after a deploy, like `horizon:terminate`. It talks to the agent over the same local port as the app. With no agent listening it says so and exits with 0, so a deploy script carries on.
 
 ## `lumberjack:health`
 
-Runs the [health checks](health-checks.md), sends their results and prints them. It exits with 1 when a check failed, for deploy scripts. `--check=<slug>` runs one check, `--no-fail` always exits with 0. The scheduler runs it on its own once checks are registered.
+Runs the [health checks](health-checks.md), sends their results and prints them. It exits with 1 when a check failed, for deploy scripts. `--check=<slug>` runs one check (an unknown slug exits with 1), `--no-fail` always exits with 0. With no checks registered it says so and exits with 0. Its own runs are not recorded as commands. The scheduler runs it on its own once checks are registered.
 
 ## `lumberjack:test`
 
-Sends a test exception through the agent, to check an install end to end. It fails with a hint when no agent answers.
+Sends a test exception through the agent, to check an install end to end. It fails with a hint when no agent answers, and when `LUMBERJACK_ENABLED` is `false`.

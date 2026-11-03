@@ -1,6 +1,6 @@
 # The agent
 
-The agent is a small process that runs next to the app. The app hands it each batch over TCP on `127.0.0.1:2407`, with a 50 ms connect timeout: if the agent does not answer, the batch is dropped and the app carries on. The agent collects the batches and sends them to Lumberjack every 5 seconds, or as soon as it holds 1 MB, gzipped and signed with the server token.
+The agent is a small process that runs next to the app. The app hands it each batch over TCP on `127.0.0.1:2407`, with a 50 ms connect timeout: if the agent does not answer, the batch is dropped and the app carries on. The agent collects the batches and sends them to Lumberjack every 5 seconds, or as soon as it holds 1 MB, gzipped, with the server token as a bearer token. A batch holds at most 1,000 events; more go in several.
 
 ```bash
 php artisan lumberjack:agent
@@ -21,14 +21,21 @@ stopwaitsecs=15
 user=www-data
 ```
 
-With systemd:
+With systemd, in `/etc/systemd/system/lumberjack-agent.service`, then `systemctl enable --now lumberjack-agent`:
 
 ```ini
+[Unit]
+Description=Lumberjack agent
+After=network.target
+
 [Service]
 ExecStart=/usr/bin/php /var/www/app/artisan lumberjack:agent
 Restart=always
 RestartSec=5
 User=www-data
+
+[Install]
+WantedBy=multi-user.target
 ```
 
 `php artisan lumberjack:install` prints these for your app's path, and the ones below.

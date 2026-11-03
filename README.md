@@ -27,6 +27,7 @@ Lumberjack::onException(PaymentGatewayException::class, [Status::New, Status::Es
 - [Browser errors](docs/browser.md)
 - [Health checks](docs/health-checks.md)
 - [Reacting to alerts](docs/webhooks.md)
+- [Testing your app](docs/testing.md)
 - [Artisan commands](docs/commands.md)
 - [Configuration](docs/configuration.md)
 - [Laravel Boost](docs/boost.md)

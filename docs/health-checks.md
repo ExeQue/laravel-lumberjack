@@ -112,7 +112,7 @@ final class LicenseServerCheck implements HealthCheck
 }
 ```
 
-`CheckResult::ok()`, `::warning()` and `::failed()` each take an optional message and metrics (name to number). With the trait, the slug defaults to the class name in kebab case (`license-server-check`).
+`CheckResult::ok()`, `::warning()` and `::failed()` each take an optional message and metrics (name to number). `CheckResult::threshold($value, $warnAt, $failAt, $message, $metrics)` picks one for a number: failed at `failAt`, a warning at `warnAt` (both inclusive, null for never), ok below. An exception thrown by a check fails it with the exception's message, or its class when the message is empty. With the trait, the slug defaults to the class name in kebab case (`license-server-check`).
 
 ### In config
 
@@ -181,7 +181,7 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 
 - **disk**: writes a `.lumberjack-health-<random>` file, reads it back and deletes it; metric `latency_ms`. For a `local` disk also `used_percent` of the disk its root is on, a warning at `warnAt` and failed at `failAt`. Failed when the disk is not configured or a step fails.
 - **database**: `select 1`; metric `latency_ms`, a warning above `maxLatencyMs`.
-- **cache**: puts, reads and forgets a random key.
+- **cache**: puts, reads and forgets a random key; metric `latency_ms`.
 - **redis**: `PING`; metric `latency_ms`.
 - **queue**: the queue's size (metric `size`), a warning at `warnAt` and failed at `failAt`.
 - **horizon**: failed when Horizon is not installed, no master supervisor runs or it is paused, as `horizon:status` sees it.
@@ -190,7 +190,7 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 - **migrations**: failed while migrations are pending (the migration files against the ones that ran, like `migrate:status`), or when the migrations table does not exist; metric `pending`.
 - **failedJobs**: jobs that failed within the last `withinMinutes`, through the app's failed job provider (`queue.failed`); metric `count`. Ok when failed jobs are not stored (driver `null`). The database providers are counted with a query; the others list every failed job.
 - **freshFile**: the newest file directly under `path` (or anywhere below it with `recursive: true`) is younger than `maxAgeMinutes`, e.g. the last backup; metric `age_minutes`. Failed when there is none.
-- **mail**: for an SMTP mailer, connects and logs in (EHLO, AUTH) and disconnects. Nothing is sent. Other mailers (log, array, SES, Postmark, ...) are ok with a message saying they are not checked.
+- **mail**: for an SMTP mailer, connects and logs in (EHLO, AUTH) and disconnects. Nothing is sent. Metric `latency_ms`. Other mailers (log, array, SES, Postmark, ...) are ok with a message saying they are not checked.
 
 ## Running
 
@@ -198,7 +198,7 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 php artisan lumberjack:health
 ```
 
-prints a table of every check (slug, status, message, duration) and sends the results. It exits with `1` when a check failed (a warning does not), so a deploy script can stop on it:
+prints a table of every check (slug, status, message, duration) and sends the results through [the agent](agent.md), like everything else the app records: they need the agent running, and nothing is sent while `LUMBERJACK_ENABLED` is `false`. It exits with `1` when a check failed (a warning does not), so a deploy script can stop on it:
 
 ```bash
 php artisan migrate --force
@@ -363,4 +363,4 @@ The run is recorded as an ordinary [scheduled task](recording.md), so Lumberjack
 
 ## Timeouts
 
-Each check gets `timeout` seconds. With the `pcntl` extension (the CLI usually has it) a check is stopped when the time is up and fails with "Timed out after N s.". Without `pcntl` a check that hangs cannot be stopped: it fails once it returns late, and one that never returns holds the run up until `withoutOverlapping`'s lock expires. The HTTP check also passes its timeout to the request itself.
+Each check gets `timeout` seconds; `0` turns its timeout off. With the `pcntl` extension (the CLI usually has it) a check is stopped when the time is up and fails with "Timed out after N s.". Without `pcntl` a check that hangs cannot be stopped: it fails once it returns late, and one that never returns holds the run up until `withoutOverlapping`'s lock expires. The HTTP check also passes its timeout to the request itself.

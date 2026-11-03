@@ -14,7 +14,7 @@ Lumberjack can send its alerts to your app, so the app can react: turn on a stat
 
 3. Pick which alerts go to the webhook in the project's rules, on the same page.
 
-The route exists only while `LUMBERJACK_WEBHOOK_ENABLED` is on, on the path `LUMBERJACK_WEBHOOK_PATH` gives (`lumberjack/webhook` by default). It sits outside the `web` middleware group, so there is no session and no CSRF token: the signature is the check.
+The route (`POST`, named `lumberjack.webhook`) exists only while `LUMBERJACK_WEBHOOK_ENABLED` is on, on the path `LUMBERJACK_WEBHOOK_PATH` gives (`lumberjack/webhook` by default). It sits outside the `web` middleware group, so there is no session and no CSRF token: the signature is the check.
 
 ## Handlers
 
@@ -37,7 +37,7 @@ public function boot(): void
 }
 ```
 
-Handlers run in the webhook's request; dispatch a job from them for anything slow. Every alert also fires `ExeQue\Lumberjack\Webhooks\AlertReceived`, for a listener that wants them all.
+Handlers are called through the container: the alert comes in as `$alert`, and any other type-hinted parameter is injected. `on()` and `onException()` return the handlers, so calls can be chained. Handlers run in the webhook's request; dispatch a job from them for anything slow. Every alert also fires `ExeQue\Lumberjack\Webhooks\AlertReceived`, for a listener that wants them all.
 
 ### Statuses
 

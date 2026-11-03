@@ -2,7 +2,7 @@
 
 Everything is grouped by a trace id: a request, a job, a command or a scheduled task gets one, and the queries, logs and exceptions it caused share it. In Lumberjack a trace shows all of them in order. A long-lived worker (Octane with Swoole, RoadRunner or FrankenPHP) gives every request its own trace too, and an exception carries the request being served; Octane is not required.
 
-Every kind has its own section in the [configuration](configuration.md), with an `enabled` switch and `ignore` lists that take `*` wildcards. Publish the config to change them:
+Every kind has its own section in the [configuration](configuration.md), with an `enabled` switch and `ignore` lists (most take `*` wildcards, see [Configuration](configuration.md#recording)). Publish the config to change them:
 
 ```bash
 php artisan vendor:publish --tag=lumberjack-config
@@ -91,7 +91,7 @@ Lumberjack marks a query an **N+1** when one request or job runs it 5 times or m
 
 ## Jobs
 
-Queued, processing, processed, released and failed, each job in its own trace, with its attempt, queue, duration and, when it fails, its exception.
+Queued, processing, processed, released and failed, each job in its own trace (a job on the `sync` connection stays in the trace of the request or command that ran it), with its attempt, queue, duration and, when it fails, its exception.
 
 When a job is queued, its public properties are sent along as parameters: scalars as they are, models as `App\Models\Order#42`, dates as ISO 8601, arrays and collections cut at 10 items, anything else as its class name. Jobs that implement `ShouldBeEncrypted` send none, and the rest is [scrubbed](#scrubbing) like any other context: a `$password` property goes as `[filtered]`.
 
@@ -134,7 +134,7 @@ in Lumberjack, so the trace shows it in order with the queries and log lines.
 
 | Kind | Recorded | Left out |
 |---|---|---|
-| `cache` | hit, miss, write and forget, with the key and store | the framework's own keys (`illuminate:*`, cache locks, Horizon, Pulse) |
+| `cache` | hit, miss, write and forget, with the key and store | the framework's own keys (`illuminate:*`, `framework/*`, cache locks, Lumberjack's own, Horizon, Pulse, Telescope) |
 | `http` | outgoing calls through Laravel's HTTP client: method, host and path, status, duration | the query string, headers and bodies |
 | `mail` | each message sent: the mailable class and how many recipients | addresses and the subject |
 | `notification` | each notification sent: its class and channel | the notifiable |
