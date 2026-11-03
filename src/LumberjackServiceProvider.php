@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack;
 
+use Closure;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
 use ExeQue\Lumberjack\Console\InstallCommand;
@@ -107,6 +108,8 @@ class LumberjackServiceProvider extends ServiceProvider
             (int) config('lumberjack.health.states.ttl', 30),
             (bool) config('lumberjack.health.states.pull', true),
             (int) config('lumberjack.health.states.memo', 5),
+            // In a web request a pull waits until the response is sent.
+            $app->runningInConsole() ? null : fn (Closure $pull) => $app->terminating(Safely::wrap($pull)),
         ));
 
         $this->app->singleton(BrowserScript::class, fn (Application $app): BrowserScript => new BrowserScript(

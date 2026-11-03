@@ -115,10 +115,10 @@ accessor, a `jsonSerialize()`) runs later, inside the app's terminate. A mistake
 Lumberjack's own config (a health check, a release resolver) is skipped and reported
 once, never thrown into the app's boot or scheduler.
 
-The one call the app may make itself is reading health states back when they are
-older than their ttl ([health checks](health-checks.md#reading-states)): at most once
-per ttl for everything that shares the cache, with a 2 s timeout, and a failure gives
-`Unknown`, never an exception.
+The one call the app may make itself is reading health states back when the agent
+has not kept them fresh ([health checks](health-checks.md#reading-states)): at most
+once per ttl for everything that shares the cache, with a 0.5 s timeout, after the
+response in a web request, and a failure gives `Unknown`, never an exception.
 
 ### In long-running processes
 

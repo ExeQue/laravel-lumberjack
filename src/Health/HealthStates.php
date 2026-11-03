@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Health;
 
+use Closure;
 use ExeQue\Lumberjack\Events\HealthStateChanged;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Cache\Repository;
@@ -14,17 +15,23 @@ use Throwable;
 
 /**
  * Where Lumberjack says this app's checks stand, kept in the app's cache. The agent
- * writes what its heartbeat gets back; when that is older than the ttl, the app asks
- * GET /api/health itself, at most once per ttl for everything sharing the cache. A
- * change of state dispatches HealthStateChanged in whichever process wrote it.
- * Reading never throws: without an answer a check is Unknown. Within a process, what
- * was read is kept for a few seconds (memo), so asking often costs one cache read.
+ * writes what its heartbeat gets back. Only when the agent has not done so lately and
+ * the states are older than the ttl does the app ask GET /api/health itself, at most
+ * once per ttl for everything sharing the cache, and never inside a web request: the
+ * stale states are read now and the pull runs after the response is sent (in the
+ * console, right away with a short timeout). A change of state dispatches
+ * HealthStateChanged in whichever process wrote it. Reading never throws: without an
+ * answer a check is Unknown. Within a process, what was read (or that the cache could
+ * not be read) is kept for a few seconds (memo), so asking often costs one cache read.
  */
 class HealthStates
 {
     public const string KEY = 'lumberjack:health:states';
 
-    public const int PULL_TIMEOUT = 2;
+    public const float PULL_TIMEOUT = 0.5;
+
+    /** States the agent wrote this recently need no pull: its heartbeat comes every minute. */
+    public const int AGENT_FRESH_SECONDS = 150;
 
     public function __construct(
         private readonly CacheFactory $cache,
@@ -37,6 +44,7 @@ class HealthStates
         private readonly int $ttl = 30,
         private readonly bool $pull = true,
         private readonly int $memo = 5,
+        private readonly ?Closure $later = null,
     ) {
     }
 
@@ -69,14 +77,20 @@ class HealthStates
         try {
             $stored = $this->read();
 
-            if ($this->pull && (int) ($stored['fetched_at'] ?? 0) < Carbon::now()->getTimestamp() - $this->ttl && $this->claimPull()) {
-                $this->pullNow();
-                $stored = $this->read();
+            if ($this->pull && $this->stale($stored) && $this->claimPull()) {
+                if ($this->later !== null) {
+                    // After the response; this request makes do with what is stored.
+                    ($this->later)(fn () => $this->pullNow());
+                } else {
+                    $this->pullNow();
+                    $stored = $this->read();
+                }
             }
 
             return $this->remember($this->snapshots($stored['checks'] ?? []));
         } catch (Throwable) {
-            return [];
+            // The cache is down: not asked again for $memo seconds.
+            return $this->remember([]);
         }
     }
 
@@ -85,8 +99,9 @@ class HealthStates
      * dispatches HealthStateChanged for each check whose state moved.
      *
      * @param  array<mixed>  $health
+     * @param  bool  $fromAgent  written by the agent's heartbeat, so no pull is needed for a while
      */
-    public function fill(array $health): void
+    public function fill(array $health, bool $fromAgent = false): void
     {
         $checks = [];
 
@@ -99,8 +114,14 @@ class HealthStates
             }
         }
 
-        $before = $this->snapshots($this->read()['checks'] ?? []);
-        $this->repository()->forever(self::KEY, ['fetched_at' => Carbon::now()->getTimestamp(), 'checks' => $checks]);
+        $stored = $this->read();
+        $before = $this->snapshots($stored['checks'] ?? []);
+        $now = Carbon::now()->getTimestamp();
+        $this->repository()->forever(self::KEY, array_filter([
+            'fetched_at' => $now,
+            'agent_at' => $fromAgent ? $now : ($stored['agent_at'] ?? null),
+            'checks' => $checks,
+        ], fn ($value): bool => $value !== null));
         $after = $this->snapshots($checks);
         $this->remember($after);
 
@@ -124,7 +145,7 @@ class HealthStates
         }
 
         try {
-            $response = $this->http->withToken($this->token)->timeout(self::PULL_TIMEOUT)->acceptJson()
+            $response = $this->http->withToken($this->token)->connectTimeout(self::PULL_TIMEOUT)->timeout(self::PULL_TIMEOUT)->acceptJson()
                 ->get($this->url.'/api/health', array_filter(['environment' => $this->environment]));
             $health = $response->successful() ? $response->json() : null;
 
@@ -138,6 +159,17 @@ class HealthStates
         } catch (Throwable) {
             return false;
         }
+    }
+
+    /**
+     * @param  array{fetched_at?: int, agent_at?: int, checks?: array<mixed>}  $stored
+     */
+    private function stale(array $stored): bool
+    {
+        $now = Carbon::now()->getTimestamp();
+
+        return (int) ($stored['fetched_at'] ?? 0) < $now - $this->ttl
+            && (int) ($stored['agent_at'] ?? 0) < $now - self::AGENT_FRESH_SECONDS;
     }
 
     /**
@@ -164,7 +196,7 @@ class HealthStates
     }
 
     /**
-     * @return array{fetched_at?: int, checks?: array<mixed>}
+     * @return array{fetched_at?: int, agent_at?: int, checks?: array<mixed>}
      */
     private function read(): array
     {

@@ -81,7 +81,7 @@ class AgentCommand extends Command
             fn (string $message) => $this->components->warn($message),
             // The environment, so the heartbeat's answer holds the health states of this app's.
             fn (): array => ['environment' => config('lumberjack.environment'), 'queues' => $queues->measure(), 'metrics' => $metrics->measure()],
-            fn (array $health) => $states->fill($health),
+            fn (array $health) => $states->fill($health, fromAgent: true),
         );
 
         if (extension_loaded('pcntl')) {

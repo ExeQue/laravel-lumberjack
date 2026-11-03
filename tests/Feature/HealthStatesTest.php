@@ -186,3 +186,37 @@ describe('HealthStateChanged', function () {
         Event::assertDispatched(HealthStateChanged::class, fn (HealthStateChanged $e): bool => $e->from === HealthState::Unknown && $e->to === HealthState::Down);
     });
 });
+
+describe('in the request path', function () {
+    it('does not pull while the agent keeps the states fresh', function () {
+        Http::fake();
+        app(HealthStates::class)->fill(($this->answer)('ok'), fromAgent: true);
+        $this->travel(90)->seconds();
+
+        expect(Lumberjack::health('disk:s3')->state())->toBe(HealthState::Ok);
+        Http::assertNothingSent();
+    });
+
+    it('serves the stale states at once and pulls after the response', function () {
+        Http::fake(['*/api/health*' => Http::response(($this->answer)('down'))]);
+        app(HealthStates::class)->fill(($this->answer)('ok'));
+        $this->travel(31)->seconds();
+        Event::fake([HealthStateChanged::class]);
+        $later = [];
+        $states = new HealthStates(app('cache'), app(Factory::class), app('events'), 'https://lumberjack.test', 'secret-token', 'testing', memo: 0, later: function (Closure $pull) use (&$later): void {
+            $later[] = $pull;
+        });
+
+        expect($states->get('disk:s3'))->toBe(HealthState::Ok)
+            ->and($later)->toHaveCount(1);
+        Http::assertNothingSent();
+        Event::assertNotDispatched(HealthStateChanged::class);
+
+        // The app terminates.
+        $later[0]();
+
+        expect($states->get('disk:s3'))->toBe(HealthState::Down);
+        Event::assertDispatched(HealthStateChanged::class);
+    });
+
+});

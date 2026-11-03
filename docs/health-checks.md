@@ -300,14 +300,16 @@ The states are kept in the app's cache, and filled two ways:
   agent writes them into the cache. The agent is a separate process, so the store
   must be one it shares with the app: redis, database, memcached, or file when they
   run on the same server. The array store does not work.
-- **By the app itself.** When the stored states are older than `health.states.ttl`
-  (30 seconds), the next read fetches `GET /api/health` with the server token, with a
-  2 second timeout. That happens at most once per ttl for everything sharing the
-  cache, whether Lumberjack answered or not, so a server that is down is not asked on
-  every request; in the meantime the last states stay in use. Set
-  `LUMBERJACK_HEALTH_STATES_PULL=false` to rely on the agent alone, or raise the ttl
-  above 60 seconds so the agent's heartbeat keeps the states fresh without the app
-  asking in between.
+- **By the app itself**, only when the agent has not written them for 150 seconds
+  (two and a half heartbeats) and they are older than `health.states.ttl` (30
+  seconds). Then the app fetches `GET /api/health` with the server token and a 0.5
+  second timeout. Never inside a web request: that request reads the stored (stale)
+  states at once, and the fetch runs after its response is sent, so a slow Lumberjack
+  never holds up a page and `HealthStateChanged` listeners run after the response too.
+  In a job or command the fetch runs right away. It happens at most once per ttl for
+  everything sharing the cache, whether Lumberjack answered or not, so a server that is
+  down is not asked on every request. Set `LUMBERJACK_HEALTH_STATES_PULL=false` to rely
+  on the agent alone.
 
 | Key | Env | Default | |
 |---|---|---|---|
@@ -319,7 +321,8 @@ The states are kept in the app's cache, and filled two ways:
 Asking is cheap. Lumberjack is asked at most once per ttl for everything that shares
 the cache, whether it answered or not, and within one process the states are kept for
 `memo` seconds, so a page that checks twenty slugs, or one slug in a loop, reads the
-cache once. A long-running process (a queue worker, Octane) sees a change up to `memo`
+cache once. A cache that cannot be read counts as no states for `memo` seconds too,
+so a cache outage is not retried on every call. A long-running process (a queue worker, Octane) sees a change up to `memo`
 seconds late.
 
 ### Reacting to a change
