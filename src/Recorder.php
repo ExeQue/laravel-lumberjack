@@ -168,7 +168,7 @@ class Recorder
 
         $this->client->send([
             'v' => 1,
-            'sdk' => ['name' => Client::SDK, 'version' => Client::VERSION],
+            'sdk' => ['name' => Client::SDK, 'version' => Client::version()],
             'environment' => $this->config['environment'] ?? null,
             'release' => $this->config['release'] ?? null,
             'host' => gethostname() ?: null,

@@ -19,7 +19,7 @@ describe('exceptions', function () {
 
         $payload = $this->agent->payloads[0];
         expect($payload)->toMatchArray(['v' => 1, 'environment' => 'testing', 'release' => 'abc123'])
-            ->and($payload['sdk'])->toBe(['name' => 'lumberjack.php.laravel', 'version' => ExeQue\Lumberjack\Support\Client::VERSION])
+            ->and($payload['sdk'])->toBe(['name' => 'lumberjack.php.laravel', 'version' => ExeQue\Lumberjack\Support\Client::version()])
             // The agent turns away data of another project by this mark; the token itself stays in the app.
             ->and($payload['project'])->toBe(ProjectFingerprint::of('secret-token'))
             ->and(json_encode($payload))->not->toContain('secret-token');

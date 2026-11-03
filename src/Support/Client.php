@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Support;
 
+use Composer\InstalledVersions;
 use Illuminate\Foundation\Application;
 
 /**
@@ -17,7 +18,20 @@ final class Client
 
     public const string AGENT = 'lumberjack-agent-php';
 
-    public const string VERSION = '0.1.0';
+    public const string PACKAGE = 'exeque/laravel-lumberjack';
+
+    private static ?string $version = null;
+
+    /**
+     * The installed version as Composer has it: "0.2.0" for a tag, "dev-main" for a
+     * branch, "dev" when Composer cannot tell.
+     */
+    public static function version(): string
+    {
+        return self::$version ??= ltrim((class_exists(InstalledVersions::class) && InstalledVersions::isInstalled(self::PACKAGE)
+            ? InstalledVersions::getPrettyVersion(self::PACKAGE)
+            : null) ?? 'dev', 'v');
+    }
 
     /**
      * @return array<string, array{name: string, version: string}>
@@ -25,8 +39,8 @@ final class Client
     public static function describe(): array
     {
         return [
-            'sdk' => ['name' => self::SDK, 'version' => self::VERSION],
-            'agent' => ['name' => self::AGENT, 'version' => self::VERSION],
+            'sdk' => ['name' => self::SDK, 'version' => self::version()],
+            'agent' => ['name' => self::AGENT, 'version' => self::version()],
             'runtime' => ['name' => 'php', 'version' => PHP_VERSION],
             'framework' => ['name' => 'laravel', 'version' => Application::VERSION],
         ];
