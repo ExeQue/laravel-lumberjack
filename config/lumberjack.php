@@ -74,6 +74,14 @@ return [
     ],
 
     /*
+     * Queues whose size the agent sends with its heartbeat every minute, so Lumberjack
+     * sees a backlog grow even when no worker runs: "connection:queue", or a queue on
+     * the default connection, e.g. ['default', 'redis:emails']. Empty: the default
+     * connection's default queue.
+     */
+    'queues' => array_values(array_filter(array_map(trim(...), explode(',', (string) env('LUMBERJACK_QUEUES', ''))))),
+
+    /*
      * What is recorded. Every "ignore" list takes * wildcards.
      */
     'requests' => [

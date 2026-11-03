@@ -109,6 +109,7 @@ Set it to `null` to send no release.
 | `agent.spool_path` | | `storage/lumberjack/spool` | Where unsent batches wait |
 | `agent.spool_max_bytes` | | 100 MB | Past this, the oldest batches go |
 | `agent.memory_limit` | `LUMBERJACK_AGENT_MEMORY` | `128` | MB before the agent exits for a fresh one; 0 is no limit |
+| `queues` | `LUMBERJACK_QUEUES` | the default queue | Queues whose size the heartbeat reports, comma separated in the env; see [Queue sizes](agent.md#queue-sizes) |
 
 ## Recording
 

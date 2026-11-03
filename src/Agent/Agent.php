@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack\Agent;
 
 use Closure;
 use ExeQue\Lumberjack\Support\Client;
+use Throwable;
 
 /**
  * Collects batches from one app's processes on this server and sends them on
@@ -52,6 +53,7 @@ class Agent
         private readonly ?string $name = null,
         private readonly ?string $project = null,
         private readonly ?Closure $warn = null,
+        private readonly ?Closure $status = null,
     ) {
         $this->lastFlush = microtime(true);
     }
@@ -114,8 +116,25 @@ class Agent
 
         if ($now - $this->lastHeartbeat >= self::HEARTBEAT_SECONDS) {
             $this->lastHeartbeat = $now;
-            $this->sender->heartbeat($this->host ?? (gethostname() ?: 'unknown'), Client::describe(), $this->name);
+            $this->sender->heartbeat($this->host ?? (gethostname() ?: 'unknown'), Client::describe(), $this->name, $this->status());
         }
+    }
+
+    /**
+     * What the heartbeat says about the app beyond being alive, e.g. queue sizes.
+     * A probe that fails costs its part, never the heartbeat.
+     *
+     * @return array<string, mixed>
+     */
+    private function status(): array
+    {
+        try {
+            $status = ($this->status)?->__invoke();
+        } catch (Throwable) {
+            return [];
+        }
+
+        return is_array($status) ? $status : [];
     }
 
     public function flush(float $now): void

@@ -9,7 +9,9 @@ use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Agent\Spool;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
+use ExeQue\Lumberjack\Support\QueueSizes;
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Http\Client\Factory as Http;
 use Symfony\Component\Console\Input\InputOption;
 
@@ -55,6 +57,8 @@ class AgentCommand extends Command
 
         stream_set_blocking($server, false);
 
+        $queues = new QueueSizes($this->laravel->make(QueueFactory::class), array_values(array_filter((array) config('lumberjack.queues', []), is_string(...))));
+
         $agent = new Agent(
             new Sender($http, $url, $token),
             new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes')),
@@ -63,6 +67,7 @@ class AgentCommand extends Command
             $this->agentName(),
             ProjectFingerprint::of($token),
             fn (string $message) => $this->components->warn($message),
+            fn (): array => ['queues' => $queues->measure()],
         );
 
         if (extension_loaded('pcntl')) {

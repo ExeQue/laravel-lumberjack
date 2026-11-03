@@ -79,3 +79,23 @@ Every minute the agent tells Lumberjack it is alive, with its host, its name and
 | Framework | `laravel` and the Laravel version |
 
 A project's settings show each agent as online while its heartbeat is recent, with what it runs (e.g. "Laravel 0.1.0 · PHP 8.5.1"). The ids stay the same when packages are renamed; SDKs for other languages follow the same `lumberjack.<language>.<integration>` scheme.
+
+## Queue sizes
+
+The heartbeat also carries the size of the app's queues, so Lumberjack sees a backlog grow even when every worker is dead and no job starts. By default that is the default connection's default queue. Name others in `lumberjack.queues`, as `connection:queue` or a queue on the default connection:
+
+```php
+'queues' => ['default', 'redis:emails', 'sqs:imports'],
+```
+
+or `LUMBERJACK_QUEUES=default,redis:emails` in `.env`.
+
+For each queue the agent sends:
+
+| Field | |
+|---|---|
+| `connection`, `queue` | Which queue |
+| `size` | Jobs on it, as `Queue::size()` counts them (pending, delayed and reserved on Redis) |
+| `oldest_age_s` | Seconds the oldest pending job has waited, where the driver can tell cheaply (Redis, database); otherwise `null` |
+
+A queue that cannot be measured (Redis is down, a connection that does not exist) is left out of that heartbeat; the heartbeat itself always goes out. The Jobs page shows the sizes, and a queue backlog alert can fire on them.
