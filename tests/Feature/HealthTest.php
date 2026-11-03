@@ -354,3 +354,31 @@ describe('built-in checks', function () {
             ->and(fn () => (new MailHealthCheck('smtp'))->run())->toThrow(Symfony\Component\Mailer\Exception\TransportException::class);
     });
 });
+
+describe('firing a check from the app', function () {
+    it('runs a registered check now and sends it, at most once per slug in the window', function () {
+        Lumberjack::health()->disk('s3', 3, 5);
+        Storage::fake('s3');
+
+        $result = Lumberjack::health()->run('disk:s3');
+        $again = Lumberjack::health()->run('disk:s3');
+
+        expect($result?->status)->toBe(CheckStatus::Ok)
+            ->and($again)->toBeNull()
+            ->and(healthEvents())->toHaveCount(1)
+            ->and(healthEvents()[0])->toMatchArray(['slug' => 'disk:s3', 'status' => 'ok', 'degrade_after' => 3, 'recover_after' => 5]);
+    });
+
+    it('reports a result the app found itself, with the check\'s thresholds', function () {
+        Lumberjack::health()->disk('s3', 3, 5);
+
+        expect(Lumberjack::health()->report('disk:s3', CheckResult::failed('Reading invoice.pdf failed')))->toBeTrue()
+            ->and(Lumberjack::health()->report('disk:s3', CheckResult::failed('again')))->toBeFalse()
+            ->and(healthEvents())->toHaveCount(1)
+            ->and(healthEvents()[0])->toMatchArray(['slug' => 'disk:s3', 'status' => 'failed', 'message' => 'Reading invoice.pdf failed', 'degrade_after' => 3]);
+    });
+
+    it('refuses a slug that is not registered', function () {
+        expect(fn () => Lumberjack::health()->run('disk:nope'))->toThrow(InvalidArgumentException::class, 'No health check [disk:nope] is registered.');
+    });
+});

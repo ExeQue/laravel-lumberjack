@@ -19,8 +19,10 @@ use ExeQue\Lumberjack\Health\Checks\MigrationsHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\QueueHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\RedisHealthCheck;
 use ExeQue\Lumberjack\Support\ContainerEntry;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * The checks from config and from Lumberjack::health(). Entries are kept as given and
@@ -29,6 +31,9 @@ use InvalidArgumentException;
  */
 final class HealthRegistry
 {
+    /** A check fired from the app runs at most this often. */
+    public const int FIRE_EVERY_SECONDS = 30;
+
     /** @var list<mixed> */
     private array $entries = [];
 
@@ -134,6 +139,46 @@ final class HealthRegistry
         return $this->add([MailHealthCheck::class, ...get_defined_vars()]);
     }
 
+    /**
+     * Runs a registered check now and sends its result, e.g. right after a read from
+     * the disk it watches failed. Null when the check ran within the last
+     * FIRE_EVERY_SECONDS, so a failure on a busy path does not run it on every request.
+     */
+    public function run(string $slug): ?CheckResult
+    {
+        $check = $this->find($slug);
+
+        if (! $this->mayFire($slug)) {
+            return null;
+        }
+
+        $runner = $this->container->make(HealthRunner::class);
+        $result = $runner->run($check);
+        $runner->record($check, $result);
+        $runner->flush();
+
+        return $result;
+    }
+
+    /**
+     * Sends a result the app found itself for a registered check, without running it;
+     * it counts toward degrading and recovering like any other. False when throttled.
+     */
+    public function report(string $slug, CheckResult $result): bool
+    {
+        $check = $this->find($slug);
+
+        if (! $this->mayFire($slug)) {
+            return false;
+        }
+
+        $runner = $this->container->make(HealthRunner::class);
+        $runner->record($check, $result);
+        $runner->flush();
+
+        return true;
+    }
+
     public function isEmpty(): bool
     {
         return $this->entries === [];
@@ -159,5 +204,23 @@ final class HealthRegistry
         }
 
         return $checks;
+    }
+
+    private function find(string $slug): HealthCheck
+    {
+        return $this->checks()[$slug] ?? throw new InvalidArgumentException("No health check [{$slug}] is registered.");
+    }
+
+    /**
+     * At most once per slug per FIRE_EVERY_SECONDS across processes, through the cache.
+     * A cache that is down itself (it may be what failed) does not stop the check.
+     */
+    private function mayFire(string $slug): bool
+    {
+        try {
+            return $this->container->make(CacheFactory::class)->store()->add('lumberjack:health:fired:'.$slug, true, self::FIRE_EVERY_SECONDS);
+        } catch (Throwable) {
+            return true;
+        }
     }
 }

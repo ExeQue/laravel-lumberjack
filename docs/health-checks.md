@@ -178,6 +178,40 @@ php artisan lumberjack:health || exit 1
 | `--check=<slug>` | Run only this check |
 | `--no-fail` | Exit with `0` even when a check failed |
 
+## Firing a check from your code
+
+When your app notices a problem itself, for example a read from S3 that throws, it
+does not have to wait for the next scheduled run. Run the registered check now:
+
+```php
+use ExeQue\Lumberjack\Facades\Lumberjack;
+
+try {
+    $pdf = Storage::disk('s3')->get($path);
+} catch (Throwable $e) {
+    Lumberjack::health()->run('disk:s3');
+
+    throw $e;
+}
+```
+
+Or send what you found without running the check:
+
+```php
+use ExeQue\Lumberjack\Health\CheckResult;
+
+Lumberjack::health()->report('disk:s3', CheckResult::failed("Reading {$path} failed: {$e->getMessage()}"));
+```
+
+Both take the slug of a registered check and send the result straight away, with that
+check's `degradeAfter` and `recoverAfter`. One failed result does not mark the check
+down on its own; it counts toward `degradeAfter` like a scheduled one.
+
+A busy code path can fail on every request, so each slug fires at most once every 30
+seconds (through the cache, across processes): `run()` then returns `null` and
+`report()` returns `false`. If the cache itself is down, the check fires anyway. A slug
+that is not registered throws an `InvalidArgumentException`.
+
 ## Scheduling
 
 With at least one check registered, the package adds `lumberjack:health` to your app's scheduler. It runs in the background, without overlapping, and on one server only. The scheduler itself must run (`schedule:run` from cron, or `schedule:work`).
