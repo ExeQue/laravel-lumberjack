@@ -16,7 +16,6 @@ use Illuminate\Http\Client\Events\ResponseReceived;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Redis\Events\CommandExecuted;
-use Illuminate\Support\Str;
 
 /**
  * The rest of what happens on a trace, as spans: cache reads and writes, outgoing HTTP,
@@ -29,6 +28,9 @@ class RecordsSpans
     /** Keys the framework and this package keep for themselves. */
     public const array FRAMEWORK_KEYS = ['illuminate:*', 'laravel_cache_lock:*', 'framework/*', 'lumberjack*', 'telescope:*', 'pulse:*', 'horizon:*'];
 
+    /** FRAMEWORK_KEYS and ignore_cache_keys as one expression, made once. */
+    private readonly string $ignoredKeys;
+
     /**
      * @param  array{cache?: bool, http?: bool, mail?: bool, notifications?: bool, redis?: bool, ignore_cache_keys?: list<string>}  $config
      */
@@ -36,6 +38,8 @@ class RecordsSpans
         private readonly Recorder $recorder,
         private readonly array $config,
     ) {
+        $patterns = array_map(fn (string $p): string => str_replace('\*', '.*', preg_quote($p, '#')), [...self::FRAMEWORK_KEYS, ...array_filter($config['ignore_cache_keys'] ?? [], 'is_string')]);
+        $this->ignoredKeys = '#^(?:'.implode('|', $patterns).')$#s';
     }
 
     public function subscribe(Dispatcher $events): void
@@ -67,7 +71,8 @@ class RecordsSpans
 
     public function cache(string $operation, string $key, ?string $store): void
     {
-        if (Str::is([...self::FRAMEWORK_KEYS, ...($this->config['ignore_cache_keys'] ?? [])], $key)) {
+        // Every cache hit comes here: the cheap check first.
+        if (! $this->recorder->capturing() || preg_match($this->ignoredKeys, $key) === 1) {
             return;
         }
 

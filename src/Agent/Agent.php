@@ -223,11 +223,17 @@ class Agent
             return;
         }
 
-        if ($this->sender->send($body) === SendResult::Retry) {
+        $result = $this->sender->send($body);
+
+        if ($result === SendResult::Retry) {
             $this->failed($now);
             $this->spool->push($body);
 
             return;
+        }
+
+        if ($result === SendResult::Rejected) {
+            $this->warnOnce('#rejected', 'Lumberjack refused a batch as such (a 4xx); it was dropped. Further refusals are not reported.');
         }
 
         $this->failures = 0;

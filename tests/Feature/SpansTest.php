@@ -73,3 +73,12 @@ describe('spans', function () {
         expect(collect($this->sentEvents('span'))->where('kind', 'cache'))->toBeEmpty();
     });
 });
+
+it('ignores cache keys outside a run before matching any pattern', function () {
+    app(Recorder::class)->capture(false);
+    cache()->put('orders:1', 'x');
+    cache()->get('orders:1');
+    app(ExeQue\Lumberjack\Recorder::class)->flush();
+
+    expect($this->sentEvents('span'))->toBe([]);
+});

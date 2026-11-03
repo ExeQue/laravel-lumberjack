@@ -72,8 +72,11 @@ final class EnvFile
 
     private static function quote(string $value): string
     {
-        return $value === '' || preg_match('/^[A-Za-z0-9_.,:\/@+\-]+$/', $value)
-            ? $value
-            : '"'.addcslashes($value, '"\\').'"';
+        if ($value === '' || preg_match('/^[A-Za-z0-9_.,:\/@+\-]+$/', $value)) {
+            return $value;
+        }
+
+        // \$ too, or phpdotenv would expand ${...} in a double-quoted value.
+        return '"'.addcslashes($value, '"\\$').'"';
     }
 }

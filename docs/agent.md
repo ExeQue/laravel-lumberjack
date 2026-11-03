@@ -114,7 +114,7 @@ or `LUMBERJACK_AGENT_NAME=queue` in `.env`.
 
 ## When Lumberjack is down
 
-A batch that cannot be sent is kept on disk in `storage/lumberjack/spool` (a directory only the agent's user can read, `0700`, with files `0600`: they hold the app's data), and tried again with a growing pause, up to 5 minutes. New batches wait behind it, so nothing arrives out of order. The spool holds at most 100 MB; past that, the oldest batches go first. When the spool cannot be written, the agent says so once in its output and in PHP's error log, and batches are dropped while Lumberjack is down. A batch Lumberjack refuses as such (a 4xx other than 401, 408 or 429) is dropped rather than tried forever.
+A batch that cannot be sent is kept on disk in `storage/lumberjack/spool` (a directory only the agent's user can read, `0700`, with files `0600`: they hold the app's data), and tried again with a growing pause, up to 5 minutes. New batches wait behind it, so nothing arrives out of order. The spool holds at most 100 MB; past that, the oldest batches go first. When the spool cannot be written, the agent says so once in its output and in PHP's error log, and batches are dropped while Lumberjack is down. A batch Lumberjack refuses as such (a 4xx other than 401, 408 or 429) is dropped rather than tried forever; the agent says so once in its output.
 
 The agent is one process with one thread: while it sends, it does not accept connections.
 That time is bounded. One send may take `agent.send_timeout` seconds (5, or
