@@ -7,12 +7,12 @@ namespace ExeQue\Lumberjack;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
-use ExeQue\Lumberjack\Contracts\ReleaseResolver;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
 use ExeQue\Lumberjack\Listeners\RecordsSpans;
 use ExeQue\Lumberjack\Logging\LumberjackHandler;
+use ExeQue\Lumberjack\Release\StackReleaseResolver;
 use ExeQue\Lumberjack\Support\CallerLocation;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
@@ -61,19 +61,7 @@ class LumberjackServiceProvider extends ServiceProvider
                 return $this->string('release');
             }
 
-            // A class, or [class, 'name' => value, ...] made by the container with those
-            // constructor parameters, plus the app's root as path.
-            $config = (array) config('lumberjack.release_resolver');
-            $class = $config[0] ?? null;
-            unset($config[0]);
-
-            if (! is_string($class) || $class === '') {
-                return null;
-            }
-
-            $resolver = $app->make($class, ['path' => $this->string('base_path') ?? $app->basePath(), ...$config]);
-
-            return $resolver instanceof ReleaseResolver ? $resolver->resolve() : null;
+            return StackReleaseResolver::make($app, config('lumberjack.release_resolver'), $this->string('base_path') ?? $app->basePath())?->resolve();
         });
 
         $this->app->singleton(Handlers::class);

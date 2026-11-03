@@ -16,7 +16,7 @@ php artisan vendor:publish --tag=lumberjack-config
 | `public_key` | `LUMBERJACK_PUBLIC_KEY` | | For [browser errors](browser.md); without it `@lumberjack` renders nothing |
 | `environment` | `LUMBERJACK_ENVIRONMENT` | `APP_ENV` | |
 | `release` | `LUMBERJACK_RELEASE` | | Wins over the resolver; see [Release](#release) |
-| `release_resolver` | | `GitReleaseResolver` | Works out the release when `LUMBERJACK_RELEASE` is empty; `FileReleaseResolver` reads a file |
+| `release_resolver` | | Git, then Composer | Works out the release when `LUMBERJACK_RELEASE` is empty; see [Release](#release) |
 | `announce` | `LUMBERJACK_ANNOUNCE` | `APP_DEBUG` | Whether the browser script says hello in the console |
 
 ## Release
@@ -25,9 +25,23 @@ Lumberjack tags every exception, request and job with the release, so it can tel
 an issue started or came back. `LUMBERJACK_RELEASE` sets it. When it is empty, the
 `release_resolver` works it out once per process.
 
-The default, `GitReleaseResolver`, reads the checked-out commit from the app's `.git`
-directory without running git. It follows branches (loose or packed refs), a detached
-HEAD and worktrees, and gives no release when there is no repository.
+The default tries two resolvers and uses the first that finds a release:
+
+```php
+'release_resolver' => [StackReleaseResolver::class, 'resolvers' => [
+    GitReleaseResolver::class,
+    ComposerReleaseResolver::class,
+]],
+```
+
+| Resolver | Release |
+|---|---|
+| `GitReleaseResolver` | The commit checked out in the app's `.git` directory, read without running git. Follows branches (loose or packed refs), a detached HEAD and worktrees. |
+| `ComposerReleaseResolver` | The commit `composer install` ran in, from `vendor/composer/installed.php`. Survives a deploy that copies the app without `.git`, as long as vendor was installed in a git checkout (e.g. on CI). |
+| `FileReleaseResolver` | The first line of a file the deploy writes. See below. |
+| `StackReleaseResolver` | The first release found by its `resolvers`, tried in order. Each entry is written like `release_resolver` itself. |
+
+All resolvers live in `ExeQue\Lumberjack\Release`.
 
 A deploy that copies files without `.git` (rsync, an artifact, a Docker image) can
 write the release to a file at build time and read it with `FileReleaseResolver`. The
@@ -38,8 +52,12 @@ git rev-parse HEAD > latest-release   # before rsync
 ```
 
 ```php
-// config/lumberjack.php
-'release_resolver' => [\ExeQue\Lumberjack\Release\FileReleaseResolver::class, 'file' => 'latest-release'],
+// config/lumberjack.php: the file first, then the defaults
+'release_resolver' => [StackReleaseResolver::class, 'resolvers' => [
+    [FileReleaseResolver::class, 'file' => 'latest-release'],
+    GitReleaseResolver::class,
+    ComposerReleaseResolver::class,
+]],
 ```
 
 It reads the first line of the file, and `REVISION` when no `file` is given. An

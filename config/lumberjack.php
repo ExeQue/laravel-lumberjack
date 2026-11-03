@@ -29,17 +29,21 @@ return [
     'release' => env('LUMBERJACK_RELEASE'),
 
     /*
-     * Works out the release when LUMBERJACK_RELEASE is empty. The default reads the
-     * commit from the app's .git directory. For a deploy without .git, read a file
-     * it writes, relative to the app's root:
+     * Works out the release when LUMBERJACK_RELEASE is empty: the first of these that
+     * finds one. Git reads the commit from .git; Composer the commit vendor was
+     * installed from, which survives a deploy without .git. A deploy can also write
+     * the release to a file:
      *
-     *     'release_resolver' => [FileReleaseResolver::class, 'file' => 'REVISION'],
+     *     [ExeQue\Lumberjack\Release\FileReleaseResolver::class, 'file' => 'REVISION'],
      *
-     * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works,
-     * as a class or [class, 'parameter' => value, ...] made by the container (it also
-     * gets the app's root as path); null sends none.
+     * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works, as a
+     * class or [class, 'parameter' => value, ...] made by the container (it also gets
+     * the app's root as path). Null sends no release.
      */
-    'release_resolver' => ExeQue\Lumberjack\Release\GitReleaseResolver::class,
+    'release_resolver' => [ExeQue\Lumberjack\Release\StackReleaseResolver::class, 'resolvers' => [
+        ExeQue\Lumberjack\Release\GitReleaseResolver::class,
+        ExeQue\Lumberjack\Release\ComposerReleaseResolver::class,
+    ]],
 
     /*
      * Whether the browser script says hello in the console. Off unless the

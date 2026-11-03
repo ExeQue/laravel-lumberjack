@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Release\ComposerReleaseResolver;
 use ExeQue\Lumberjack\Release\FileReleaseResolver;
 use ExeQue\Lumberjack\Release\GitReleaseResolver;
+use ExeQue\Lumberjack\Release\StackReleaseResolver;
 
 beforeEach(function () {
     $this->root = sys_get_temp_dir().'/lumberjack-git-'.bin2hex(random_bytes(4));
@@ -51,6 +53,32 @@ describe('the file release', function () {
 
         expect((new FileReleaseResolver($this->root))->resolve())->toBeNull()
             ->and((new FileReleaseResolver($this->root, 'missing'))->resolve())->toBeNull();
+    });
+});
+
+describe('the composer release', function () {
+    it('is the commit vendor was installed from, or nothing', function () {
+        $reference = Composer\InstalledVersions::getRootPackage()['reference'] ?? null;
+
+        expect((new ComposerReleaseResolver())->resolve())->toBe(is_string($reference) && strlen($reference) >= 40 ? $reference : null);
+    });
+});
+
+describe('the stack of resolvers', function () {
+    it('gives the first release one of them finds', function () {
+        file_put_contents($this->root.'/REVISION', 'from-the-file');
+        $stack = new StackReleaseResolver(app(), $this->root, [
+            GitReleaseResolver::class,
+            [FileReleaseResolver::class, 'file' => 'missing'],
+            FileReleaseResolver::class,
+            FixedRelease::class,
+        ]);
+
+        expect($stack->resolve())->toBe('from-the-file');
+    });
+
+    it('is nothing when none of them finds one', function () {
+        expect((new StackReleaseResolver(app(), $this->root, [GitReleaseResolver::class, [FileReleaseResolver::class, 'file' => 'missing']]))->resolve())->toBeNull();
     });
 });
 
