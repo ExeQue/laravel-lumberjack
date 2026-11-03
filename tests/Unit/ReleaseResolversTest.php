@@ -55,9 +55,9 @@ describe('the file release', function () {
 });
 
 describe('the configured release', function () {
-    it('passes the arguments after the class to it', function () {
+    it('makes the resolver with the parameters after the class', function () {
         file_put_contents($this->root.'/latest-release', 'abc123');
-        config(['lumberjack.release' => null, 'lumberjack.base_path' => $this->root, 'lumberjack.release_resolver' => [FileReleaseResolver::class, 'latest-release']]);
+        config(['lumberjack.release' => null, 'lumberjack.base_path' => $this->root, 'lumberjack.release_resolver' => [FileReleaseResolver::class, 'file' => 'latest-release']]);
         app()->forgetInstance('lumberjack.release');
 
         expect(app('lumberjack.release'))->toBe('abc123');

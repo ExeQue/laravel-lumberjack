@@ -33,10 +33,11 @@ return [
      * commit from the app's .git directory. For a deploy without .git, read a file
      * it writes, relative to the app's root:
      *
-     *     'release_resolver' => [FileReleaseResolver::class, 'REVISION'],
+     *     'release_resolver' => [FileReleaseResolver::class, 'file' => 'REVISION'],
      *
-     * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works, as
-     * a class or [class, ...arguments] (passed after the app's root); null sends none.
+     * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works,
+     * as a class or [class, 'parameter' => value, ...] made by the container (it also
+     * gets the app's root as path); null sends none.
      */
     'release_resolver' => ExeQue\Lumberjack\Release\GitReleaseResolver::class,
 

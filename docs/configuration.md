@@ -41,15 +41,16 @@ git rev-parse HEAD > latest-release   # before rsync
 // config/lumberjack.php
 use ExeQue\Lumberjack\Release\FileReleaseResolver;
 
-'release_resolver' => [FileReleaseResolver::class, 'latest-release'],
+'release_resolver' => [FileReleaseResolver::class, 'file' => 'latest-release'],
 ```
 
 It reads the first line of the file and defaults to `REVISION` without an argument.
 A missing or empty file means no release.
 
 Your own class works too: implement `ExeQue\Lumberjack\Contracts\ReleaseResolver` and
-set `release_resolver` to the class, or to `[Class::class, ...arguments]`. The
-arguments are passed to its constructor after the app's root.
+set `release_resolver` to the class, or to `[Class::class, 'parameter' => value]`.
+The container makes it with those constructor parameters, so other dependencies are
+injected, and passes the app's root as `path` if the constructor takes one.
 
 Set it to `null` to send no release.
 
