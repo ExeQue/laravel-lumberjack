@@ -15,8 +15,43 @@ php artisan vendor:publish --tag=lumberjack-config
 | `token` | `LUMBERJACK_TOKEN` | | The project's server token; only the agent uses it |
 | `public_key` | `LUMBERJACK_PUBLIC_KEY` | | For [browser errors](browser.md); without it `@lumberjack` renders nothing |
 | `environment` | `LUMBERJACK_ENVIRONMENT` | `APP_ENV` | |
-| `release` | `LUMBERJACK_RELEASE` | | E.g. the git sha |
+| `release` | `LUMBERJACK_RELEASE` | | Wins over the resolver; see [Release](#release) |
+| `release_resolver` | | `GitReleaseResolver` | Works out the release when `LUMBERJACK_RELEASE` is empty |
 | `announce` | `LUMBERJACK_ANNOUNCE` | `APP_DEBUG` | Whether the browser script says hello in the console |
+
+## Release
+
+Lumberjack tags every exception, request and job with the release, so it can tell when
+an issue started or came back. `LUMBERJACK_RELEASE` sets it. When it is empty, the
+`release_resolver` works it out once per process.
+
+The default, `GitReleaseResolver`, reads the checked-out commit from the app's `.git`
+directory without running git. It follows branches (loose or packed refs), a detached
+HEAD and worktrees, and gives no release when there is no repository.
+
+A deploy that copies files without `.git` (rsync, an artifact, a Docker image) can
+write the commit to a file at build time and read it with a resolver of its own:
+
+```php
+use ExeQue\Lumberjack\Contracts\ReleaseResolver;
+
+final class RevisionFileRelease implements ReleaseResolver
+{
+    public function resolve(): ?string
+    {
+        $file = base_path('REVISION'); // written by: git rev-parse HEAD > REVISION
+
+        return is_file($file) ? trim((string) file_get_contents($file)) : null;
+    }
+}
+```
+
+```php
+// config/lumberjack.php
+'release_resolver' => App\Support\RevisionFileRelease::class,
+```
+
+Set it to `null` to send no release.
 
 ## Agent
 

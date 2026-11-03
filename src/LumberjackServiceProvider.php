@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
+use ExeQue\Lumberjack\Contracts\ReleaseResolver;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
@@ -48,11 +49,24 @@ class LumberjackServiceProvider extends ServiceProvider
             $app->make(RecordingRules::class),
             [
                 'environment' => $this->string('environment'),
-                'release' => $this->string('release'),
+                'release' => $app->make('lumberjack.release'),
                 'project' => ProjectFingerprint::of($this->string('token')),
             ],
             (bool) config('lumberjack.enabled', true),
         ));
+
+        // LUMBERJACK_RELEASE, else what the configured resolver works out.
+        $this->app->singleton('lumberjack.release', function (Application $app): ?string {
+            $class = config('lumberjack.release_resolver');
+
+            if ($this->string('release') !== null || ! is_string($class) || $class === '') {
+                return $this->string('release');
+            }
+
+            $resolver = $app->make($class, ['path' => $this->string('base_path') ?? $app->basePath()]);
+
+            return $resolver instanceof ReleaseResolver ? $resolver->resolve() : null;
+        });
 
         $this->app->singleton(Handlers::class);
 
@@ -62,7 +76,7 @@ class LumberjackServiceProvider extends ServiceProvider
             $this->string('url') ?? '',
             $this->string('public_key'),
             $this->string('environment'),
-            $this->string('release'),
+            $app->make('lumberjack.release'),
             (bool) config('lumberjack.announce', false),
         ));
     }

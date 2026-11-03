@@ -35,8 +35,10 @@ Set the environment and release too, so Lumberjack can tell them apart:
 
 ```dotenv
 LUMBERJACK_ENVIRONMENT=production   # defaults to APP_ENV
-LUMBERJACK_RELEASE=2026.11.1        # e.g. the git sha of the deploy
+LUMBERJACK_RELEASE=2026.11.1        # optional: read from .git when empty
 ```
+
+Without `LUMBERJACK_RELEASE` the release is the commit in the app's `.git` directory. See [Release](configuration.md#release) for deploys without one.
 
 ## The agent
 

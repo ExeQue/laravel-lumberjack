@@ -29,6 +29,14 @@ return [
     'release' => env('LUMBERJACK_RELEASE'),
 
     /*
+     * Works out the release when LUMBERJACK_RELEASE is empty. The default reads the
+     * commit from the app's .git directory. Swap in any class implementing
+     * ExeQue\Lumberjack\Contracts\ReleaseResolver, e.g. one that reads a file your
+     * deploy writes, or null to send no release.
+     */
+    'release_resolver' => ExeQue\Lumberjack\Release\GitReleaseResolver::class,
+
+    /*
      * Whether the browser script says hello in the console. Off unless the
      * app runs with APP_DEBUG.
      */
