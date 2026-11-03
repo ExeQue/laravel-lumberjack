@@ -29,6 +29,7 @@ final class HealthRunner
         // ponytail: without pcntl a check that hangs is only failed once it returns.
         $alarm = $timeout > 0 && function_exists('pcntl_alarm') && function_exists('pcntl_async_signals');
         $start = hrtime(true);
+        $outer = 0;
 
         if ($alarm) {
             $async = pcntl_async_signals(true);
@@ -36,7 +37,13 @@ final class HealthRunner
             pcntl_signal(SIGALRM, function () use ($timeout): never {
                 throw new RuntimeException("Timed out after {$timeout} s.");
             });
-            pcntl_alarm($timeout);
+            // A queue worker's job timeout is an alarm too: it is never pushed back by the
+            // check, and is put back afterwards with what is left of it.
+            $outer = pcntl_alarm($timeout);
+
+            if ($outer > 0 && $outer < $timeout) {
+                pcntl_alarm($outer);
+            }
         }
 
         try {
@@ -48,6 +55,10 @@ final class HealthRunner
                 pcntl_alarm(0);
                 pcntl_signal(SIGALRM, $previous);
                 pcntl_async_signals($async);
+
+                if ($outer > 0) {
+                    pcntl_alarm(max(1, $outer - (int) ceil((hrtime(true) - $start) / 1e9)));
+                }
             }
         }
 

@@ -434,3 +434,20 @@ describe('firing a check from the app', function () {
             ->and(fn () => $handle->warning())->toThrow(InvalidArgumentException::class);
     });
 });
+
+describe('running a check inside a queue worker', function () {
+    it('keeps the job timeout alarm the worker set', function () {
+        if (! function_exists('pcntl_alarm')) {
+            $this->markTestSkipped('pcntl is not loaded.');
+        }
+
+        pcntl_alarm(120);
+
+        (new ExeQue\Lumberjack\Health\HealthRunner(app(ExeQue\Lumberjack\Recorder::class)))
+            ->run(new ExeQue\Lumberjack\Health\ClosureHealthCheck('quick', fn () => true));
+
+        $remaining = pcntl_alarm(0);
+
+        expect($remaining)->toBeGreaterThanOrEqual(118)->toBeLessThanOrEqual(120);
+    });
+});
