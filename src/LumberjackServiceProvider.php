@@ -34,6 +34,9 @@ use Throwable;
 
 class LumberjackServiceProvider extends ServiceProvider
 {
+    /** How long a health run may hold the scheduler's overlap lock. */
+    public const int HEALTH_LOCK_MINUTES = 5;
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/lumberjack.php', 'lumberjack');
@@ -148,7 +151,10 @@ class LumberjackServiceProvider extends ServiceProvider
                 return;
             }
 
-            $event = $schedule->command(HealthCommand::class)->cron($cron)->withoutOverlapping()->runInBackground();
+            // The overlap lock expires after a few minutes, not Laravel's default day: a run
+            // killed mid-way (a deploy, the OOM killer) never releases it, and checks would
+            // stop for a day. Checks time out long before this.
+            $event = $schedule->command(HealthCommand::class)->cron($cron)->withoutOverlapping(self::HEALTH_LOCK_MINUTES)->runInBackground();
 
             if ((bool) config('lumberjack.health.one_server', true)) {
                 $event->onOneServer();

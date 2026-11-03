@@ -198,6 +198,7 @@ describe('scheduling', function () {
         expect($task->expression)->toBe('*/5 * * * *')
             ->and($task->runInBackground)->toBeTrue()
             ->and($task->withoutOverlapping)->toBeTrue()
+            ->and($task->expiresAt)->toBe(5)
             ->and($task->onOneServer)->toBeTrue();
     });
 

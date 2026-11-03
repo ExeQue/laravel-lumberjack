@@ -214,7 +214,7 @@ that is not registered throws an `InvalidArgumentException`.
 
 ## Scheduling
 
-With at least one check registered, the package adds `lumberjack:health` to your app's scheduler. It runs in the background, without overlapping, and on one server only. The scheduler itself must run (`schedule:run` from cron, or `schedule:work`).
+With at least one check registered, the package adds `lumberjack:health` to your app's scheduler. It runs in the background, without overlapping, and on one server only. Its overlap lock expires after 5 minutes rather than Laravel's default day, so a run killed mid-way (a deploy, the OOM killer) holds up checks for minutes, not a day. The scheduler itself must run (`schedule:run` from cron, or `schedule:work`).
 
 | Key | Env | Default | |
 |---|---|---|---|
