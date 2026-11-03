@@ -31,6 +31,37 @@ RestartSec=5
 User=www-data
 ```
 
+`php artisan lumberjack:install` prints these for your app's path, and the ones below.
+
+### Docker and Kubernetes
+
+With Docker Compose, run the agent as its own service from the app's image. A container has its own `127.0.0.1`, so the agent listens on all of its addresses and the app sends to it by service name:
+
+```yaml
+services:
+  app:
+    environment:
+      LUMBERJACK_AGENT_HOST: lumberjack-agent
+  lumberjack-agent:
+    image: your-app-image   # the app's own image
+    command: php artisan lumberjack:agent --host=0.0.0.0
+    restart: unless-stopped
+```
+
+On Kubernetes, run it as a sidecar container in the app's pod. Containers in a pod share its network, so the app reaches it on `127.0.0.1` as usual:
+
+```yaml
+containers:
+  - name: lumberjack-agent
+    image: your-app-image   # the app's own image
+    command: ["php", "artisan", "lumberjack:agent"]
+    envFrom:
+      - secretRef:
+          name: your-app-env   # the same environment as the app
+```
+
+Either way the agent writes [health states](health-checks.md#reading-states) into the app's cache, so use a store both containers reach, such as Redis.
+
 Several apps on one server each run their own agent on their own port (`LUMBERJACK_AGENT_PORT`). An agent sends everything with the token of the app it runs in, so it serves one project. Each app marks what it hands the agent with a short fingerprint of its token (never the token itself), and an agent turns away data from an app of another project instead of sending it under the wrong token. It warns once per such project in its output:
 
 ```

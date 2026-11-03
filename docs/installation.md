@@ -18,9 +18,43 @@ composer require exeque/laravel-lumberjack
 
 The service provider and the `Lumberjack` facade register themselves.
 
-## The keys
+## Set it up
 
-Create a project in Lumberjack. Its settings page, under **Install**, shows the values for `.env`:
+Create a project in Lumberjack; its settings page shows the URL, the server token and the public key under **Install**. Then:
+
+```bash
+php artisan lumberjack:install
+```
+
+It asks for the three values and walks through the rest:
+
+1. **Connection.** It sends a heartbeat with the token to check the URL and token, and says why when that fails (Lumberjack cannot be reached, the token is refused, another answer), so you can enter them again or carry on. The project's agents in Lumberjack list that heartbeat as an agent named `lumberjack:install`.
+2. **`.env`.** It writes `LUMBERJACK_URL`, `LUMBERJACK_TOKEN` and `LUMBERJACK_PUBLIC_KEY`, and asks before replacing a value that is already there. The rest of the file stays as it was. It offers to add the keys to `.env.example` with empty values.
+3. **Browser errors.** It lists the Blade views with a `</head>` (your layouts, or `app.blade.php` with Inertia) and puts `@lumberjack` before `</head>` in the ones you pick.
+4. **Health checks.** It suggests [checks](health-checks.md) from your config (the database, the cache store, disks other than `local` and `public`, the queue, Horizon when installed, failed jobs, debug mode, migrations, mail over SMTP) and writes the ones you pick to `app/Providers/LumberjackServiceProvider.php`, registered in `bootstrap/providers.php`. Your `AppServiceProvider` is left alone.
+5. **Queues.** It suggests `LUMBERJACK_QUEUES` from `config/queue.php` and Horizon's supervisors, for the [queue sizes](agent.md#queue-sizes) the agent reports.
+6. **The agent.** It asks how the app runs (Forge or Supervisor, systemd, Docker, Kubernetes) and prints the config to run [the agent](agent.md) with.
+7. **Check.** With the agent already running, it offers to send a test exception with `lumberjack:test`.
+
+Running it again changes nothing that is already set up, so it is safe to run to add what is missing.
+
+### Without questions
+
+For a script or CI, pass the values as options:
+
+```bash
+php artisan lumberjack:install --no-interaction \
+    --url=https://lumberjack.example.com --token=lj_srv_... --key=pk_... \
+    --checks=database,cache,disk:s3,queue:redis:emails,failed-jobs \
+    --layout=resources/views/layouts/app.blade.php \
+    --queues=default,redis:emails
+```
+
+Without `--checks` it uses the suggested checks, without `--layout` it leaves the views alone, and without `--queues` it writes `LUMBERJACK_QUEUES` only when it found more than the default queue. A failed connection check stops it before anything is written; `--no-verify` skips the check. An existing value or provider is kept unless you pass `--force`. See [`lumberjack:install`](commands.md#lumberjack-install) for every option.
+
+## By hand
+
+Instead of the command, set the keys from the project's settings in `.env`:
 
 ```dotenv
 LUMBERJACK_URL=https://lumberjack.example.com
@@ -30,6 +64,10 @@ LUMBERJACK_PUBLIC_KEY=pk_...
 
 - `LUMBERJACK_TOKEN` is the server token. Only [the agent](agent.md) uses it, to send to Lumberjack.
 - `LUMBERJACK_PUBLIC_KEY` is for [browser errors](browser.md). Leave it out to send none.
+
+Put `@lumberjack` in the `<head>` of your layout for [browser errors](browser.md), and register [health checks](health-checks.md) in a service provider.
+
+## Environment and release
 
 Set the environment and release too, so Lumberjack can tell them apart:
 

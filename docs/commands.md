@@ -1,5 +1,22 @@
 # Artisan commands
 
+## `lumberjack:install`
+
+Sets Lumberjack up in the app: checks the URL and token with Lumberjack, writes the keys to `.env` (and `.env.example`), puts `@lumberjack` in your layouts, writes `app/Providers/LumberjackServiceProvider.php` with health checks and registers it, suggests the queues to watch and prints how to run the agent. See [Installation](installation.md#set-it-up). Running it again changes nothing that is already set up.
+
+| Option | |
+|---|---|
+| `--url=` | The Lumberjack server's URL; `LUMBERJACK_URL` when left out |
+| `--token=` | The server token; `LUMBERJACK_TOKEN` when left out |
+| `--key=` | The public key, for browser errors; `LUMBERJACK_PUBLIC_KEY` when left out |
+| `--checks=` | Health checks, comma separated: `database`, `cache`, `redis`, `disk:<disk>`, `queue`, `queue:<connection>:<queue>`, `horizon`, `failed-jobs`, `debug-mode`, `migrations`, `mail`; `database:<connection>`, `cache:<store>`, `redis:<connection>` and `mail:<mailer>` name one. The suggested checks when left out |
+| `--layout=` | A view to put `@lumberjack` in, relative to the app's root; repeat it or separate with commas for more |
+| `--queues=` | `LUMBERJACK_QUEUES`, e.g. `default,redis:emails` |
+| `--no-verify` | Do not check the URL and token with Lumberjack |
+| `--force` | Replace values in `.env` and the provider without asking |
+
+With `--no-interaction` it asks nothing: it uses the options and the suggested checks, leaves the views alone without `--layout`, keeps what exists without `--force`, and stops with exit code 1, writing nothing, when Lumberjack refuses the token or cannot be reached.
+
 ## `lumberjack:agent`
 
 Runs [the agent](agent.md): it listens for the app's batches and sends them to Lumberjack. Run it under Supervisor or systemd.

@@ -8,21 +8,9 @@ Requires PHP 8.3+ and Laravel 12 or 13.
 
 ```bash
 composer require exeque/laravel-lumberjack
-```
-
-```dotenv
-LUMBERJACK_URL=https://lumberjack.example.com
-LUMBERJACK_TOKEN=lj_srv_...
-LUMBERJACK_PUBLIC_KEY=pk_...
-```
-
-```bash
-php artisan lumberjack:agent   # under Supervisor or systemd
-php artisan lumberjack:test    # check it end to end
-```
-
-```blade
-@lumberjack {{-- in the <head> of your layout, for browser errors --}}
+php artisan lumberjack:install   # keys, browser script, health checks, how to run the agent
+php artisan lumberjack:agent     # under Supervisor or systemd
+php artisan lumberjack:test      # check it end to end
 ```
 
 ```php

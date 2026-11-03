@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack;
 
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
+use ExeQue\Lumberjack\Console\InstallCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
 use ExeQue\Lumberjack\Health\HealthRegistry;
@@ -107,7 +108,7 @@ class LumberjackServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([__DIR__.'/../config/lumberjack.php' => config_path('lumberjack.php')], 'lumberjack-config');
-            $this->commands([AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class]);
+            $this->commands([AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class]);
             $this->scheduleHealthChecks();
         }
 
