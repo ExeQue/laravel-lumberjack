@@ -180,7 +180,7 @@ All in `ExeQue\Lumberjack\Health\Checks`, each with a method of the same name on
 A null connection, store or mailer is the app's default. `warnAt` and `failAt` are inclusive and off when null.
 
 - **disk**: writes a `.lumberjack-health-<random>` file, reads it back and deletes it; metric `latency_ms`. For a `local` disk also `used_percent` of the disk its root is on, a warning at `warnAt` and failed at `failAt`. Failed when the disk is not configured or a step fails.
-- **database**: `select 1`; metric `latency_ms`, a warning above `maxLatencyMs`. It also reports what the server says about itself: `connections` (open, to this database), `max_connections` and `size_bytes` on PostgreSQL, MySQL and MariaDB, and the file's `size_bytes` on SQLite. A user without the rights to ask gives fewer figures; they never fail the check. `warnAtConnections` (a share, `0.8` is 80 %) warns when open connections reach that share of the limit.
+- **database**: `select 1`; metric `latency_ms`, a warning above `maxLatencyMs`. It also reports what the server says about itself: `connections` (the server's open client connections, every database, as the limit is the server's), `max_connections` and `size_bytes` (this connection's database only) on PostgreSQL, MySQL and MariaDB, and the file's `size_bytes` on SQLite. A user without the rights to ask gives fewer figures; they never fail the check. `warnAtConnections` (a share, `0.8` is 80 %) warns when open connections reach that share of the limit.
 - **cache**: puts, reads and forgets a random key; metric `latency_ms`.
 - **redis**: `PING`; metric `latency_ms`.
 - **queue**: the queue's size (metric `size`), a warning at `warnAt` and failed at `failAt`.

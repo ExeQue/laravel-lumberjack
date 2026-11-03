@@ -13,8 +13,9 @@ use Throwable;
 
 /**
  * The database answers `select 1`, in time. Along with it come what the server can tell
- * about itself: open connections against its limit and the database's size, for
- * PostgreSQL, MySQL and MariaDB; the file's size for SQLite. Those figures never fail
+ * about itself: the server's open client connections against its limit, and the size of
+ * this connection's database, for PostgreSQL, MySQL and MariaDB; the file's size for
+ * SQLite. Those figures never fail
  * the check, only the connection share past `warnAtConnections` turns it to a warning.
  */
 final class DatabaseHealthCheck implements HealthCheck
@@ -85,7 +86,8 @@ final class DatabaseHealthCheck implements HealthCheck
     private function postgres(Connection $db): array
     {
         $row = (array) $db->selectOne(
-            'select (select count(*) from pg_stat_activity where datname = current_database()) as connections,
+            // Connections are the server's, like its limit; the size is this database's.
+            'select (select count(*) from pg_stat_activity where backend_type = \'client backend\') as connections,
                 current_setting(\'max_connections\')::int as max_connections,
                 pg_database_size(current_database()) as size_bytes',
         );
