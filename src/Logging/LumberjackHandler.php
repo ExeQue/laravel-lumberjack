@@ -25,6 +25,21 @@ class LumberjackHandler extends AbstractProcessingHandler
         parent::__construct($level, $bubble);
     }
 
+    /**
+     * Without Monolog's formatting: the line is never written out as text, and a formatter
+     * would run the context's objects outside Safely. Processors run inside it.
+     */
+    public function handle(LogRecord $record): bool
+    {
+        if (! $this->isHandling($record)) {
+            return false;
+        }
+
+        Safely::run(fn () => $this->record($this->processors === [] ? $record : $this->processRecord($record)));
+
+        return $this->bubble === false;
+    }
+
     protected function write(LogRecord $record): void
     {
         Safely::run($this->record(...), $record);
@@ -32,6 +47,10 @@ class LumberjackHandler extends AbstractProcessingHandler
 
     private function record(LogRecord $record): void
     {
+        if (! $this->recorder->enabled()) {
+            return;
+        }
+
         $context = $record->context;
         $exception = $context['exception'] ?? null;
 

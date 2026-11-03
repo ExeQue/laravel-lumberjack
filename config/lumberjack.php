@@ -8,7 +8,9 @@ use ExeQue\Lumberjack\Release\GitReleaseResolver;
 return [
 
     /*
-     * Turns all recording off when false. The agent still runs.
+     * false turns Lumberjack off: nothing is recorded or sent, @lumberjack renders nothing,
+     * the health checks are not scheduled and the webhook route does not exist. The
+     * commands still run and say so; the agent waits to be stopped without sending.
      */
     'enabled' => env('LUMBERJACK_ENABLED', true),
 

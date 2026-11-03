@@ -107,9 +107,13 @@ drops the batch if the agent is not there. After a failed send a process stops t
 for 5 seconds, so a queue worker does not pay the timeout on every job while the agent
 is down; the first batch that gets through again carries a warning log line saying how
 many batches were dropped. Lumberjack being slow or down only reaches
-the agent, which spools. Recording itself is guarded too: a listener or the log
-handler that fails gives up on that one event, writes a line to PHP's error log and
-lets the app's request, job or command carry on.
+the agent, which spools. Recording itself is guarded too: a listener, the log
+handler, the browser script or the work done when the app terminates gives up when it
+fails, writes a line to PHP's error log and lets the app's request, job or command carry
+on. Context is made plain data when it is recorded, so nothing of the app's (a model
+accessor, a `jsonSerialize()`) runs later, inside the app's terminate. A mistake in
+Lumberjack's own config (a health check, a release resolver) is skipped and reported
+once, never thrown into the app's boot or scheduler.
 
 The one call the app may make itself is reading health states back when they are
 older than their ttl ([health checks](health-checks.md#reading-states)): at most once

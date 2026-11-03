@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Support;
 
 use Closure;
+use ExeQue\Lumberjack\Recorder;
+use Illuminate\Container\Container;
 use Throwable;
 
 /**
@@ -13,6 +15,28 @@ use Throwable;
  */
 final class Safely
 {
+    /** @var array<string, true> problems already reported by this process */
+    private static array $problems = [];
+
+    /**
+     * Something in Lumberjack's own setup is wrong (a bad health check, a release resolver
+     * that throws): said once per process, in PHP's error log and as an error in Lumberjack.
+     */
+    public static function problem(string $message): void
+    {
+        if (isset(self::$problems[$message])) {
+            return;
+        }
+
+        self::$problems[$message] = true;
+        @error_log($message);
+
+        try {
+            Container::getInstance()->make(Recorder::class)->record(['type' => 'log', 'level' => 'error', 'message' => $message]);
+        } catch (Throwable) {
+        }
+    }
+
     public static function run(callable $callback, mixed ...$arguments): void
     {
         try {

@@ -150,7 +150,7 @@ A `[class, 'parameter' => value, ...]` array is always one check, never a list. 
 
 The slug is the check's stable identity: Lumberjack keeps the history, alert state and display name by slug. Changing a slug starts a new check in Lumberjack. Set a display name for it in Lumberjack, not in the app.
 
-A slug is 1 to 100 characters of `a-z`, `0-9`, `:`, `.`, `_` and `-`, starting with a letter or digit. An invalid slug throws `ExeQue\Lumberjack\Exceptions\InvalidHealthCheckSlugException` when the check is registered. Set your own with `slug:`:
+A slug is 1 to 100 characters of `a-z`, `0-9`, `:`, `.`, `_` and `-`, starting with a letter or digit. An invalid slug given to `Lumberjack::healthChecks()` throws `ExeQue\Lumberjack\Exceptions\InvalidHealthCheckSlugException` when the check is registered. A bad entry in `lumberjack.health.checks` (an invalid slug, a class that does not exist, a parameter it does not take) never breaks the app's boot or scheduler: that check is skipped, and the problem is written once to PHP's error log and sent to Lumberjack as an error. Set your own with `slug:`:
 
 ```php
 Lumberjack::healthChecks()->disk('s3', slug: 'media-bucket');
@@ -198,7 +198,7 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 php artisan lumberjack:health
 ```
 
-prints a table of every check (slug, status, message, duration) and sends the results through [the agent](agent.md), like everything else the app records: they need the agent running, and nothing is sent while `LUMBERJACK_ENABLED` is `false`. It exits with `1` when a check failed (a warning does not), so a deploy script can stop on it:
+prints a table of every check (slug, status, message, duration) and sends the results through [the agent](agent.md), like everything else the app records: they need the agent running, and while `LUMBERJACK_ENABLED` is `false` it runs no checks and says so. It exits with `1` when a check failed (a warning does not), so a deploy script can stop on it:
 
 ```bash
 php artisan migrate --force

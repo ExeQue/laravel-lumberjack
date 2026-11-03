@@ -38,6 +38,10 @@ class AgentCommand extends Command
         // The agent must never report on itself.
         $recorder->disable();
 
+        if (! (bool) config('lumberjack.enabled', true)) {
+            return $this->idle();
+        }
+
         $url = (string) config('lumberjack.url');
         $token = (string) config('lumberjack.token');
 
@@ -157,6 +161,27 @@ class AgentCommand extends Command
                 $this->running = false;
             }
         }
+    }
+
+    /**
+     * Turned off: nothing to send, but a process manager would restart an agent that
+     * exits over and over, so it waits to be stopped.
+     */
+    private function idle(): int
+    {
+        $this->components->warn('Lumberjack is disabled (LUMBERJACK_ENABLED=false); the agent sends nothing and waits to be stopped.');
+
+        if (extension_loaded('pcntl')) {
+            $this->trap([SIGTERM, SIGINT, SIGQUIT], function (): void {
+                $this->running = false;
+            });
+        }
+
+        while ($this->running) {
+            sleep(1);
+        }
+
+        return self::SUCCESS;
     }
 
     private function agentName(): ?string

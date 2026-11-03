@@ -35,9 +35,10 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Request;
 use Illuminate\Log\LogManager;
 use Illuminate\Routing\Events\RouteMatched;
-use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\View\Compilers\BladeCompiler;
+use Monolog\Handler\NullHandler;
 use Monolog\Logger;
 use Throwable;
 
@@ -82,7 +83,13 @@ class LumberjackServiceProvider extends ServiceProvider
                 return $this->string('release');
             }
 
-            return StackReleaseResolver::make($app, config('lumberjack.release_resolver'), $this->string('base_path') ?? $app->basePath())?->resolve();
+            try {
+                return StackReleaseResolver::make($app, config('lumberjack.release_resolver'), $this->string('base_path') ?? $app->basePath())?->resolve();
+            } catch (Throwable $e) {
+                Safely::problem('Lumberjack could not work out the release: '.$e->getMessage());
+
+                return null;
+            }
         });
 
         $this->app->singleton(Handlers::class);
@@ -104,20 +111,41 @@ class LumberjackServiceProvider extends ServiceProvider
 
         $this->app->singleton(BrowserScript::class, fn (Application $app): BrowserScript => new BrowserScript(
             $app->make(Recorder::class),
-            $app->make('auth'),
             $this->string('url') ?? '',
             $this->string('public_key'),
             $this->string('environment'),
-            $app->make('lumberjack.release'),
             (bool) config('lumberjack.announce', false),
         ));
     }
 
     public function boot(): void
     {
+        $enabled = (bool) config('lumberjack.enabled', true);
+
         if ($this->app->runningInConsole()) {
             $this->publishes([__DIR__.'/../config/lumberjack.php' => config_path('lumberjack.php')], 'lumberjack-config');
+            // Also when turned off: they say so and do nothing.
             $this->commands([AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class]);
+        }
+
+        // Also when turned off, so @lumberjack still compiles (to nothing) and a log channel
+        // with the lumberjack driver still works (and drops what it gets).
+        $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade): void {
+            $blade->directive('lumberjack', fn (): string => '<?php echo app(\\'.BrowserScript::class.'::class)->render(); ?>');
+        });
+
+        $this->callAfterResolving('log', function (LogManager $log) use ($enabled): void {
+            $log->extend('lumberjack', fn (Application $app, array $config): Logger => new Logger('lumberjack', [
+                $enabled ? new LumberjackHandler($app->make(Recorder::class), $config['channel'] ?? null, $config['level'] ?? 'debug') : new NullHandler(),
+            ]));
+        });
+
+        // Off means off: no listeners, no scheduled checks, no webhook route, nothing resolved.
+        if (! $enabled) {
+            return;
+        }
+
+        if ($this->app->runningInConsole()) {
             $this->scheduleHealthChecks();
         }
 
@@ -127,20 +155,17 @@ class LumberjackServiceProvider extends ServiceProvider
             Route::post($this->string('webhook.path') ?? 'lumberjack/webhook', WebhookController::class)->name('lumberjack.webhook');
         }
 
-        Blade::directive('lumberjack', fn (): string => '<?php echo app(\\'.BrowserScript::class.'::class)->render(); ?>');
+        // Config the app wrote (rules, scrub patterns, release resolvers) is read here; a
+        // mistake in it costs the recording, never the app's boot.
+        Safely::run($this->record(...));
+    }
 
-        $this->callAfterResolving('log', function (LogManager $log): void {
-            $log->extend('lumberjack', fn (Application $app, array $config): Logger => new Logger('lumberjack', [
-                new LumberjackHandler($app->make(Recorder::class), $config['channel'] ?? null, $config['level'] ?? 'debug'),
-            ]));
-        });
-
+    /**
+     * Subscribes the listeners that record.
+     */
+    private function record(): void
+    {
         $recorder = $this->app->make(Recorder::class);
-
-        if (! $recorder->enabled()) {
-            return;
-        }
-
         $rules = $this->app->make(RecordingRules::class);
 
         if ($rules->exceptions) {
@@ -153,48 +178,56 @@ class LumberjackServiceProvider extends ServiceProvider
             });
         }
 
+        $events = $this->app->make('events');
         $context = $this->app->make(ExceptionContext::class);
-        $this->app->make('events')->listen(RouteMatched::class, Safely::wrap(fn (RouteMatched $e) => $context->serving($e->request)));
+        $events->listen(RouteMatched::class, Safely::wrap(fn (RouteMatched $e) => $context->serving($e->request)));
         // Octane's workers run in the console; exceptions still carry the request being served.
-        $this->app->make('events')->listen(RecordsLaravelEvents::OCTANE_REQUEST_RECEIVED, Safely::wrap(fn (object $e) => $context->serving(property_exists($e, 'request') && $e->request instanceof Request ? $e->request : null)));
-        $this->app->make('events')->listen(RecordsLaravelEvents::OCTANE_REQUEST_TERMINATED, Safely::wrap(function () use ($context, $recorder): void {
+        $events->listen(RecordsLaravelEvents::OCTANE_REQUEST_RECEIVED, Safely::wrap(fn (object $e) => $context->serving(property_exists($e, 'request') && $e->request instanceof Request ? $e->request : null)));
+        $events->listen(RecordsLaravelEvents::OCTANE_REQUEST_TERMINATED, Safely::wrap(function () use ($context, $recorder): void {
             $context->serving(null);
             $recorder->flush();
         }));
 
-        $this->app->make('events')->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
-        $this->app->make('events')->subscribe(new RecordsScheduledTasks($recorder, $rules));
-        $this->app->make('events')->subscribe(new RecordsSpans($recorder, (array) config('lumberjack.spans', [])));
+        $events->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
+        $events->subscribe(new RecordsScheduledTasks($recorder, $rules));
+        $events->subscribe(new RecordsSpans($recorder, (array) config('lumberjack.spans', [])));
 
         // Redis only reports its commands when asked to.
         if (config('lumberjack.spans.redis') && $this->app->bound('redis')) {
             $this->app->make('redis')->enableEvents();
         }
-        $this->app->make('events')->subscribe($commands = new RecordsCommands($recorder, $rules, $this->scheduledCommands(...)));
-        $this->app->terminating(fn () => $commands->finishOpen());
 
-        $this->app->terminating(fn () => $recorder->flush());
+        $events->subscribe($commands = new RecordsCommands($recorder, $rules, $this->scheduledCommands(...)));
+
+        // Inside the app's terminate: whatever goes wrong here stays here.
+        $this->app->terminating(Safely::wrap($commands->finishOpen(...)));
+        $this->app->terminating(Safely::wrap($recorder->flush(...)));
     }
 
     /**
-     * Runs lumberjack:health from the app's scheduler, once checks are registered.
+     * Runs lumberjack:health from the app's scheduler, once checks are registered. A
+     * broken health config never stops the app's own scheduled tasks.
      */
     private function scheduleHealthChecks(): void
     {
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $cron = $this->string('health.schedule');
+            try {
+                $cron = $this->string('health.schedule');
 
-            if ($cron === null || $this->app->make(HealthRegistry::class)->isEmpty()) {
-                return;
-            }
+                if ($cron === null || $this->app->make(HealthRegistry::class)->isEmpty()) {
+                    return;
+                }
 
-            // The overlap lock expires after a few minutes, not Laravel's default day: a run
-            // killed mid-way (a deploy, the OOM killer) never releases it, and checks would
-            // stop for a day. Checks time out long before this.
-            $event = $schedule->command(HealthCommand::class)->cron($cron)->withoutOverlapping(self::HEALTH_LOCK_MINUTES)->runInBackground();
+                // The overlap lock expires after a few minutes, not Laravel's default day: a run
+                // killed mid-way (a deploy, the OOM killer) never releases it, and checks would
+                // stop for a day. Checks time out long before this.
+                $event = $schedule->command(HealthCommand::class)->cron($cron)->withoutOverlapping(self::HEALTH_LOCK_MINUTES)->runInBackground();
 
-            if ((bool) config('lumberjack.health.one_server', true)) {
-                $event->onOneServer();
+                if ((bool) config('lumberjack.health.one_server', true)) {
+                    $event->onOneServer();
+                }
+            } catch (Throwable $e) {
+                Safely::problem('Lumberjack could not schedule its health checks: '.$e->getMessage());
             }
         });
     }

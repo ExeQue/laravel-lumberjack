@@ -19,8 +19,10 @@ use ExeQue\Lumberjack\Health\Checks\MigrationsHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\QueueHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\RedisHealthCheck;
 use ExeQue\Lumberjack\Support\ContainerEntry;
+use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Contracts\Container\Container;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * The checks from config and from Lumberjack::healthChecks(). Entries are kept as given and
@@ -39,7 +41,15 @@ final class HealthRegistry
         private readonly Container $container,
         array $entries = [],
     ) {
-        $this->add(...array_values($entries));
+        // From config: a bad entry is reported and skipped, never thrown into the app's boot
+        // or scheduler. Lumberjack::healthChecks()->add() still throws, at the line that is wrong.
+        foreach ($entries as $entry) {
+            try {
+                $this->add($entry);
+            } catch (Throwable $e) {
+                Safely::problem('Lumberjack skipped a health check in lumberjack.health.checks: '.$e->getMessage());
+            }
+        }
     }
 
     /**
@@ -150,13 +160,19 @@ final class HealthRegistry
         $checks = [];
 
         foreach ($this->entries as $entry) {
-            $check = ContainerEntry::make($this->container, $entry);
+            // One check that cannot be made (a class that is gone, a bad parameter) is
+            // reported and skipped; the others still run.
+            try {
+                $check = ContainerEntry::make($this->container, $entry);
 
-            if (! $check instanceof HealthCheck) {
-                throw new InvalidArgumentException(sprintf('Health check [%s] does not implement %s.', is_object($entry) ? $entry::class : json_encode($entry), HealthCheck::class));
+                if (! $check instanceof HealthCheck) {
+                    throw new InvalidArgumentException(sprintf('Health check [%s] does not implement %s.', is_object($entry) ? $entry::class : json_encode($entry), HealthCheck::class));
+                }
+
+                $checks[$check->slug()] = $check;
+            } catch (Throwable $e) {
+                Safely::problem('Lumberjack skipped a health check: '.$e->getMessage());
             }
-
-            $checks[$check->slug()] = $check;
         }
 
         return $checks;

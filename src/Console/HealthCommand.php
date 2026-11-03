@@ -21,6 +21,12 @@ class HealthCommand extends Command
 
     public function handle(HealthRegistry $registry, HealthRunner $runner): int
     {
+        if (! (bool) config('lumberjack.enabled', true)) {
+            $this->components->info('Lumberjack is disabled (LUMBERJACK_ENABLED=false); no checks run.');
+
+            return self::SUCCESS;
+        }
+
         $checks = $registry->checks();
         $only = $this->option('check');
 
