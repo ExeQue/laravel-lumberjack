@@ -1,6 +1,8 @@
 domains:
   - laravel-lumberjack
 secured: true
+services:
+  - rustfs
 workers:
   - agent
   - queue

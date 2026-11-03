@@ -23,5 +23,7 @@ Route::post('/demo/health/break', [DemoController::class, 'breakHealth']);
 Route::post('/demo/health/fix', [DemoController::class, 'fixHealth']);
 Route::post('/demo/health/run', [DemoController::class, 'runHealth']);
 Route::post('/demo/health/report', [DemoController::class, 'reportHealth']);
+Route::post('/demo/rustfs/break', [DemoController::class, 'breakRustfs']);
+Route::post('/demo/rustfs/fix', [DemoController::class, 'fixRustfs']);
 Route::post('/demo/queue/flood', [DemoController::class, 'floodQueue']);
 Route::post('/demo/queue/drain', [DemoController::class, 'drainQueue']);

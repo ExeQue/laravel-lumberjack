@@ -154,6 +154,20 @@ class DemoController
         return $this->done('The payments-api health check passes again; it is recovering until 3 runs pass.');
     }
 
+    public function breakRustfs(): RedirectResponse
+    {
+        touch(WorkbenchServiceProvider::path('storage/rustfs-down'));
+
+        return $this->done('disk:rustfs now writes to a bucket that does not exist; it degrades after 2 runs and goes down after 5.');
+    }
+
+    public function fixRustfs(): RedirectResponse
+    {
+        @unlink(WorkbenchServiceProvider::path('storage/rustfs-down'));
+
+        return $this->done('disk:rustfs writes to its bucket again; it is recovering until 5 runs pass.');
+    }
+
     /**
      * Fires a registered check now instead of waiting for the scheduler.
      */

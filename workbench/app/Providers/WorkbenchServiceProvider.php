@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Workbench\App\Listeners\LogHealthStateChange;
 
@@ -53,6 +54,19 @@ class WorkbenchServiceProvider extends ServiceProvider
         config()->set('queue.default', 'database');
         config()->set('queue.connections.database', ['driver' => 'database', 'connection' => 'workbench', 'table' => 'jobs', 'queue' => 'default', 'retry_after' => 90]);
         config()->set('queue.failed.driver', 'null');
+
+        // A bucket on lerd's RustFS service, for the disk:rustfs health check. RUSTFS_*,
+        // not AWS_*: Testbench's skeleton .env already sets those empty. The demo's
+        // Break button points the disk at a bucket that does not exist.
+        config()->set('filesystems.disks.rustfs', [
+            'driver' => 's3',
+            'key' => env('RUSTFS_KEY', 'lerd'),
+            'secret' => env('RUSTFS_SECRET', 'lerdpassword'),
+            'region' => env('RUSTFS_REGION', 'us-east-1'),
+            'bucket' => is_file(self::path('storage/rustfs-down')) ? 'lumberjack-workbench-missing' : env('RUSTFS_BUCKET', 'lumberjack-workbench'),
+            'endpoint' => env('RUSTFS_ENDPOINT', 'http://lerd-rustfs:9000'),
+            'use_path_style_endpoint' => true,
+        ]);
     }
 
     public function boot(): void
@@ -67,6 +81,24 @@ class WorkbenchServiceProvider extends ServiceProvider
 
         Artisan::command('demo:broken', fn (): int => 1)->purpose('A task that always fails');
 
+        Artisan::command('demo:bucket', function (): int {
+            /** @var \Illuminate\Filesystem\AwsS3V3Adapter $disk */
+            $disk = Storage::disk('rustfs');
+            // The real bucket, also while the demo has the disk broken.
+            $bucket = (string) env('RUSTFS_BUCKET', 'lumberjack-workbench');
+
+            if ($disk->getClient()->doesBucketExistV2($bucket)) {
+                $this->info("Bucket [{$bucket}] already exists.");
+
+                return 0;
+            }
+
+            $disk->getClient()->createBucket(['Bucket' => $bucket]);
+            $this->info("Created bucket [{$bucket}].");
+
+            return 0;
+        })->purpose('Create the RustFS bucket the disk:rustfs check writes to');
+
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
             $schedule->command('demo:report')->everyMinute();
             $schedule->command('demo:broken')->everyFiveMinutes();
@@ -78,6 +110,9 @@ class WorkbenchServiceProvider extends ServiceProvider
             ->database()
             ->cache()
             ->disk('local')
+            ->disk('rustfs')
+            // The bulk queue no worker runs: the demo's Flood button puts 1200 jobs on it.
+            ->queue('database', queue: 'bulk', warnAt: 100, failAt: 1000)
             ->debugMode(environments: ['production'])
             ->check('payments-api', fn (): bool => ! is_file(self::path('storage/payments-down')), 2, 3);
 

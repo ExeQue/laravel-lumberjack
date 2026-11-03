@@ -93,12 +93,14 @@
 
     <section>
         <h2>Health</h2>
-        <p>database, cache, disk:local and payments-api run every minute from the scheduler. payments-api fails while it is broken.</p>
+        <p>database, cache, disk:local, disk:rustfs (a bucket on lerd's RustFS), queue:database:bulk (a warning at 100 jobs, failed at 1000) and payments-api run every minute from the scheduler. payments-api and disk:rustfs fail while they are broken; so does disk:rustfs while RustFS is stopped, and queue:database:bulk while the bulk queue is flooded.</p>
         <div class="actions">
             <form method="post" action="/demo/health/break">@csrf<button>Break payments-api</button></form>
             <form method="post" action="/demo/health/fix">@csrf<button>Fix payments-api</button></form>
             <form method="post" action="/demo/health/run">@csrf<button>Run payments-api now</button></form>
             <form method="post" action="/demo/health/report">@csrf<button>Report a failed disk read</button></form>
+            <form method="post" action="/demo/rustfs/break">@csrf<button>Break disk:rustfs</button></form>
+            <form method="post" action="/demo/rustfs/fix">@csrf<button>Fix disk:rustfs</button></form>
         </div>
         <p style="margin-top: 14px">As Lumberjack says they stand, from <code>Lumberjack::healthStates()</code>. Each change is logged to the Logs page.</p>
         <table>

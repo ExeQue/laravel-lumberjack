@@ -4,7 +4,7 @@ Keep a change small and covered by tests. CI checks the formatting, runs static 
 
 ## The workbench
 
-The workbench is a small demo app that sends to a local Lumberjack: buttons for an exception, an N+1, a slow request, log lines, a job and a failing job, plus browser errors through `@lumberjack`.
+The workbench is a small demo app that sends to a local Lumberjack: buttons for an exception, an N+1, a slow request, log lines, a job and a failing job, health checks to break and fix (one of them on a RustFS bucket), plus browser errors through `@lumberjack`.
 
 1. Seed your local Lumberjack (`php artisan migrate:fresh --seed`), or create a project there and add `https://laravel-lumberjack.test` to its allowed origins.
 2. Copy `.env.example` to `.env`. It holds the keys of the Demo project that Lumberjack's seeder creates; for another project, use the keys from its settings page.
@@ -21,6 +21,16 @@ lerd worker start queue
 
 Under WSL, run `lerd wsl-hosts:sync` once so the domain resolves.
 
+`.lerd.yaml` also asks for lerd's RustFS service (S3 compatible object storage), which lerd starts with the site. The workbench's `rustfs` disk points at a bucket on it, with lerd's default local credentials in `.env.example` (`RUSTFS_*`; not `AWS_*`, which Testbench's skeleton already sets empty). Create the bucket once; running it again does nothing:
+
+```bash
+php vendor/bin/testbench demo:bucket
+```
+
+The `disk:rustfs` health check writes, reads back and deletes a file in that bucket every minute. To see it fail, press "Break disk:rustfs" on the demo page (the disk then points at a bucket that does not exist), or stop RustFS with `lerd service stop rustfs`. `php` through lerd's shim starts the site's services again, so while it is stopped leave the runs to the scheduler worker.
+
+The `queue:database:bulk` health check watches the size of the bulk queue, which no worker runs: a warning at 100 jobs, failed at 1000. "Flood the bulk queue" on the demo page puts 1200 jobs on it, so the check degrades after 2 runs and goes down after 5; "Drain the bulk queue" empties it and the check recovers after 5 good runs.
+
 ### Without lerd
 
 ```bash
@@ -31,6 +41,8 @@ composer serve
 ```
 
 Open `http://localhost:8000`.
+
+Without lerd's RustFS, run any S3 compatible store (e.g. `docker run -p 9000:9000 rustfs/rustfs`) and set `RUSTFS_ENDPOINT` and the keys in `.env`; otherwise `disk:rustfs` just fails.
 
 ## Checks
 
