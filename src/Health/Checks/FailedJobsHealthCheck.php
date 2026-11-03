@@ -22,6 +22,7 @@ final class FailedJobsHealthCheck implements HealthCheck
     public function __construct(
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly int $withinMinutes = 60,
         private readonly int $warnAt = 1,
         private readonly ?int $failAt = null,

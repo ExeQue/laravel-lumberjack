@@ -22,6 +22,7 @@ final class DiskHealthCheck implements HealthCheck
         private readonly string $disk,
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly ?int $warnAt = null,
         private readonly ?int $failAt = null,
         private readonly int $timeout = 10,

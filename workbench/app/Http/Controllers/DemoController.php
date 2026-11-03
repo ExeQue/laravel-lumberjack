@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Workbench\App\Http\Controllers;
 
 use ExeQue\Lumberjack\Facades\Lumberjack;
-use ExeQue\Lumberjack\Health\CheckResult;
 use Illuminate\Auth\GenericUser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Artisan;
@@ -145,14 +144,14 @@ class DemoController
     {
         touch(WorkbenchServiceProvider::path('storage/payments-down'));
 
-        return $this->done('The payments-api health check now fails; it degrades after 2 runs.');
+        return $this->done('The payments-api health check now fails; it degrades after 2 runs and goes down after 5.');
     }
 
     public function fixHealth(): RedirectResponse
     {
         @unlink(WorkbenchServiceProvider::path('storage/payments-down'));
 
-        return $this->done('The payments-api health check passes again; it recovers after 3 runs.');
+        return $this->done('The payments-api health check passes again; it is recovering until 3 runs pass.');
     }
 
     /**
@@ -160,7 +159,7 @@ class DemoController
      */
     public function runHealth(): RedirectResponse
     {
-        $result = Lumberjack::health()->run('payments-api');
+        $result = Lumberjack::health('payments-api')->run();
 
         return $this->done($result === null
             ? 'payments-api already ran in the last 30 seconds.'
@@ -172,7 +171,7 @@ class DemoController
      */
     public function reportHealth(): RedirectResponse
     {
-        $sent = Lumberjack::health()->report('disk:local', CheckResult::failed('Reading invoices/2026-11.pdf failed'));
+        $sent = Lumberjack::health('disk:local')->failed('Reading invoices/2026-11.pdf failed');
 
         return $this->done($sent ? 'Reported a failed read on disk:local.' : 'disk:local was already reported in the last 30 seconds.');
     }

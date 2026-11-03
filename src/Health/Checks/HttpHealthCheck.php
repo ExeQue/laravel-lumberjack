@@ -18,6 +18,7 @@ final class HttpHealthCheck implements HealthCheck
         private readonly string $url,
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly int $status = 200,
         private readonly ?int $maxLatencyMs = null,
         private readonly string $method = 'GET',

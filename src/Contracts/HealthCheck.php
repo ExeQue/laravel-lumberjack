@@ -8,7 +8,9 @@ use ExeQue\Lumberjack\Health\CheckResult;
 
 /**
  * One thing lumberjack:health checks. Lumberjack marks it degraded after
- * degradeAfter() failed runs in a row, and healthy again after recoverAfter() good ones.
+ * degradeAfter() bad runs in a row (warnings or failures), down after downAfter()
+ * failed runs in a row (never fewer than degradeAfter()), and healthy again after
+ * recoverAfter() good ones.
  */
 interface HealthCheck
 {
@@ -20,6 +22,8 @@ interface HealthCheck
     public function degradeAfter(): int;
 
     public function recoverAfter(): int;
+
+    public function downAfter(): int;
 
     /** Seconds the check may take before it counts as failed. */
     public function timeout(): int;

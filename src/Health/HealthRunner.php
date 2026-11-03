@@ -71,6 +71,7 @@ final class HealthRunner
             'duration_ms' => $result->durationMs,
             'degrade_after' => $check->degradeAfter(),
             'recover_after' => $check->recoverAfter(),
+            'down_after' => $check->downAfter(),
         ]);
     }
 

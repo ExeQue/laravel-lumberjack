@@ -146,7 +146,8 @@ See [Health checks](health-checks.md).
 |---|---|---|---|
 | `health.schedule` | `LUMBERJACK_HEALTH_SCHEDULE` | `* * * * *` | When the scheduler runs `lumberjack:health`; null to leave it out |
 | `health.one_server` | `LUMBERJACK_HEALTH_ONE_SERVER` | `true` | Run it on one server only |
-| `health.checks` | | `[]` | Checks, besides those registered with `Lumberjack::health()` |
+| `health.checks` | | `[]` | Checks, besides those registered with `Lumberjack::healthChecks()` |
+| `health.cooldown` | `LUMBERJACK_HEALTH_COOLDOWN` | `30` | Seconds between results fired from code with `Lumberjack::health($slug)`, per slug; `0` turns it off |
 
 ## Webhook
 

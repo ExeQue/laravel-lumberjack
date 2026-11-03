@@ -2,6 +2,15 @@
 
 `php artisan lumberjack:health` runs a set of checks (the database answers, a disk can be written, the backup is fresh, ...) and sends each result to Lumberjack. Lumberjack keeps the history per check and alerts when one keeps failing. The package runs the command from your app's scheduler, so all you do is register checks.
 
+## Two facade methods
+
+| Method | Does | |
+|---|---|---|
+| `Lumberjack::healthChecks()` | Returns the registry: fluent built-ins, `->check()`, `->add()` | The only way to register a check |
+| `Lumberjack::health('disk:s3')` | Returns a handle for one registered check: `->run()`, `->report()`, `->ok()`, `->warning()`, `->failed()` | Only fires a check; it never registers one |
+
+They are separate so a call that means "fire this check" can never quietly register something, and registration stays in one place, a service provider. See [Firing a check from your code](#firing-a-check-from-your-code) for the handle.
+
 ## Registering checks
 
 In a service provider's `boot()`:
@@ -12,7 +21,7 @@ use Illuminate\Support\Facades\Http;
 
 public function boot(): void
 {
-    Lumberjack::health()
+    Lumberjack::healthChecks()
         ->database(maxLatencyMs: 200)
         ->cache()
         ->redis()
@@ -33,18 +42,27 @@ public function boot(): void
 
 Registering costs a request nothing: the checks are only made and run when `lumberjack:health` runs.
 
-Every method takes the check's required parameters first, then `degradeAfter`, `recoverAfter`, the check's own options, `timeout` and last `slug`. Named arguments read best; positional ones are a shorthand, so `->disk('s3', 3, 5)` is disk `s3` with `degradeAfter: 3` and `recoverAfter: 5`.
+Every method takes the check's required parameters first, then `degradeAfter`, `recoverAfter`, `downAfter`, the check's own options, `timeout` and last `slug`. Named arguments read best; positional ones are a shorthand, so `->disk('s3', 3, 5)` is disk `s3` with `degradeAfter: 3` and `recoverAfter: 5`, and `->disk('s3', 3, 5, 10)` adds `downAfter: 10`.
 
 | Parameter | Default | |
 |---|---|---|
-| `degradeAfter` | `2` | Failed runs in a row before Lumberjack marks the check failing |
-| `recoverAfter` | `5` | Good runs in a row before it counts as healthy again |
+| `degradeAfter` | `2` | Bad runs in a row (warnings or failures) before Lumberjack marks the check degraded |
+| `recoverAfter` | `5` | Good runs in a row before a degraded or down check is ok again; until then it shows as recovering |
+| `downAfter` | `5` | Failed runs in a row before it is down; a warning starts the count again, so warnings alone never take a check down |
 | `timeout` | `10` | Seconds the check may take; past it the check failed. See [Timeouts](#timeouts) |
 | `slug` | per check | The check's identity in Lumberjack. See [Slugs](#slugs) |
 
+`downAfter` is never below `degradeAfter`: Lumberjack uses the larger of the two. So a check that only ever fails (a closure returning `false`) goes degraded after 2 failures and down after 5, instead of straight to down. Set `downAfter` to the same value as `degradeAfter` to go straight to down, as before `downAfter` existed:
+
+```php
+Lumberjack::healthChecks()->disk('s3', degradeAfter: 2, downAfter: 2);
+```
+
+The thresholds are sent with every result; a slug's thresholds set in Lumberjack's UI win over them.
+
 ### Closure checks
 
-`->check($slug, $callback, $degradeAfter = 2, $recoverAfter = 5, $timeout = 10)` runs the closure. Its parameters are resolved by the container. Return:
+`->check($slug, $callback, $degradeAfter = 2, $recoverAfter = 5, $downAfter = 5, $timeout = 10)` runs the closure. Its parameters are resolved by the container. Return:
 
 - `true` (or nothing) for ok, `false` for failed,
 - or a `CheckResult` for a message, metrics or a warning:
@@ -52,7 +70,7 @@ Every method takes the check's required parameters first, then `degradeAfter`, `
 ```php
 use ExeQue\Lumberjack\Health\CheckResult;
 
-Lumberjack::health()->check('exports', function (ExportRepository $exports) {
+Lumberjack::healthChecks()->check('exports', function (ExportRepository $exports) {
     $stuck = $exports->stuck()->count();
 
     return $stuck > 0
@@ -74,12 +92,13 @@ use ExeQue\Lumberjack\Health\Concerns\ConfiguresHealthCheck;
 
 final class LicenseServerCheck implements HealthCheck
 {
-    // slug(), degradeAfter(), recoverAfter() and timeout() from these parameters.
+    // slug(), degradeAfter(), recoverAfter(), downAfter() and timeout() from these parameters.
     use ConfiguresHealthCheck;
 
     public function __construct(
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly int $timeout = 10,
         private readonly ?string $slug = null,
     ) {
@@ -112,7 +131,19 @@ use ExeQue\Lumberjack\Health\Checks\DiskHealthCheck;
 ],
 ```
 
-`Lumberjack::health([...])` takes the same list. Checks from config come first; a later check with the same slug replaces an earlier one, so code can override a config check.
+`->add()` takes the same entries, one check per argument, so a list is spread:
+
+```php
+Lumberjack::healthChecks()->add(
+    DatabaseHealthCheck::class,
+    [DiskHealthCheck::class, 'disk' => 's3', 'slug' => 'media-bucket'],
+    new LicenseServerCheck(),
+);
+
+Lumberjack::healthChecks()->add(...$checks);
+```
+
+A `[class, 'parameter' => value, ...]` array is always one check, never a list. Checks from config come first; a later check with the same slug replaces an earlier one, so code can override a config check.
 
 ## Slugs
 
@@ -121,14 +152,14 @@ The slug is the check's stable identity: Lumberjack keeps the history, alert sta
 A slug is 1 to 100 characters of `a-z`, `0-9`, `:`, `.`, `_` and `-`, starting with a letter or digit. An invalid slug throws `ExeQue\Lumberjack\Exceptions\InvalidHealthCheckSlugException` when the check is registered. Set your own with `slug:`:
 
 ```php
-Lumberjack::health()->disk('s3', slug: 'media-bucket');
+Lumberjack::healthChecks()->disk('s3', slug: 'media-bucket');
 ```
 
 The defaults are listed with each check below. Names that come from config (a connection, a disk) are filled in, e.g. `database:mysql` for the default connection, and anything not allowed becomes `-` (`http:example.com-up`).
 
 ## Built-in checks
 
-All in `ExeQue\Lumberjack\Health\Checks`, each with a method of the same name on `Lumberjack::health()`. Besides the common parameters above:
+All in `ExeQue\Lumberjack\Health\Checks`, each with a method of the same name on `Lumberjack::healthChecks()`. Besides the common parameters above:
 
 | Method | Class | Parameters | Default slug |
 |---|---|---|---|
@@ -181,7 +212,8 @@ php artisan lumberjack:health || exit 1
 ## Firing a check from your code
 
 When your app notices a problem itself, for example a read from S3 that throws, it
-does not have to wait for the next scheduled run. Run the registered check now:
+does not have to wait for the next scheduled run. `Lumberjack::health($slug)` is a
+handle for a registered check. Run the check now:
 
 ```php
 use ExeQue\Lumberjack\Facades\Lumberjack;
@@ -189,7 +221,7 @@ use ExeQue\Lumberjack\Facades\Lumberjack;
 try {
     $pdf = Storage::disk('s3')->get($path);
 } catch (Throwable $e) {
-    Lumberjack::health()->run('disk:s3');
+    Lumberjack::health('disk:s3')->run();
 
     throw $e;
 }
@@ -198,19 +230,35 @@ try {
 Or send what you found without running the check:
 
 ```php
+Lumberjack::health('disk:s3')->failed("Reading {$path} failed: {$e->getMessage()}");
+Lumberjack::health('disk:s3')->warning('Reading took 4 s', ['latency_ms' => 4000]);
+Lumberjack::health('disk:s3')->ok('Reading works again');
+
+// The same, with a CheckResult you built:
 use ExeQue\Lumberjack\Health\CheckResult;
 
-Lumberjack::health()->report('disk:s3', CheckResult::failed("Reading {$path} failed: {$e->getMessage()}"));
+Lumberjack::health('disk:s3')->report(CheckResult::failed('Bucket gone'));
 ```
 
-Both take the slug of a registered check and send the result straight away, with that
-check's `degradeAfter` and `recoverAfter`. One failed result does not mark the check
-down on its own; it counts toward `degradeAfter` like a scheduled one.
+| Method | Returns | |
+|---|---|---|
+| `run()` | `?CheckResult` | Runs the check and sends its result; `null` within the cooldown |
+| `report(CheckResult $result)` | `bool` | Sends a result without running the check; `false` within the cooldown |
+| `ok($message, $metrics)` | `bool` | `report(CheckResult::ok(...))` |
+| `warning($message, $metrics)` | `bool` | `report(CheckResult::warning(...))` |
+| `failed($message, $metrics)` | `bool` | `report(CheckResult::failed(...))` |
 
-A busy code path can fail on every request, so each slug fires at most once every 30
-seconds (through the cache, across processes): `run()` then returns `null` and
-`report()` returns `false`. If the cache itself is down, the check fires anyway. A slug
-that is not registered throws an `InvalidArgumentException`.
+Every result goes out straight away, with the check's `degradeAfter`, `recoverAfter`
+and `downAfter`, and counts toward them like a scheduled one: one failure does not
+mark the check degraded on its own, and an `ok()` the app saw counts toward
+`recoverAfter`.
+
+A busy code path can fail on every request, so each slug fires at most once per
+`health.cooldown` seconds (30 by default; through the cache, across processes). Set
+`LUMBERJACK_HEALTH_COOLDOWN=0` to turn the cooldown off. If the cache itself is down,
+the check fires anyway. The slug is looked up when the handle is used: a slug that is
+not registered throws an `InvalidArgumentException` from `run()`, `report()`, `ok()`,
+`warning()` and `failed()`.
 
 ## Scheduling
 
@@ -221,6 +269,7 @@ With at least one check registered, the package adds `lumberjack:health` to your
 | `health.schedule` | `LUMBERJACK_HEALTH_SCHEDULE` | `* * * * *` | A cron expression; null or empty to schedule the command yourself |
 | `health.one_server` | `LUMBERJACK_HEALTH_ONE_SERVER` | `true` | Run on one server only; needs a cache store with locks shared between servers (redis, database, memcached, dynamodb) |
 | `health.checks` | | `[]` | Checks; see [In config](#in-config) |
+| `health.cooldown` | `LUMBERJACK_HEALTH_COOLDOWN` | `30` | Seconds a check fired from your code waits before it may fire again; `0` turns it off. See [Firing a check from your code](#firing-a-check-from-your-code) |
 
 The run is recorded as an ordinary [scheduled task](recording.md), so Lumberjack also notices when the scheduler stops running it.
 

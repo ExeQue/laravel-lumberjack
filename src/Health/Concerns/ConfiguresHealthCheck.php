@@ -9,11 +9,12 @@ use Illuminate\Support\Str;
 
 /**
  * The slug and thresholds every built-in check takes as constructor parameters:
- * int $degradeAfter, int $recoverAfter, int $timeout and ?string $slug.
+ * int $degradeAfter, int $recoverAfter, int $downAfter, int $timeout and ?string $slug.
  *
  * @property-read ?string $slug
  * @property-read int $degradeAfter
  * @property-read int $recoverAfter
+ * @property-read int $downAfter
  * @property-read int $timeout
  */
 trait ConfiguresHealthCheck
@@ -31,6 +32,11 @@ trait ConfiguresHealthCheck
     public function recoverAfter(): int
     {
         return $this->recoverAfter;
+    }
+
+    public function downAfter(): int
+    {
+        return $this->downAfter;
     }
 
     public function timeout(): int

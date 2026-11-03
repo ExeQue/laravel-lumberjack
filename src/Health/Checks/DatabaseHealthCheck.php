@@ -17,6 +17,7 @@ final class DatabaseHealthCheck implements HealthCheck
         private readonly ?string $connection = null,
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly ?int $maxLatencyMs = null,
         private readonly int $timeout = 10,
         private readonly ?string $slug = null,

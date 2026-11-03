@@ -71,7 +71,7 @@ class WorkbenchServiceProvider extends ServiceProvider
         });
 
         // Health checks for the Health page, run by the scheduler every minute.
-        Lumberjack::health()
+        Lumberjack::healthChecks()
             ->database()
             ->cache()
             ->disk('local')

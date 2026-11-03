@@ -18,6 +18,7 @@ final class DebugModeHealthCheck implements HealthCheck
     public function __construct(
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly array $environments = ['production'],
         private readonly int $timeout = 10,
         private readonly ?string $slug = null,

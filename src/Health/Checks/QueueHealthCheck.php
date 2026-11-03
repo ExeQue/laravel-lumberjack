@@ -17,6 +17,7 @@ final class QueueHealthCheck implements HealthCheck
         private readonly ?string $connection = null,
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly ?string $queue = null,
         private readonly ?int $warnAt = null,
         private readonly ?int $failAt = null,

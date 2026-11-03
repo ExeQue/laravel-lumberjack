@@ -40,6 +40,7 @@ final class StripeConnectionCheck implements HealthCheck
     public function __construct(
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly bool $healthy = true,
         private readonly int $timeout = 10,
         private readonly ?string $slug = null,
@@ -64,8 +65,8 @@ function healthEvents(): array
 
 describe('registry', function () {
     it('maps every fluent method to its check with the given parameters', function () {
-        $checks = Lumberjack::health()
-            ->disk('s3', 3, 5)
+        $checks = Lumberjack::healthChecks()
+            ->disk('s3', 3, 5, 6)
             ->disk('local', warnAt: 80, failAt: 90, slug: 'local-disk')
             ->database(maxLatencyMs: 200)
             ->cache()
@@ -78,7 +79,7 @@ describe('registry', function () {
             ->failedJobs(withinMinutes: 30)
             ->freshFile('backups', 'db/daily', maxAgeMinutes: 1440)
             ->mail()
-            ->check('stripe', fn () => true, 3, 4)
+            ->check('stripe', fn () => true, 3, 4, 6)
             ->checks();
 
         expect(array_map(fn (HealthCheck $check): string => $check::class, $checks))->toBe([
@@ -97,13 +98,14 @@ describe('registry', function () {
             'mail:'.config('mail.default') => MailHealthCheck::class,
             'stripe' => ExeQue\Lumberjack\Health\ClosureHealthCheck::class,
         ])
-            ->and([$checks['disk:s3']->degradeAfter(), $checks['disk:s3']->recoverAfter()])->toBe([3, 5])
+            ->and([$checks['disk:s3']->degradeAfter(), $checks['disk:s3']->recoverAfter(), $checks['disk:s3']->downAfter()])->toBe([3, 5, 6])
+            ->and($checks['local-disk']->downAfter())->toBe(5)
             ->and([option($checks['local-disk'], 'warnAt'), option($checks['local-disk'], 'failAt')])->toBe([80, 90])
             ->and(option($checks['database:testing'], 'maxLatencyMs'))->toBe(200)
             ->and(option($checks['http:example.com-up'], 'maxLatencyMs'))->toBe(1000)
             ->and(option($checks['failed-jobs'], 'withinMinutes'))->toBe(30)
             ->and(option($checks['fresh:backups:db-daily'], 'maxAgeMinutes'))->toBe(1440)
-            ->and([$checks['stripe']->degradeAfter(), $checks['stripe']->recoverAfter(), $checks['stripe']->timeout()])->toBe([3, 4, 10]);
+            ->and([$checks['stripe']->degradeAfter(), $checks['stripe']->recoverAfter(), $checks['stripe']->downAfter(), $checks['stripe']->timeout()])->toBe([3, 4, 6, 10]);
     });
 
     it('merges config and code checks, a later one replacing an earlier one with the same slug', function () {
@@ -112,7 +114,7 @@ describe('registry', function () {
             [StripeConnectionCheck::class, 'healthy' => false],
         ]]);
 
-        Lumberjack::health([[StripeConnectionCheck::class, 'degradeAfter' => 7]])->add(new CacheHealthCheck());
+        Lumberjack::healthChecks()->add([StripeConnectionCheck::class, 'degradeAfter' => 7], new CacheHealthCheck());
 
         $checks = app(HealthRegistry::class)->checks();
 
@@ -121,16 +123,25 @@ describe('registry', function () {
             ->and($checks['stripe-connection-check']->run()->status)->toBe(CheckStatus::Ok);
     });
 
+    it('takes one check per argument to add(), so a list is spread and [class, parameters] is one check', function () {
+        $list = [DatabaseHealthCheck::class, [DiskHealthCheck::class, 'disk' => 's3', 'degradeAfter' => 4]];
+
+        $checks = Lumberjack::healthChecks()->add(...$list)->add(new CacheHealthCheck(), [StripeConnectionCheck::class, 'slug' => 'stripe'])->checks();
+
+        expect(array_keys($checks))->toBe(['database:testing', 'disk:s3', 'cache:array', 'stripe'])
+            ->and($checks['disk:s3']->degradeAfter())->toBe(4);
+    });
+
     it('refuses an invalid slug when the check is registered', function () {
-        expect(fn () => Lumberjack::health()->disk('s3', slug: 'Media Bucket'))->toThrow(InvalidHealthCheckSlugException::class)
-            ->and(fn () => Lumberjack::health()->check('-stripe', fn () => true))->toThrow(InvalidHealthCheckSlugException::class)
-            ->and(fn () => Lumberjack::health()->add([CacheHealthCheck::class, 'slug' => str_repeat('a', 101)]))->toThrow(InvalidHealthCheckSlugException::class);
+        expect(fn () => Lumberjack::healthChecks()->disk('s3', slug: 'Media Bucket'))->toThrow(InvalidHealthCheckSlugException::class)
+            ->and(fn () => Lumberjack::healthChecks()->check('-stripe', fn () => true))->toThrow(InvalidHealthCheckSlugException::class)
+            ->and(fn () => Lumberjack::healthChecks()->add([CacheHealthCheck::class, 'slug' => str_repeat('a', 101)]))->toThrow(InvalidHealthCheckSlugException::class);
     });
 });
 
 describe('lumberjack:health', function () {
     it('runs every check, records one health event each and exits 1 when one failed', function () {
-        Lumberjack::health()
+        Lumberjack::healthChecks()
             ->check('ok-bool', fn () => true, 3, 4)
             ->check('failed-bool', fn () => false)
             ->check('warning', fn () => CheckResult::warning('Getting full', ['used_percent' => 85.5]))
@@ -153,7 +164,7 @@ describe('lumberjack:health', function () {
     });
 
     it('exits 0 with --no-fail and runs a single check with --check', function () {
-        Lumberjack::health()->check('down', fn () => false)->check('up', fn () => true);
+        Lumberjack::healthChecks()->check('down', fn () => false)->check('up', fn () => true);
 
         $this->artisan('lumberjack:health', ['--no-fail' => true])->assertExitCode(0);
         $this->artisan('lumberjack:health', ['--check' => 'up'])->assertExitCode(0);
@@ -163,7 +174,7 @@ describe('lumberjack:health', function () {
     });
 
     it('fails a check that runs past its timeout', function () {
-        Lumberjack::health()->check('slow', function () {
+        Lumberjack::healthChecks()->check('slow', function () {
             sleep(3);
 
             return true;
@@ -204,7 +215,7 @@ describe('scheduling', function () {
 
     it('is scheduled for checks registered in code, on every server when one_server is off', function () {
         $this->withConfig(['lumberjack.health.one_server' => false]);
-        Lumberjack::health()->cache();
+        Lumberjack::healthChecks()->cache();
 
         [$task] = healthTasks();
 
@@ -357,29 +368,69 @@ describe('built-in checks', function () {
 });
 
 describe('firing a check from the app', function () {
-    it('runs a registered check now and sends it, at most once per slug in the window', function () {
-        Lumberjack::health()->disk('s3', 3, 5);
+    it('runs a registered check now and sends it, at most once per slug in the cooldown', function () {
+        Lumberjack::healthChecks()->disk('s3', 3, 5, 7);
         Storage::fake('s3');
 
-        $result = Lumberjack::health()->run('disk:s3');
-        $again = Lumberjack::health()->run('disk:s3');
+        $result = Lumberjack::health('disk:s3')->run();
+        $again = Lumberjack::health('disk:s3')->run();
 
         expect($result?->status)->toBe(CheckStatus::Ok)
             ->and($again)->toBeNull()
             ->and(healthEvents())->toHaveCount(1)
-            ->and(healthEvents()[0])->toMatchArray(['slug' => 'disk:s3', 'status' => 'ok', 'degrade_after' => 3, 'recover_after' => 5]);
+            ->and(healthEvents()[0])->toMatchArray(['slug' => 'disk:s3', 'status' => 'ok', 'degrade_after' => 3, 'recover_after' => 5, 'down_after' => 7]);
     });
 
     it('reports a result the app found itself, with the check\'s thresholds', function () {
-        Lumberjack::health()->disk('s3', 3, 5);
+        Lumberjack::healthChecks()->disk('s3', 3, 5);
 
-        expect(Lumberjack::health()->report('disk:s3', CheckResult::failed('Reading invoice.pdf failed')))->toBeTrue()
-            ->and(Lumberjack::health()->report('disk:s3', CheckResult::failed('again')))->toBeFalse()
+        expect(Lumberjack::health('disk:s3')->report(CheckResult::failed('Reading invoice.pdf failed')))->toBeTrue()
+            ->and(Lumberjack::health('disk:s3')->report(CheckResult::failed('again')))->toBeFalse()
             ->and(healthEvents())->toHaveCount(1)
-            ->and(healthEvents()[0])->toMatchArray(['slug' => 'disk:s3', 'status' => 'failed', 'message' => 'Reading invoice.pdf failed', 'degrade_after' => 3]);
+            ->and(healthEvents()[0])->toMatchArray(['slug' => 'disk:s3', 'status' => 'failed', 'message' => 'Reading invoice.pdf failed', 'degrade_after' => 3, 'down_after' => 5]);
     });
 
-    it('refuses a slug that is not registered', function () {
-        expect(fn () => Lumberjack::health()->run('disk:nope'))->toThrow(InvalidArgumentException::class, 'No health check [disk:nope] is registered.');
+    it('has shorthands for a failure, a warning and a success the app saw', function () {
+        $this->withConfig(['lumberjack.health.cooldown' => 0]);
+        Lumberjack::healthChecks()->disk('s3');
+        $disk = Lumberjack::health('disk:s3');
+
+        expect($disk->failed('Read failed', ['attempts' => 3]))->toBeTrue()
+            ->and($disk->warning('Slow read'))->toBeTrue()
+            // A success the app saw counts toward recover_after like a scheduled one.
+            ->and($disk->ok('Read works again'))->toBeTrue()
+            ->and(array_map(fn (array $e): array => [$e['status'], $e['message'], $e['recover_after']], healthEvents()))->toBe([
+                ['failed', 'Read failed', 5],
+                ['warning', 'Slow read', 5],
+                ['ok', 'Read works again', 5],
+            ])
+            ->and((array) healthEvents()[0]['metrics'])->toBe(['attempts' => 3]);
+    });
+
+    it('lets every run through with a cooldown of 0, and keeps a custom cooldown', function () {
+        Lumberjack::healthChecks()->check('stripe', fn () => true);
+
+        config(['lumberjack.health.cooldown' => 0]);
+        expect(Lumberjack::health('stripe')->run())->not->toBeNull()
+            ->and(Lumberjack::health('stripe')->run())->not->toBeNull();
+
+        config(['lumberjack.health.cooldown' => 5]);
+        expect(Lumberjack::health('stripe')->run())->not->toBeNull();
+
+        $this->travel(4)->seconds();
+        expect(Lumberjack::health('stripe')->run())->toBeNull();
+
+        $this->travel(2)->seconds();
+        expect(Lumberjack::health('stripe')->run())->not->toBeNull();
+    });
+
+    it('refuses a slug that is not registered when the handle is used, not when it is made', function () {
+        $handle = Lumberjack::health('disk:nope');
+
+        expect(fn () => $handle->run())->toThrow(InvalidArgumentException::class, 'No health check [disk:nope] is registered.')
+            ->and(fn () => $handle->report(CheckResult::ok()))->toThrow(InvalidArgumentException::class)
+            ->and(fn () => $handle->ok())->toThrow(InvalidArgumentException::class)
+            ->and(fn () => $handle->failed())->toThrow(InvalidArgumentException::class)
+            ->and(fn () => $handle->warning())->toThrow(InvalidArgumentException::class);
     });
 });

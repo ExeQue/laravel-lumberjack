@@ -22,6 +22,7 @@ final class FreshFileHealthCheck implements HealthCheck
         private readonly int $maxAgeMinutes,
         private readonly int $degradeAfter = 2,
         private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
         private readonly bool $recursive = false,
         private readonly int $timeout = 10,
         private readonly ?string $slug = null,

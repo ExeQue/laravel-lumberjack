@@ -180,13 +180,16 @@ return [
      *     \ExeQue\Lumberjack\Health\Checks\DatabaseHealthCheck::class,
      *     [\ExeQue\Lumberjack\Health\Checks\DiskHealthCheck::class, 'disk' => 's3'],
      *
-     * Lumberjack::health() registers more from a service provider. The schedule is a
+     * Lumberjack::healthChecks() registers more from a service provider. The schedule is a
      * cron expression; null leaves scheduling to you. one_server needs a cache store
-     * that supports locks shared between servers.
+     * that supports locks shared between servers. cooldown is how many seconds a
+     * check fired from the app with Lumberjack::health($slug) waits before it may
+     * fire again; 0 turns it off.
      */
     'health' => [
         'schedule' => env('LUMBERJACK_HEALTH_SCHEDULE', '* * * * *'),
         'one_server' => (bool) env('LUMBERJACK_HEALTH_ONE_SERVER', true),
+        'cooldown' => (int) env('LUMBERJACK_HEALTH_COOLDOWN', 30),
         'checks' => [],
     ],
 
