@@ -98,17 +98,16 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            DiskHealthCheck::class,
-            'disk' => $disk,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'warnAt' => $warnAt,
-            'failAt' => $failAt,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new DiskHealthCheck(
+            disk: $disk,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            warnAt: $warnAt,
+            failAt: $failAt,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function database(
@@ -121,17 +120,16 @@ final class HealthRegistry
         ?string $slug = null,
         ?float $warnAtConnections = null,
     ): self {
-        return $this->add([
-            DatabaseHealthCheck::class,
-            'connection' => $connection,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'maxLatencyMs' => $maxLatencyMs,
-            'timeout' => $timeout,
-            'slug' => $slug,
-            'warnAtConnections' => $warnAtConnections,
-        ]);
+        return $this->add(new DatabaseHealthCheck(
+            connection: $connection,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            maxLatencyMs: $maxLatencyMs,
+            timeout: $timeout,
+            slug: $slug,
+            warnAtConnections: $warnAtConnections,
+        ));
     }
 
     public function cache(
@@ -142,15 +140,14 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            CacheHealthCheck::class,
-            'store' => $store,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new CacheHealthCheck(
+            store: $store,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function redis(
@@ -161,15 +158,14 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            RedisHealthCheck::class,
-            'connection' => $connection,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new RedisHealthCheck(
+            connection: $connection,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function queue(
@@ -183,18 +179,17 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            QueueHealthCheck::class,
-            'connection' => $connection,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'queue' => $queue,
-            'warnAt' => $warnAt,
-            'failAt' => $failAt,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new QueueHealthCheck(
+            connection: $connection,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            queue: $queue,
+            warnAt: $warnAt,
+            failAt: $failAt,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function horizon(
@@ -204,14 +199,13 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            HorizonHealthCheck::class,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new HorizonHealthCheck(
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function http(
@@ -225,18 +219,17 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            HttpHealthCheck::class,
-            'url' => $url,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'status' => $status,
-            'maxLatencyMs' => $maxLatencyMs,
-            'method' => $method,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new HttpHealthCheck(
+            url: $url,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            status: $status,
+            maxLatencyMs: $maxLatencyMs,
+            method: $method,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     /**
@@ -250,15 +243,14 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            DebugModeHealthCheck::class,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'environments' => $environments,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new DebugModeHealthCheck(
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            environments: $environments,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function migrations(
@@ -269,15 +261,14 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            MigrationsHealthCheck::class,
-            'connection' => $connection,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new MigrationsHealthCheck(
+            connection: $connection,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function failedJobs(
@@ -290,17 +281,16 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            FailedJobsHealthCheck::class,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'withinMinutes' => $withinMinutes,
-            'warnAt' => $warnAt,
-            'failAt' => $failAt,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new FailedJobsHealthCheck(
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            withinMinutes: $withinMinutes,
+            warnAt: $warnAt,
+            failAt: $failAt,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function freshFile(
@@ -314,18 +304,17 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            FreshFileHealthCheck::class,
-            'disk' => $disk,
-            'path' => $path,
-            'maxAgeMinutes' => $maxAgeMinutes,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'recursive' => $recursive,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new FreshFileHealthCheck(
+            disk: $disk,
+            path: $path,
+            maxAgeMinutes: $maxAgeMinutes,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            recursive: $recursive,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function mail(
@@ -336,15 +325,14 @@ final class HealthRegistry
         int $timeout = 10,
         ?string $slug = null,
     ): self {
-        return $this->add([
-            MailHealthCheck::class,
-            'mailer' => $mailer,
-            'degradeAfter' => $degradeAfter,
-            'recoverAfter' => $recoverAfter,
-            'downAfter' => $downAfter,
-            'timeout' => $timeout,
-            'slug' => $slug,
-        ]);
+        return $this->add(new MailHealthCheck(
+            mailer: $mailer,
+            degradeAfter: $degradeAfter,
+            recoverAfter: $recoverAfter,
+            downAfter: $downAfter,
+            timeout: $timeout,
+            slug: $slug,
+        ));
     }
 
     public function isEmpty(): bool
