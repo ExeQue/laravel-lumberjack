@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Release\FileReleaseResolver;
 use ExeQue\Lumberjack\Release\GitReleaseResolver;
 
 beforeEach(function () {
@@ -38,7 +39,30 @@ describe('the git release', function () {
     });
 });
 
+describe('the file release', function () {
+    it('is the first line of a file relative to the app root', function () {
+        file_put_contents($this->root.'/latest-release', "2026.11.3\nbuilt by ci\n");
+
+        expect((new FileReleaseResolver($this->root, 'latest-release'))->resolve())->toBe('2026.11.3');
+    });
+
+    it('is nothing when the file is missing or empty', function () {
+        file_put_contents($this->root.'/REVISION', "\n");
+
+        expect((new FileReleaseResolver($this->root))->resolve())->toBeNull()
+            ->and((new FileReleaseResolver($this->root, 'missing'))->resolve())->toBeNull();
+    });
+});
+
 describe('the configured release', function () {
+    it('passes the arguments after the class to it', function () {
+        file_put_contents($this->root.'/latest-release', 'abc123');
+        config(['lumberjack.release' => null, 'lumberjack.base_path' => $this->root, 'lumberjack.release_resolver' => [FileReleaseResolver::class, 'latest-release']]);
+        app()->forgetInstance('lumberjack.release');
+
+        expect(app('lumberjack.release'))->toBe('abc123');
+    });
+
     it('comes from LUMBERJACK_RELEASE before the resolver', function () {
         config(['lumberjack.release' => 'v1.2.3']);
         app()->forgetInstance('lumberjack.release');

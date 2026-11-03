@@ -16,7 +16,7 @@ php artisan vendor:publish --tag=lumberjack-config
 | `public_key` | `LUMBERJACK_PUBLIC_KEY` | | For [browser errors](browser.md); without it `@lumberjack` renders nothing |
 | `environment` | `LUMBERJACK_ENVIRONMENT` | `APP_ENV` | |
 | `release` | `LUMBERJACK_RELEASE` | | Wins over the resolver; see [Release](#release) |
-| `release_resolver` | | `GitReleaseResolver` | Works out the release when `LUMBERJACK_RELEASE` is empty |
+| `release_resolver` | | `GitReleaseResolver` | Works out the release when `LUMBERJACK_RELEASE` is empty; `FileReleaseResolver` reads a file |
 | `announce` | `LUMBERJACK_ANNOUNCE` | `APP_DEBUG` | Whether the browser script says hello in the console |
 
 ## Release
@@ -30,26 +30,26 @@ directory without running git. It follows branches (loose or packed refs), a det
 HEAD and worktrees, and gives no release when there is no repository.
 
 A deploy that copies files without `.git` (rsync, an artifact, a Docker image) can
-write the commit to a file at build time and read it with a resolver of its own:
+write the release to a file at build time and read it with `FileReleaseResolver`. The
+path is relative to the app's root:
 
-```php
-use ExeQue\Lumberjack\Contracts\ReleaseResolver;
-
-final class RevisionFileRelease implements ReleaseResolver
-{
-    public function resolve(): ?string
-    {
-        $file = base_path('REVISION'); // written by: git rev-parse HEAD > REVISION
-
-        return is_file($file) ? trim((string) file_get_contents($file)) : null;
-    }
-}
+```bash
+git rev-parse HEAD > latest-release   # before rsync
 ```
 
 ```php
 // config/lumberjack.php
-'release_resolver' => App\Support\RevisionFileRelease::class,
+use ExeQue\Lumberjack\Release\FileReleaseResolver;
+
+'release_resolver' => [FileReleaseResolver::class, 'latest-release'],
 ```
+
+It reads the first line of the file and defaults to `REVISION` without an argument.
+A missing or empty file means no release.
+
+Your own class works too: implement `ExeQue\Lumberjack\Contracts\ReleaseResolver` and
+set `release_resolver` to the class, or to `[Class::class, ...arguments]`. The
+arguments are passed to its constructor after the app's root.
 
 Set it to `null` to send no release.
 

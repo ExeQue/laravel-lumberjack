@@ -30,9 +30,13 @@ return [
 
     /*
      * Works out the release when LUMBERJACK_RELEASE is empty. The default reads the
-     * commit from the app's .git directory. Swap in any class implementing
-     * ExeQue\Lumberjack\Contracts\ReleaseResolver, e.g. one that reads a file your
-     * deploy writes, or null to send no release.
+     * commit from the app's .git directory. For a deploy without .git, read a file
+     * it writes, relative to the app's root:
+     *
+     *     'release_resolver' => [FileReleaseResolver::class, 'REVISION'],
+     *
+     * Any class implementing ExeQue\Lumberjack\Contracts\ReleaseResolver works, as
+     * a class or [class, ...arguments] (passed after the app's root); null sends none.
      */
     'release_resolver' => ExeQue\Lumberjack\Release\GitReleaseResolver::class,
 
