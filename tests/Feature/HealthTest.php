@@ -79,6 +79,29 @@ final class HourlyCheck implements HasHealthCheckInterval, HealthCheck
     }
 }
 
+/** Counts how often the registry makes it. */
+final class CountedCheck implements HealthCheck
+{
+    use ConfiguresHealthCheck;
+
+    public static int $made = 0;
+
+    public function __construct(
+        private readonly int $degradeAfter = 2,
+        private readonly int $recoverAfter = 5,
+        private readonly int $downAfter = 5,
+        private readonly int $timeout = 10,
+        private readonly ?string $slug = 'counted',
+    ) {
+        self::$made++;
+    }
+
+    public function run(): CheckResult
+    {
+        return CheckResult::ok();
+    }
+}
+
 /** Written against the HealthCheck contract alone: no trait, no interval. */
 final class BareCheck implements HealthCheck
 {
@@ -589,6 +612,22 @@ describe('firing a check from the app', function () {
 
         $this->travel(2)->seconds();
         expect(Lumberjack::health('stripe')->run())->not->toBeNull();
+    });
+
+    it('makes the registered checks once, not on every fire, and again after a check is added', function () {
+        CountedCheck::$made = 0;
+        Lumberjack::healthChecks()->add(CountedCheck::class)->check('stripe', fn () => true);
+
+        Lumberjack::health('stripe')->failed('down');
+        Lumberjack::health('stripe')->failed('still down');
+        Lumberjack::health('counted')->run();
+
+        expect(CountedCheck::$made)->toBe(1);
+
+        Lumberjack::healthChecks()->cache();
+        Lumberjack::health('stripe')->failed('down again');
+
+        expect(CountedCheck::$made)->toBe(2);
     });
 
     it('refuses a slug that is not registered when the handle is used, not when it is made', function () {

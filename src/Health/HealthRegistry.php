@@ -30,7 +30,8 @@ use WeakMap;
 
 /**
  * The checks from config and from Lumberjack::healthChecks(). Entries are kept as given and
- * only made when lumberjack:health runs, so registering them costs a request nothing.
+ * only made when they are first needed (lumberjack:health, or a check fired from the app),
+ * so registering them costs a request nothing.
  * Every built-in has a method here taking the same parameters as its constructor.
  */
 final class HealthRegistry
@@ -43,6 +44,13 @@ final class HealthRegistry
 
     /** The entry ->every() applies to: the one added last in code. */
     private ?int $last = null;
+
+    /**
+     * @var array<string, HealthCheck>|null the checks as last made, until a check is added
+     *                                      or ->every() changes one: firing a check from the app
+     *                                      looks it up on every call, often on a failing path
+     */
+    private ?array $made = null;
 
     /** @var WeakMap<HealthCheck, int|null> each made check's minutes between runs */
     private WeakMap $intervals;
@@ -96,6 +104,7 @@ final class HealthRegistry
 
             $this->entries[] = $entry;
             $this->last = array_key_last($this->entries);
+            $this->made = null;
 
             if ($every !== null) {
                 $this->every[$this->last] = $every;
@@ -119,6 +128,7 @@ final class HealthRegistry
         }
 
         $this->every[$this->last] = self::interval($minutes);
+        $this->made = null;
 
         return $this;
     }
@@ -403,12 +413,17 @@ final class HealthRegistry
     }
 
     /**
-     * Every check by slug; a later check with the same slug replaces an earlier one.
+     * Every check by slug; a later check with the same slug replaces an earlier one. Made
+     * once, and again after a check is added.
      *
      * @return array<string, HealthCheck>
      */
     public function checks(): array
     {
+        if ($this->made !== null) {
+            return $this->made;
+        }
+
         $checks = [];
 
         foreach ($this->entries as $index => $entry) {
@@ -433,7 +448,7 @@ final class HealthRegistry
             }
         }
 
-        return $checks;
+        return $this->made = $checks;
     }
 
     /**
