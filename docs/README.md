@@ -7,8 +7,9 @@
 - [What is recorded](recording.md) - Exceptions, requests, queries, jobs, commands and scheduled tasks, and how to leave things out
 - [Logs](logs.md) - The `lumberjack` log driver and log channels
 - [Browser errors](browser.md) - The `@lumberjack` directive and the browser script
+- [Health checks](health-checks.md) - Checks run from the scheduler: database, disks, queues, backups and your own
 - [Reacting to alerts](webhooks.md) - Webhooks, `Lumberjack::onException()` and signatures
-- [Artisan commands](commands.md) - `lumberjack:agent`, `lumberjack:terminate` and `lumberjack:test`
+- [Artisan commands](commands.md) - `lumberjack:agent`, `lumberjack:health`, `lumberjack:terminate` and `lumberjack:test`
 - [Configuration](configuration.md) - Every option in `config/lumberjack.php`
 
 Working on the package itself: [Contributing](../CONTRIBUTING.md).

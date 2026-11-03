@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Facades;
 
+use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use Illuminate\Support\Facades\Facade;
 
@@ -15,6 +16,17 @@ use Illuminate\Support\Facades\Facade;
  */
 class Lumberjack extends Facade
 {
+    /**
+     * The health check registry, with $checks added (each a HealthCheck, a class or
+     * [class, 'parameter' => value, ...]).
+     *
+     * @param  array<mixed>  $checks
+     */
+    public static function health(array $checks = []): HealthRegistry
+    {
+        return app(HealthRegistry::class)->add($checks);
+    }
+
     protected static function getFacadeAccessor(): string
     {
         return Handlers::class;

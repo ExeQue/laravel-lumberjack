@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack;
 
 use ExeQue\Lumberjack\Console\AgentCommand;
+use ExeQue\Lumberjack\Console\HealthCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
+use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
@@ -20,6 +22,7 @@ use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\Lumberjack\Webhooks\WebhookController;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Log\LogManager;
@@ -66,6 +69,8 @@ class LumberjackServiceProvider extends ServiceProvider
 
         $this->app->singleton(Handlers::class);
 
+        $this->app->singleton(HealthRegistry::class, fn (Application $app): HealthRegistry => new HealthRegistry($app, (array) config('lumberjack.health.checks', [])));
+
         $this->app->singleton(BrowserScript::class, fn (Application $app): BrowserScript => new BrowserScript(
             $app->make(Recorder::class),
             $app->make('auth'),
@@ -81,7 +86,8 @@ class LumberjackServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([__DIR__.'/../config/lumberjack.php' => config_path('lumberjack.php')], 'lumberjack-config');
-            $this->commands([AgentCommand::class, TerminateCommand::class, TestCommand::class]);
+            $this->commands([AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class]);
+            $this->scheduleHealthChecks();
         }
 
         // Only when turned on. Outside the web middleware group, so no session or CSRF;
@@ -128,6 +134,26 @@ class LumberjackServiceProvider extends ServiceProvider
         $this->app->terminating(fn () => $commands->finishOpen());
 
         $this->app->terminating(fn () => $recorder->flush());
+    }
+
+    /**
+     * Runs lumberjack:health from the app's scheduler, once checks are registered.
+     */
+    private function scheduleHealthChecks(): void
+    {
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $cron = $this->string('health.schedule');
+
+            if ($cron === null || $this->app->make(HealthRegistry::class)->isEmpty()) {
+                return;
+            }
+
+            $event = $schedule->command(HealthCommand::class)->cron($cron)->withoutOverlapping()->runInBackground();
+
+            if ((bool) config('lumberjack.health.one_server', true)) {
+                $event->onOneServer();
+            }
+        });
     }
 
     private function string(string $key): ?string

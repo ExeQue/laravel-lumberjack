@@ -173,6 +173,24 @@ return [
     ],
 
     /*
+     * Health checks lumberjack:health runs and reports, e.g. from the scheduler. Each
+     * entry is a class implementing ExeQue\Lumberjack\Contracts\HealthCheck, or
+     * [class, 'parameter' => value, ...] made by the container:
+     *
+     *     \ExeQue\Lumberjack\Health\Checks\DatabaseHealthCheck::class,
+     *     [\ExeQue\Lumberjack\Health\Checks\DiskHealthCheck::class, 'disk' => 's3'],
+     *
+     * Lumberjack::health() registers more from a service provider. The schedule is a
+     * cron expression; null leaves scheduling to you. one_server needs a cache store
+     * that supports locks shared between servers.
+     */
+    'health' => [
+        'schedule' => env('LUMBERJACK_HEALTH_SCHEDULE', '* * * * *'),
+        'one_server' => (bool) env('LUMBERJACK_HEALTH_ONE_SERVER', true),
+        'checks' => [],
+    ],
+
+    /*
      * Lumberjack can POST alerts to this app (a webhook alert channel). Turned on,
      * the package answers on this path and runs the handlers registered with
      * Lumberjack::on() and Lumberjack::onException(). A request without a valid

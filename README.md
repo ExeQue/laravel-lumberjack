@@ -37,6 +37,7 @@ Lumberjack::onException(PaymentGatewayException::class, [Status::New, Status::Es
 - [What is recorded](docs/recording.md)
 - [Logs](docs/logs.md)
 - [Browser errors](docs/browser.md)
+- [Health checks](docs/health-checks.md)
 - [Reacting to alerts](docs/webhooks.md)
 - [Artisan commands](docs/commands.md)
 - [Configuration](docs/configuration.md)

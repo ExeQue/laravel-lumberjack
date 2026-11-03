@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Release;
 
 use ExeQue\Lumberjack\Contracts\ReleaseResolver;
+use ExeQue\Lumberjack\Support\ContainerEntry;
 use Illuminate\Contracts\Container\Container;
 
 /**
@@ -49,15 +50,7 @@ final class StackReleaseResolver implements ReleaseResolver
             return new self($container, $path, $entry);
         }
 
-        $parameters = (array) $entry;
-        $class = $parameters[0] ?? null;
-        unset($parameters[0]);
-
-        if (! is_string($class) || $class === '') {
-            return null;
-        }
-
-        $resolver = $container->make($class, ['path' => $path, ...$parameters]);
+        $resolver = ContainerEntry::make($container, $entry, ['path' => $path]);
 
         return $resolver instanceof ReleaseResolver ? $resolver : null;
     }

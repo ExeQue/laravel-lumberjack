@@ -138,6 +138,16 @@ See [What is recorded](recording.md) for what each section covers. Every `ignore
 | `schedule.enabled` | `LUMBERJACK_SCHEDULE` | `true` |
 | `schedule.ignore` | | none |
 
+## Health checks
+
+See [Health checks](health-checks.md).
+
+| Key | Env | Default | |
+|---|---|---|---|
+| `health.schedule` | `LUMBERJACK_HEALTH_SCHEDULE` | `* * * * *` | When the scheduler runs `lumberjack:health`; null to leave it out |
+| `health.one_server` | `LUMBERJACK_HEALTH_ONE_SERVER` | `true` | Run it on one server only |
+| `health.checks` | | `[]` | Checks, besides those registered with `Lumberjack::health()` |
+
 ## Webhook
 
 See [Reacting to alerts](webhooks.md).
