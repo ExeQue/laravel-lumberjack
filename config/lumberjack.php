@@ -51,6 +51,13 @@ return [
     ],
 
     /*
+     * Whether @lumberjack puts the signed-in user's id on the page (data-user). Off, so a
+     * page cached for everyone (a full-page cache, a CDN) never carries one user's id; set
+     * it from JavaScript instead with window.Lumberjack.setUser(id).
+     */
+    'browser_user' => (bool) env('LUMBERJACK_BROWSER_USER', false),
+
+    /*
      * Whether the browser script says hello in the console. Off unless the
      * app runs with APP_DEBUG.
      */

@@ -158,6 +158,25 @@ describe('the @lumberjack directive', function () {
         expect(Blade::render('@lumberjack'))->toContain('data-announce="true"');
     });
 
+    it('leaves the user id out of the page unless asked, so a shared cache never serves it', function () {
+        $user = new Illuminate\Foundation\Auth\User();
+        $user->id = 42;
+        $this->actingAs($user);
+
+        expect(Blade::render('@lumberjack'))->not->toContain('data-user');
+
+        config()->set('lumberjack.browser_user', true);
+        app()->forgetInstance(ExeQue\Lumberjack\BrowserScript::class);
+        expect(Blade::render('@lumberjack'))->toContain('data-user="42"');
+    });
+
+    it('carries a CSP nonce, given or Vite\'s', function () {
+        expect(Blade::render('@lumberjack("abc123nonce")'))->toContain('nonce="abc123nonce"');
+
+        app(Illuminate\Foundation\Vite::class)->useCspNonce('vitenonce');
+        expect(Blade::render('@lumberjack'))->toContain('nonce="vitenonce"');
+    });
+
     it('renders nothing without a public key', function () {
         config()->set('lumberjack.public_key', null);
         app()->forgetInstance(ExeQue\Lumberjack\BrowserScript::class);

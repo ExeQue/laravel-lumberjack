@@ -17,6 +17,7 @@ php artisan vendor:publish --tag=lumberjack-config
 | `environment` | `LUMBERJACK_ENVIRONMENT` | `APP_ENV` | |
 | `release` | `LUMBERJACK_RELEASE` | | Wins over the resolver; see [Release](#release) |
 | `release_resolver` | | `[Git, Composer]` | Works out the release when `LUMBERJACK_RELEASE` is empty; see [Release](#release) |
+| `browser_user` | `LUMBERJACK_BROWSER_USER` | `false` | Whether `@lumberjack` puts the signed-in user's id on the page; see [The signed-in user](browser.md#the-signed-in-user) |
 | `announce` | `LUMBERJACK_ANNOUNCE` | `APP_DEBUG` | Whether the browser script says hello in the console |
 
 ## Release

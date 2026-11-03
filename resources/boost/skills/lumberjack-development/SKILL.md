@@ -289,7 +289,7 @@ Spans on each trace: `cache`, `http` (Laravel HTTP client), `mail`, `notificatio
 
 ## Browser errors
 
-`@lumberjack` in the `<head>` of the layout renders `<script src="{LUMBERJACK_URL}/sdk/v1.js" data-key data-environment data-release data-user data-trace data-announce defer>`: the public key, environment, release, signed-in user id, the request's trace id and whether to announce itself in the console (`LUMBERJACK_ANNOUNCE`, defaults to `APP_DEBUG`). Without a public key it renders nothing. The page's origin must be in the project's allowed origins in Lumberjack. From JavaScript:
+`@lumberjack` in the `<head>` of the layout renders `<script src="{LUMBERJACK_URL}/sdk/v1.js" data-key data-environment data-release data-user data-trace data-announce defer>`: the public key, environment, release, the signed-in user id (only with `LUMBERJACK_BROWSER_USER=true`, so shared-cached pages never carry it; otherwise call `window.Lumberjack.setUser(id)`), the request's trace id and whether to announce itself in the console (`LUMBERJACK_ANNOUNCE`, defaults to `APP_DEBUG`). It carries Vite's CSP nonce when one is set, or pass one: `@lumberjack($nonce)`. Without a public key it renders nothing. The page's origin must be in the project's allowed origins in Lumberjack. From JavaScript:
 
 ```js
 window.Lumberjack.captureException(error, { cart_id: 42 });

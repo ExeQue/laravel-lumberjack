@@ -119,6 +119,7 @@ class LumberjackServiceProvider extends ServiceProvider
             $this->string('public_key'),
             $this->string('environment'),
             (bool) config('lumberjack.announce', false),
+            (bool) config('lumberjack.browser_user', false),
         ));
     }
 
@@ -135,7 +136,8 @@ class LumberjackServiceProvider extends ServiceProvider
         // Also when turned off, so @lumberjack still compiles (to nothing) and a log channel
         // with the lumberjack driver still works (and drops what it gets).
         $this->callAfterResolving('blade.compiler', function (BladeCompiler $blade): void {
-            $blade->directive('lumberjack', fn (): string => '<?php echo app(\\'.BrowserScript::class.'::class)->render(); ?>');
+            // @lumberjack, or @lumberjack($nonce) for a Content-Security-Policy with nonces.
+            $blade->directive('lumberjack', fn (string $nonce = ''): string => '<?php echo app(\\'.BrowserScript::class.'::class)->render('.$nonce.'); ?>');
         });
 
         $this->callAfterResolving('log', function (LogManager $log) use ($enabled): void {

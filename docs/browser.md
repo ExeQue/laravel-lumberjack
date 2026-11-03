@@ -10,10 +10,37 @@ It renders a script tag that loads Lumberjack's browser script from your Lumberj
 
 - the project's public key (`LUMBERJACK_PUBLIC_KEY`; without it, or without `LUMBERJACK_URL`, the directive renders nothing),
 - the environment and release,
-- the signed-in user's id,
+- the signed-in user's id, only when `LUMBERJACK_BROWSER_USER=true` (see below),
 - the request's trace id, so a browser error links to the server request that rendered the page (left out while recording is off).
 
 These are the `data-key`, `data-environment`, `data-release`, `data-user`, `data-trace` and `data-announce` attributes of the script tag; the server's docs describe them for apps that write the tag by hand.
+
+### The signed-in user
+
+The user's id is left out of the page by default: a page cached for everyone (a
+full-page cache, a CDN) would serve one user's id to all. Set it from JavaScript, where
+it is never cached:
+
+```blade
+@auth
+    <script>document.addEventListener('DOMContentLoaded', () => window.Lumberjack?.setUser(@json(auth()->id())));</script>
+@endauth
+```
+
+or, on pages that are never shared-cached, turn the attribute on with
+`LUMBERJACK_BROWSER_USER=true` (`browser_user` in the config).
+
+### Content-Security-Policy
+
+With a CSP that uses nonces, the tag needs one. When the app gives Vite a nonce
+(`Vite::useCspNonce()`), the tag carries the same one. Otherwise pass yours:
+
+```blade
+@lumberjack($cspNonce)
+```
+
+The CSP must also allow scripts from your Lumberjack server (`script-src`) and requests
+to it (`connect-src`).
 
 The page's origin must be listed under **allowed origins** in the project's settings.
 
