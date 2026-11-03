@@ -66,7 +66,7 @@ A command the scheduler runs takes the schedule's rate and threshold, also in it
 Sampling never hides how much traffic there is:
 
 - **Every request is counted**, sampled or not: per method, route (the path when no route
-  matched) and status, a count and the summed duration. Each batch the app hands the agent
+  matched), domain and status, a count and the summed duration. Each batch the app hands the agent
   carries the counts since the last one as one `request_counts` event, so Lumberjack's
   request totals and throughput are exact. Requests the rules leave out (`requests.ignore`,
   `ignore_methods`, `ignore_status`) are not counted. At most 500 distinct rows go in one
@@ -80,7 +80,10 @@ Sampling never hides how much traffic there is:
 
 ## Requests
 
-Route, status, duration and peak memory.
+Route, route name, domain, status, duration and peak memory. The domain is the host the
+request was made to (`shop.example.com`, `api.example.com`), lowercased, with the port only
+when it is not the default one, so the same route served on two domains is told apart. The
+route name (`orders.show`) is sent when the route has one.
 
 ```php
 'requests' => [

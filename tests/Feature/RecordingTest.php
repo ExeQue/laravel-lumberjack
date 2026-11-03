@@ -61,6 +61,20 @@ describe('requests and queries', function () {
             ->and($query['trace_id'])->toBe($request['trace_id']);
     });
 
+    it('records the domain the request was made to and the route name', function () {
+        Route::get('/orders/{order}', fn () => 'ok')->name('orders.show');
+        Route::get('/plain', fn () => 'ok');
+
+        $this->get('http://Shop.Example.com/orders/1')->assertOk();
+        $this->get('http://api.example.com:8080/plain')->assertOk();
+        app()->terminate();
+
+        [$named, $plain] = $this->sentEvents('request');
+
+        expect($named)->toMatchArray(['domain' => 'shop.example.com', 'route_name' => 'orders.show'])
+            ->and($plain)->toMatchArray(['domain' => 'api.example.com:8080', 'route_name' => null]);
+    });
+
     it('records nothing for ignored routes', function () {
         Route::get('/up', fn () => DB::select('select 1') ? 'ok' : 'no');
 

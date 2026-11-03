@@ -114,11 +114,14 @@ class RecordsLaravelEvents
         $duration = round((microtime(true) - $start) * 1000, 3);
         $status = $event->response->getStatusCode();
         $route = $request->route();
+        $routeName = is_object($route) ? $route->getName() : null;
         $route = is_object($route) ? '/'.ltrim($route->uri(), '/') : '/'.ltrim($request->path(), '/');
+        // The host the request was made to, with its port only when it is not the default.
+        $domain = strtolower($request->getHttpHost());
 
         // Every request is counted, sampled or not, so the server knows the true traffic.
         if (! $this->rules->ignoresStatus($status)) {
-            $this->recorder->countRequest($request->method(), $route, $status, $duration);
+            $this->recorder->countRequest($request->method(), $route, $status, $duration, $domain);
         }
 
         // A request that was not sampled is still recorded when it was slow.
@@ -141,6 +144,8 @@ class RecordsLaravelEvents
             ...$this->recorder->weight(),
             'method' => $request->method(),
             'route' => $route,
+            'route_name' => $routeName,
+            'domain' => $domain,
             'url' => $request->fullUrl(),
             'status' => $status,
             'duration_ms' => $duration,

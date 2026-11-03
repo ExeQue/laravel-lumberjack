@@ -50,7 +50,20 @@ describe('true traffic despite sampling', function () {
 
         $counts = $this->sentEvents('request_counts')[0]['counts'];
         expect($counts)->toHaveCount(Recorder::MAX_COUNTED + 1)
-            ->and(end($counts))->toMatchArray(['method' => '*', 'route' => 'other', 'status' => 0, 'count' => 3]);
+            ->and(end($counts))->toMatchArray(['method' => '*', 'route' => 'other', 'domain' => '', 'status' => 0, 'count' => 3]);
+    });
+
+    it('counts the same route on two domains apart', function () {
+        Route::get('/orders', fn () => 'ok');
+
+        $this->get('http://shop.example.com/orders');
+        $this->get('http://api.example.com/orders');
+        $this->get('http://api.example.com/orders');
+
+        $rows = collect($this->sentEvents('request_counts'))->flatMap(fn (array $e): array => $e['counts'])
+            ->groupBy('domain')->map->sum('count');
+
+        expect($rows->all())->toBe(['shop.example.com' => 1, 'api.example.com' => 2]);
     });
 
     it('weighs request, job and command runs and their queries by the rate that applied', function () {
