@@ -3,6 +3,7 @@ domains:
 secured: true
 services:
   - rustfs
+  - mysql
 workers:
   - agent
   - queue

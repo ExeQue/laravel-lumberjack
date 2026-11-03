@@ -55,6 +55,20 @@ class WorkbenchServiceProvider extends ServiceProvider
         config()->set('queue.connections.database', ['driver' => 'database', 'connection' => 'workbench', 'table' => 'jobs', 'queue' => 'default', 'retry_after' => 90]);
         config()->set('queue.failed.driver', 'null');
 
+        // lerd's MySQL, only for the database:mysql health check: the app runs on SQLite,
+        // which has no connections to report.
+        config()->set('database.connections.mysql', [
+            'driver' => 'mysql',
+            'host' => env('WORKBENCH_MYSQL_HOST', 'lerd-mysql'),
+            'port' => (int) env('WORKBENCH_MYSQL_PORT', 3306),
+            'database' => env('WORKBENCH_MYSQL_DATABASE', 'mysql'),
+            'username' => env('WORKBENCH_MYSQL_USERNAME', 'root'),
+            'password' => env('WORKBENCH_MYSQL_PASSWORD', 'lerd'),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+        ]);
+
         // A bucket on lerd's RustFS service, for the disk:rustfs health check. RUSTFS_*,
         // not AWS_*: Testbench's skeleton .env already sets those empty. The demo's
         // Break button points the disk at a bucket that does not exist.
@@ -108,6 +122,7 @@ class WorkbenchServiceProvider extends ServiceProvider
         // Health checks for the Health page, run by the scheduler every minute.
         Lumberjack::healthChecks()
             ->database()
+            ->database('mysql', warnAtConnections: 0.8)
             ->cache()
             ->disk('local')
             ->disk('rustfs')
