@@ -201,6 +201,8 @@ return [
             'store' => env('LUMBERJACK_HEALTH_STATES_STORE'),
             'ttl' => (int) env('LUMBERJACK_HEALTH_STATES_TTL', 30),
             'pull' => (bool) env('LUMBERJACK_HEALTH_STATES_PULL', true),
+            // Seconds a process keeps what it read, so many state() calls cost one cache read; 0 reads every time.
+            'memo' => (int) env('LUMBERJACK_HEALTH_STATES_MEMO', 5),
         ],
     ],
 

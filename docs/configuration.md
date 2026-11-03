@@ -151,6 +151,7 @@ See [Health checks](health-checks.md).
 | `health.states.store` | `LUMBERJACK_HEALTH_STATES_STORE` | `null` | Cache store the states are kept in; the default store when null. The agent and the app must share it, see [Reading states](health-checks.md#reading-states) |
 | `health.states.ttl` | `LUMBERJACK_HEALTH_STATES_TTL` | `30` | Seconds stored states count as fresh; older ones are fetched from Lumberjack, at most once per ttl |
 | `health.states.pull` | `LUMBERJACK_HEALTH_STATES_PULL` | `true` | Fetch states from Lumberjack when they are older than the ttl; `false` leaves them to the agent |
+| `health.states.memo` | `LUMBERJACK_HEALTH_STATES_MEMO` | `5` | Seconds a process keeps the states it read before reading the cache again; `0` reads every time |
 
 ## Webhook
 

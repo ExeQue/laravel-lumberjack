@@ -88,6 +88,7 @@ class LumberjackServiceProvider extends ServiceProvider
             $this->string('health.states.store'),
             (int) config('lumberjack.health.states.ttl', 30),
             (bool) config('lumberjack.health.states.pull', true),
+            (int) config('lumberjack.health.states.memo', 5),
         ));
 
         $this->app->singleton(BrowserScript::class, fn (Application $app): BrowserScript => new BrowserScript(

@@ -17,7 +17,8 @@ use Throwable;
  * writes what its heartbeat gets back; when that is older than the ttl, the app asks
  * GET /api/health itself, at most once per ttl for everything sharing the cache. A
  * change of state dispatches HealthStateChanged in whichever process wrote it.
- * Reading never throws: without an answer a check is Unknown.
+ * Reading never throws: without an answer a check is Unknown. Within a process, what
+ * was read is kept for a few seconds (memo), so asking often costs one cache read.
  */
 class HealthStates
 {
@@ -35,8 +36,14 @@ class HealthStates
         private readonly ?string $store = null,
         private readonly int $ttl = 30,
         private readonly bool $pull = true,
+        private readonly int $memo = 5,
     ) {
     }
+
+    /** @var array<string, HealthStateSnapshot>|null what all() last read, kept for $memo seconds */
+    private ?array $remembered = null;
+
+    private float $rememberedAt = 0.0;
 
     public function get(string $slug): HealthState
     {
@@ -53,6 +60,12 @@ class HealthStates
      */
     public function all(): array
     {
+        // A page asking about many checks, or one check many times, reads the cache once.
+        // ponytail: per process; a long-running worker sees a change up to $memo seconds late.
+        if ($this->remembered !== null && Carbon::now()->getTimestampMs() / 1000 - $this->rememberedAt < $this->memo) {
+            return $this->remembered;
+        }
+
         try {
             $stored = $this->read();
 
@@ -61,7 +74,7 @@ class HealthStates
                 $stored = $this->read();
             }
 
-            return $this->snapshots($stored['checks'] ?? []);
+            return $this->remember($this->snapshots($stored['checks'] ?? []));
         } catch (Throwable) {
             return [];
         }
@@ -89,6 +102,7 @@ class HealthStates
         $before = $this->snapshots($this->read()['checks'] ?? []);
         $this->repository()->forever(self::KEY, ['fetched_at' => Carbon::now()->getTimestamp(), 'checks' => $checks]);
         $after = $this->snapshots($checks);
+        $this->remember($after);
 
         foreach ($after + $before as $slug => $snapshot) {
             $from = $before[$slug]->state ?? HealthState::Unknown;
@@ -133,6 +147,20 @@ class HealthStates
     private function claimPull(): bool
     {
         return $this->repository()->add(self::KEY.':pulled', true, max(1, $this->ttl));
+    }
+
+    /**
+     * @param  array<string, HealthStateSnapshot>  $snapshots
+     * @return array<string, HealthStateSnapshot>
+     */
+    private function remember(array $snapshots): array
+    {
+        if ($this->memo > 0) {
+            $this->remembered = $snapshots;
+            $this->rememberedAt = Carbon::now()->getTimestampMs() / 1000;
+        }
+
+        return $snapshots;
     }
 
     /**

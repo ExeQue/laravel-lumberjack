@@ -314,6 +314,13 @@ The states are kept in the app's cache, and filled two ways:
 | `health.states.store` | `LUMBERJACK_HEALTH_STATES_STORE` | `null` | Cache store; the default store when null |
 | `health.states.ttl` | `LUMBERJACK_HEALTH_STATES_TTL` | `30` | Seconds the stored states count as fresh |
 | `health.states.pull` | `LUMBERJACK_HEALTH_STATES_PULL` | `true` | Fetch from Lumberjack when they are older |
+| `health.states.memo` | `LUMBERJACK_HEALTH_STATES_MEMO` | `5` | Seconds a process keeps what it read, so many `state()` calls cost one cache read; `0` reads every time |
+
+Asking is cheap. Lumberjack is asked at most once per ttl for everything that shares
+the cache, whether it answered or not, and within one process the states are kept for
+`memo` seconds, so a page that checks twenty slugs, or one slug in a loop, reads the
+cache once. A long-running process (a queue worker, Octane) sees a change up to `memo`
+seconds late.
 
 ### Reacting to a change
 

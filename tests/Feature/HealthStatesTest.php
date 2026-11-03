@@ -56,6 +56,32 @@ describe('reading states', function () {
     });
 });
 
+describe('the memo', function () {
+    it('reads the cache once while asked many times within the memo, and again after it', function () {
+        app(HealthStates::class)->fill(($this->answer)('down'));
+        $states = app(HealthStates::class);
+
+        cache()->forever(HealthStates::KEY, ['fetched_at' => now()->getTimestamp(), 'checks' => ['disk:s3' => ['state' => 'ok']]]);
+
+        expect($states->get('disk:s3'))->toBe(HealthState::Down);
+
+        $this->travel(6)->seconds();
+
+        expect($states->get('disk:s3'))->toBe(HealthState::Ok);
+    });
+
+    it('reads every time with a memo of 0', function () {
+        config(['lumberjack.health.states.memo' => 0]);
+        app()->forgetInstance(HealthStates::class);
+        $states = app(HealthStates::class);
+        $states->fill(($this->answer)('down'));
+
+        cache()->forever(HealthStates::KEY, ['fetched_at' => now()->getTimestamp(), 'checks' => ['disk:s3' => ['state' => 'ok']]]);
+
+        expect($states->get('disk:s3'))->toBe(HealthState::Ok);
+    });
+});
+
 describe('pulling', function () {
     it('asks GET /api/health with the token once the stored states are older than the ttl, then not again within it', function () {
         Http::fake(['*/api/health*' => Http::response(($this->answer)('degraded'))]);
