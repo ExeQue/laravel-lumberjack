@@ -97,7 +97,7 @@ class RecordsLaravelEvents
         }
 
         // Sampled per request; timing and queries start once the route is known.
-        $this->recorder->startRun(RecordingRules::sampled($this->rules->sampleRate));
+        $this->recorder->startRun(RecordingRules::sampled($this->rules->sampleRate), $this->rules->sampleRate);
     }
 
     public function requestHandled(RequestHandled $event): void
@@ -109,8 +109,17 @@ class RecordsLaravelEvents
         }
 
         $request = $event->request;
-        $start = defined('LARAVEL_START') ? (float) LARAVEL_START : (float) $request->server('REQUEST_TIME_FLOAT', microtime(true));
+        // The request's own start: under Octane LARAVEL_START is when the worker booted.
+        $start = (float) ($request->server('REQUEST_TIME_FLOAT') ?? (defined('LARAVEL_START') ? LARAVEL_START : microtime(true)));
         $duration = round((microtime(true) - $start) * 1000, 3);
+        $status = $event->response->getStatusCode();
+        $route = $request->route();
+        $route = is_object($route) ? '/'.ltrim($route->uri(), '/') : '/'.ltrim($request->path(), '/');
+
+        // Every request is counted, sampled or not, so the server knows the true traffic.
+        if (! $this->rules->ignoresStatus($status)) {
+            $this->recorder->countRequest($request->method(), $route, $status, $duration);
+        }
 
         // A request that was not sampled is still recorded when it was slow.
         if ($this->recorder->isTentative() && ! RecordingRules::isSlow($duration, $this->rules->requestsAlwaysSlowerThanMs)) {
@@ -120,7 +129,6 @@ class RecordsLaravelEvents
         }
 
         $this->recorder->endRun();
-        $status = $event->response->getStatusCode();
 
         if ($this->rules->ignoresStatus($status)) {
             $this->recorder->discardQueries();
@@ -128,12 +136,11 @@ class RecordsLaravelEvents
             return;
         }
 
-        $route = $request->route();
-
         $this->recorder->record([
             'type' => 'request',
+            ...$this->recorder->weight(),
             'method' => $request->method(),
-            'route' => is_object($route) ? '/'.ltrim($route->uri(), '/') : null,
+            'route' => $route,
             'url' => $request->fullUrl(),
             'status' => $status,
             'duration_ms' => $duration,
@@ -201,11 +208,11 @@ class RecordsLaravelEvents
         if ($event->connectionName !== 'sync') {
             $this->recorder->flush();
             $this->recorder->startTrace();
-            $this->recorder->startRun(RecordingRules::sampled($this->rules->jobsSampleRate));
+            $this->recorder->startRun(RecordingRules::sampled($this->rules->jobsSampleRate), $this->rules->jobsSampleRate);
         }
 
         $this->jobStarts[$key] = microtime(true);
-        $this->recorder->record($this->job($event->connectionName, $event->job, 'processing'));
+        $this->recorder->record([...$this->job($event->connectionName, $event->job, 'processing'), ...$this->recorder->weight()]);
     }
 
     public function jobFailed(JobFailed $event): void
@@ -252,6 +259,7 @@ class RecordsLaravelEvents
 
         $this->recorder->record([
             ...$this->job($connection, $job, $status),
+            ...$this->recorder->weight(),
             'duration_ms' => $duration,
             ...$extra,
         ]);

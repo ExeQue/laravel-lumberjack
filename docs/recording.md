@@ -61,6 +61,23 @@ in memory until it knows whether it was slow.
 A command the scheduler runs takes the schedule's rate and threshold, also in its own
 `php artisan` process.
 
+### What is counted exactly, and how the rest is weighed
+
+Sampling never hides how much traffic there is:
+
+- **Every request is counted**, sampled or not: per method, route (the path when no route
+  matched) and status, a count and the summed duration. Each batch the app hands the agent
+  carries the counts since the last one as one `request_counts` event, so Lumberjack's
+  request totals and throughput are exact. Requests the rules leave out (`requests.ignore`,
+  `ignore_methods`, `ignore_status`) are not counted. At most 500 distinct rows go in one
+  batch; more are added up in one `other` row.
+- **Every run says how it was picked.** A request, job, command or scheduled run, and each
+  of its queries and spans, carries `sample_rate` (the rate that applied) and `sampled`:
+  `true` when the run was picked, `false` when it was kept only because it was slow or
+  failed. Lumberjack weighs a sampled query by `1 / sample_rate` when it adds up calls and
+  time, and leaves runs with `sampled: false` out of percentiles, which they would skew
+  towards the slow end. An event without these fields counts as `sample_rate: 1`.
+
 ## Requests
 
 Route, status, duration and peak memory.

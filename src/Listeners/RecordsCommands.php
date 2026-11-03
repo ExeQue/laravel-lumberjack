@@ -102,7 +102,8 @@ class RecordsCommands
             $this->recorder->startTrace();
             // A scheduled command runs in a process of its own; it takes the scheduler's rate.
             $this->scheduled = $this->isScheduled !== null && ($this->isScheduled)($name);
-            $this->recorder->startRun(RecordingRules::sampled($this->scheduled ? $this->rules->scheduleSampleRate : $this->rules->commandsSampleRate));
+            $rate = $this->scheduled ? $this->rules->scheduleSampleRate : $this->rules->commandsSampleRate;
+            $this->recorder->startRun(RecordingRules::sampled($rate), $rate);
         }
 
         $run = ['uuid' => (string) Str::uuid(), 'name' => $name, 'start' => microtime(true), 'exceptions' => $this->recorder->exceptionCount()];
@@ -148,7 +149,7 @@ class RecordsCommands
      */
     private function event(array $run, string $status, ?InputInterface $input): array
     {
-        $event = ['type' => 'command', 'status' => $status, 'uuid' => $run['uuid'], 'name' => $run['name']];
+        $event = ['type' => 'command', 'status' => $status, 'uuid' => $run['uuid'], 'name' => $run['name'], ...$this->recorder->weight()];
 
         if ($status === 'finished') {
             $event['duration_ms'] = round((microtime(true) - $run['start']) * 1000, 3);

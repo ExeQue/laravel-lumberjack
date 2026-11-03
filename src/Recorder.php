@@ -24,6 +24,19 @@ class Recorder
 
     public const int MAX_HELD = 1000;
 
+    /** Distinct method, route and status rows counted between two flushes; more go in one "other" row. */
+    public const int MAX_COUNTED = 500;
+
+    /** @var array<string, array{method: string, route: string, status: int, count: int, duration_ms_sum: float}> */
+    private array $counts = [];
+
+    private ?float $countedFrom = null;
+
+    /** The rate that picked the current (or last) run, and whether it was picked. */
+    private float $sampleRate = 1.0;
+
+    private bool $sampled = true;
+
     /** @var list<array<string, mixed>> */
     private array $events = [];
 
@@ -113,8 +126,10 @@ class Recorder
      * A request, job or command run begins. A run that was not sampled still captures,
      * but holds its queries and spans back until endRun() knows whether it was slow.
      */
-    public function startRun(bool $sampled = true): void
+    public function startRun(bool $sampled = true, float $rate = 1.0): void
     {
+        $this->sampleRate = max(0.0, min(1.0, $rate));
+        $this->sampled = $sampled;
         $this->inRun = true;
         $this->capturing = true;
         $this->tentative = ! $sampled;
@@ -145,6 +160,40 @@ class Recorder
         }
     }
 
+    /**
+     * What a run's events carry so the server can weigh them: the rate that applied, and
+     * whether the run was picked (false: kept only because it was slow or failed).
+     *
+     * @return array{sample_rate: float, sampled: bool}
+     */
+    public function weight(): array
+    {
+        return ['sample_rate' => $this->sampleRate, 'sampled' => $this->sampled];
+    }
+
+    /**
+     * Every request the rules record, sampled or not, is counted, so the server knows the
+     * true traffic. Sent as one request_counts event with the next flush.
+     */
+    public function countRequest(string $method, string $route, int $status, float $durationMs): void
+    {
+        if (! $this->enabled) {
+            return;
+        }
+
+        $key = $method.' '.$route.' '.$status;
+
+        if (! isset($this->counts[$key]) && count($this->counts) >= self::MAX_COUNTED) {
+            $key = 'other';
+            [$method, $route, $status] = ['*', 'other', 0];
+        }
+
+        $this->countedFrom ??= microtime(true);
+        $this->counts[$key] ??= ['method' => $method, 'route' => $route, 'status' => $status, 'count' => 0, 'duration_ms_sum' => 0.0];
+        $this->counts[$key]['count']++;
+        $this->counts[$key]['duration_ms_sum'] += $durationMs;
+    }
+
     /** A run that was not sampled: what it records is held back. */
     public function isTentative(): bool
     {
@@ -167,6 +216,11 @@ class Recorder
         }
 
         $event = $this->scrubber->event($event + ['trace_id' => $this->traceId(), 'timestamp' => microtime(true)]);
+
+        // A run's queries and spans weigh what the run weighs.
+        if ($this->inRun && in_array($event['type'] ?? null, ['query', 'span'], true)) {
+            $event += ['sample_rate' => $this->sampleRate, 'sampled' => ! $this->tentative];
+        }
 
         if ($this->tentative && in_array($event['type'] ?? null, ['query', 'span'], true)) {
             // ponytail: an unsampled run keeps at most MAX_HELD; a slow run past that is cut short.
@@ -262,6 +316,20 @@ class Recorder
 
     public function flush(): void
     {
+        if ($this->counts !== []) {
+            $now = microtime(true);
+            $this->events[] = [
+                'type' => 'request_counts',
+                'counts' => array_values(array_map(fn (array $row): array => ['duration_ms_sum' => round($row['duration_ms_sum'], 3)] + $row, $this->counts)),
+                'from' => $this->countedFrom ?? $now,
+                'to' => $now,
+                'trace_id' => $this->traceId(),
+                'timestamp' => $now,
+            ];
+            $this->counts = [];
+            $this->countedFrom = null;
+        }
+
         if ($this->events === []) {
             return;
         }
