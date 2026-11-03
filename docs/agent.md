@@ -99,3 +99,17 @@ For each queue the agent sends:
 | `oldest_age_s` | Seconds the oldest pending job has waited, where the driver can tell cheaply (Redis, database); otherwise `null` |
 
 A queue that cannot be measured (Redis is down, a connection that does not exist) is left out of that heartbeat; the heartbeat itself always goes out. The Jobs page shows the sizes, and a queue backlog alert can fire on them.
+
+## Host metrics
+
+The heartbeat also tells how busy the agent's host is, as `metrics`:
+
+| Field | Read from |
+|---|---|
+| `cpu_load_1m` | `sys_getloadavg()` |
+| `cpu_cores` | The container's CPU limit (cgroup v2 `cpu.max`), else the processors in `/proc/cpuinfo` |
+| `memory_used_bytes`, `memory_total_bytes` | The container's memory (cgroup v2 `memory.current` and `memory.max`, or cgroup v1), else `/proc/meminfo` |
+| `disk_used_bytes`, `disk_total_bytes` | The disk the app lives on (`base_path()`) |
+| `php_memory_peak_bytes` | The agent process's own peak memory |
+
+Inside a container the limits of the container count, not those of the machine; a container without a memory limit reports the machine's total. Nothing runs a program to find out, so it costs next to nothing. What the system does not tell (load and memory on Windows, memory and cores on macOS) is sent as `null`. Lumberjack shows the values and their trend on the project's agents.
