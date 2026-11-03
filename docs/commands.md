@@ -10,7 +10,7 @@ Sets Lumberjack up in the app: checks the URL and token with Lumberjack, writes 
 | `--token=` | The server token; `LUMBERJACK_TOKEN` when left out |
 | `--key=` | The public key, for browser errors; `LUMBERJACK_PUBLIC_KEY` when left out |
 | `--checks=` | Health checks, comma separated: `database`, `cache`, `redis`, `disk:<disk>`, `queue`, `queue:<connection>:<queue>`, `horizon`, `failed-jobs`, `debug-mode`, `migrations`, `mail`; `database:<connection>`, `cache:<store>`, `redis:<connection>` and `mail:<mailer>` name one. The suggested checks when left out |
-| `--layout=` | A view to put `@lumberjack` in, relative to the app's root; repeat it or separate with commas for more |
+| `--layout=` | A view to put `@lumberjack` in, relative to the app's root; repeat it or separate with commas for more. `auto` uses the only layout with a `</head>` and stops, writing nothing, when there are several |
 | `--queues=` | `LUMBERJACK_QUEUES`, e.g. `default,redis:emails` |
 | `--no-verify` | Do not check the URL and token with Lumberjack |
 | `--force` | Replace values in `.env` and the provider without asking |

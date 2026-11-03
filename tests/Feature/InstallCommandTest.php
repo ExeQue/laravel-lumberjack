@@ -101,6 +101,22 @@ describe('lumberjack:install', function () {
         expect(installed('resources/views/layouts/app.blade.php'))->not->toContain('@lumberjack');
     });
 
+    it('puts @lumberjack in the only layout with --layout=auto', function () {
+        ($this->install)(['--layout' => ['auto']])->assertSuccessful();
+
+        expect(installed('resources/views/layouts/app.blade.php'))->toContain("    @lumberjack\n</head>");
+    });
+
+    it('stops before writing anything when --layout=auto finds several layouts', function () {
+        File::put($this->base.'/resources/views/admin.blade.php', "<html><head></head></html>\n");
+
+        ($this->install)(['--layout' => ['auto']])
+            ->expectsOutputToContain('More than one layout')
+            ->assertFailed();
+
+        expect(installed('.env'))->not->toContain('LUMBERJACK_URL');
+    });
+
     it('generates the provider with the chosen checks and registers it once', function () {
         ($this->install)(['--checks' => 'database,cache,disk:s3,queue:redis:emails,failed-jobs'])->assertSuccessful();
         ($this->install)(['--checks' => 'database,cache,disk:s3,queue:redis:emails,failed-jobs'])->assertSuccessful();
@@ -118,7 +134,14 @@ describe('lumberjack:install', function () {
     });
 
     it('suggests checks from the app\'s config when none are given', function () {
-        config(['filesystems.disks.s3' => ['driver' => 's3', 'bucket' => 'media'], 'filesystems.disks.backups' => ['driver' => 's3', 'bucket' => ''], 'queue.default' => 'redis', 'cache.default' => 'redis']);
+        config([
+            'filesystems.disks.s3' => ['driver' => 's3', 'bucket' => 'media'],
+            'filesystems.disks.backups' => ['driver' => 's3', 'bucket' => ''],
+            'filesystems.disks.archive' => ['driver' => 'sftp', 'host' => 'files.example.com'],
+            'filesystems.disks.unused' => ['driver' => 'ftp', 'host' => ''],
+            'queue.default' => 'redis',
+            'cache.default' => 'redis',
+        ]);
 
         ($this->install)()->assertSuccessful();
 
@@ -129,8 +152,10 @@ describe('lumberjack:install', function () {
             ->toContain('->queue()')
             ->toContain('->debugMode()')
             ->toContain('->migrations()')
+            ->toContain("->disk('archive')")
             ->not->toContain("->disk('local')")
-            ->not->toContain("->disk('backups')");
+            ->not->toContain("->disk('backups')")
+            ->not->toContain("->disk('unused')");
     });
 
     it('keeps an edited provider without --force', function () {

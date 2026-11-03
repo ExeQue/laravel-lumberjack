@@ -57,6 +57,13 @@ class InstallCommand extends Command
             return self::FAILURE;
         }
 
+        // A script must not guess between several layouts; it stops before anything is written.
+        if ($this->arrayOption('layout') === ['auto'] && count($this->autoLayouts()) > 1) {
+            $this->components->error('More than one layout has a </head> ('.implode(', ', $this->autoLayouts()).'); pass --layout with the one to use.');
+
+            return self::FAILURE;
+        }
+
         $connection = $this->connection($http, $config);
 
         if ($connection === null) {
@@ -225,6 +232,18 @@ class InstallCommand extends Command
         $this->components->twoColumnDetail('.env.example', implode(', ', $keys).' added');
     }
 
+    /**
+     * The layouts --layout=auto would use: those with a </head> and no @lumberjack yet.
+     *
+     * @return list<string>
+     */
+    private function autoLayouts(): array
+    {
+        $views = $this->laravel->resourcePath('views');
+
+        return array_values(array_filter(LayoutInjector::layouts($views), fn (string $layout): bool => ! LayoutInjector::has($views.'/'.$layout)));
+    }
+
     private function layouts(): void
     {
         $this->components->info('Browser errors');
@@ -232,7 +251,9 @@ class InstallCommand extends Command
         $views = $this->laravel->resourcePath('views');
         $given = $this->arrayOption('layout');
 
-        if ($given !== []) {
+        if ($given === ['auto']) {
+            $files = array_map(fn (string $layout): string => $views.'/'.$layout, $this->autoLayouts());
+        } elseif ($given !== []) {
             $files = array_map(fn (string $path): string => str_starts_with($path, '/') ? $path : $this->laravel->basePath($path), $given);
         } elseif ($this->input->isInteractive()) {
             $found = LayoutInjector::layouts($views);
@@ -511,7 +532,7 @@ class InstallCommand extends Command
             new InputOption('token', null, InputOption::VALUE_REQUIRED, 'The project\'s server token'),
             new InputOption('key', null, InputOption::VALUE_REQUIRED, 'The project\'s public key, for browser errors'),
             new InputOption('checks', null, InputOption::VALUE_REQUIRED, 'Health checks, comma separated, e.g. database,cache,disk:s3,queue:redis:emails'),
-            new InputOption('layout', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'A layout to put @lumberjack in, relative to the app\'s root'),
+            new InputOption('layout', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'A layout to put @lumberjack in, relative to the app\'s root, or "auto" for the only layout there is'),
             new InputOption('queues', null, InputOption::VALUE_REQUIRED, 'Queues whose size the agent sends, e.g. default,redis:emails'),
             new InputOption('no-verify', null, InputOption::VALUE_NONE, 'Do not check the URL and token with Lumberjack'),
             new InputOption('force', null, InputOption::VALUE_NONE, 'Replace existing values and files without asking'),

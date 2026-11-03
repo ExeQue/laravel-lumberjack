@@ -50,7 +50,7 @@ php artisan lumberjack:install --no-interaction \
     --queues=default,redis:emails
 ```
 
-Without `--checks` it uses the suggested checks, without `--layout` it leaves the views alone, and without `--queues` it writes `LUMBERJACK_QUEUES` only when it found more than the default queue. A failed connection check stops it before anything is written; `--no-verify` skips the check. An existing value or provider is kept unless you pass `--force`. See [`lumberjack:install`](commands.md#lumberjack-install) for every option.
+Without `--checks` it uses the suggested checks, without `--layout` it leaves the views alone (`--layout=auto` picks the only layout there is), and without `--queues` it writes `LUMBERJACK_QUEUES` only when it found more than the default queue. A failed connection check stops it before anything is written; `--no-verify` skips the check. An existing value or provider is kept unless you pass `--force`. See [`lumberjack:install`](commands.md#lumberjack-install) for every option.
 
 ## By hand
 

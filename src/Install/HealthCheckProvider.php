@@ -67,9 +67,10 @@ final class HealthCheckProvider
                 continue;
             }
 
-            // Every new app has an s3 disk; only one with a bucket is in use.
+            // Every new app has an s3 disk with nothing filled in; a remote disk is in use
+            // once it has somewhere to go (a bucket, a host, a root, an endpoint).
             $driver = is_array($settings) ? ($settings['driver'] ?? null) : null;
-            $inUse = $driver !== 'local' && ($driver !== 's3' || ! empty($settings['bucket']));
+            $inUse = $driver !== 'local' && is_array($settings) && array_filter(array_intersect_key($settings, array_flip(['bucket', 'host', 'root', 'endpoint', 'container']))) !== [];
             $offer("disk:{$disk}", "Disk {$disk} (write, read, delete".($driver === 'local' ? ', disk usage' : '').')', $inUse);
         }
 
