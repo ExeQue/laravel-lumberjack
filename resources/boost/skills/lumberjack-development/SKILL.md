@@ -81,7 +81,7 @@ Every method takes its required parameters first, then `degradeAfter` (2), `reco
 | Method, parameters in order | Default slug | Checks |
 |---|---|---|
 | `disk(string $disk, ..., ?int $warnAt, ?int $failAt, ...)` | `disk:<disk>` | write, read, delete a file; for a local disk `used_percent` against warnAt/failAt |
-| `database(?string $connection, ..., ?int $maxLatencyMs, ...)` | `database:<connection>` | `select 1`, warning above maxLatencyMs |
+| `database(?string $connection, ..., ?int $maxLatencyMs, ..., ?float $warnAtConnections)` | `database:<connection>` | `select 1` plus connections, limit and size; warning above maxLatencyMs or warnAtConnections |
 | `cache(?string $store, ...)` | `cache:<store>` | put, get, forget |
 | `redis(?string $connection, ...)` | `redis:<connection>` | `PING` |
 | `queue(?string $connection, ..., ?string $queue, ?int $warnAt, ?int $failAt, ...)` | `queue:<connection>:<queue>` | the queue's size |
