@@ -74,7 +74,7 @@ Each request carries:
 - `X-Lumberjack-Timestamp`: when it was sent, in Unix seconds,
 - `X-Lumberjack-Signature`: `sha256=` and the HMAC-SHA256 of `"{timestamp}.{body}"` with the channel's secret.
 
-The package recomputes the HMAC, compares in constant time and refuses a request more than 5 minutes old, so a captured one cannot be replayed later. Within those 5 minutes a delivery is handled once: the same signed request again (a replay, or a retry of a delivery that got through) is answered `204` and runs no handlers. That needs a working cache store; without one, deliveries are not de-duplicated. A request that fails any of this, or arrives while no secret is set, gets a **404**, as if the path did not exist. Lumberjack then shows the channel's delivery as failed with HTTP 404.
+The package recomputes the HMAC, compares in constant time and refuses a request more than 5 minutes old, so a captured one cannot be replayed later. Within those 5 minutes a delivery is handled once: the same signed request again (a replay, or a retry of a delivery that got through) is answered `204` and runs no handlers. A delivery whose handler threw (answered `500`) is not counted, so Lumberjack's retry runs the handlers again. That needs a working cache store; without one, deliveries are not de-duplicated. A request that fails any of this, or arrives while no secret is set, gets a **404**, as if the path did not exist. Lumberjack then shows the channel's delivery as failed with HTTP 404.
 
 Receiving the webhook without this package: check the same two headers the same way.
 

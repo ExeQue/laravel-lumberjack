@@ -116,4 +116,22 @@ describe('replays', function () {
 
         expect($runs)->toBe(2);
     });
+
+    it('handles a delivery again when its handler threw the first time', function () {
+        $calls = 0;
+        Lumberjack::on(Status::Escalating, function () use (&$calls) {
+            if (++$calls === 1) {
+                throw new RuntimeException('The pager is down');
+            }
+        });
+        $this->withoutExceptionHandling();
+        $timestamp = time();
+
+        expect(fn () => ($this->send)($this->escalation, $timestamp))->toThrow(RuntimeException::class, 'The pager is down');
+
+        ($this->send)($this->escalation, $timestamp)->assertNoContent();
+        ($this->send)($this->escalation, $timestamp)->assertNoContent();
+
+        expect($calls)->toBe(2);
+    });
 });

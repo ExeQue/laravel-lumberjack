@@ -255,7 +255,7 @@ Lumberjack::onException(PaymentGatewayException::class, [Status::New, Status::Re
 Lumberjack::on(Status::Resolved, fn (Alert $alert) => StatusBanner::hideFor($alert->title));
 ```
 
-`Status`: `New`, `Reopened`, `Escalating`, `Resolved`, `Ignored`, `Note`. Exception classes match subclasses. `Alert` has `status`, `issueId`, `reference`, `title`, `message`, `url`, `environment`, `burst`, `note`, `by`, `payload` and `isException($class)`. Handlers run inside the webhook request: dispatch a job for anything slow. Every alert also fires `ExeQue\Lumberjack\Webhooks\AlertReceived`. The route is outside the `web` group (no session, no CSRF); a bad or old (over 5 minutes) signature gets a 404.
+`Status`: `New`, `Reopened`, `Escalating`, `Resolved`, `Ignored`, `Note`. Exception classes match subclasses. `Alert` has `status`, `issueId`, `reference`, `title`, `message`, `url`, `environment`, `burst`, `note`, `by`, `payload` and `isException($class)`. Handlers run inside the webhook request: dispatch a job for anything slow. Every alert also fires `ExeQue\Lumberjack\Webhooks\AlertReceived`. The route is outside the `web` group (no session, no CSRF); a bad or old (over 5 minutes) signature gets a 404. The same signed delivery is handled once (cache-backed); one whose handler threw is handled again on Lumberjack's retry.
 
 ## What is recorded
 

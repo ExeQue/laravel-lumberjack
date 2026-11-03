@@ -48,8 +48,17 @@ class WebhookController
         }
 
         $alert = Alert::fromPayload($status, $payload);
-        AlertReceived::dispatch($alert);
-        $handlers->handle($alert);
+
+        // A handler that throws answers 500 and Lumberjack sends the same delivery again;
+        // that one must be handled, not taken for a replay.
+        try {
+            AlertReceived::dispatch($alert);
+            $handlers->handle($alert);
+        } catch (Throwable $e) {
+            $this->forgetDelivery($signature);
+
+            throw $e;
+        }
 
         return response()->noContent();
     }
@@ -57,11 +66,24 @@ class WebhookController
     private function firstDelivery(string $signature): bool
     {
         try {
-            return Cache::add('lumberjack:webhook:'.hash('sha256', $signature), true, self::TOLERANCE_SECONDS * 2);
+            return Cache::add(self::deliveryKey($signature), true, self::TOLERANCE_SECONDS * 2);
         } catch (Throwable $e) {
             @error_log('Lumberjack could not check a webhook for a replay: '.$e->getMessage());
 
             return true;
         }
+    }
+
+    private function forgetDelivery(string $signature): void
+    {
+        try {
+            Cache::forget(self::deliveryKey($signature));
+        } catch (Throwable) {
+        }
+    }
+
+    private static function deliveryKey(string $signature): string
+    {
+        return 'lumberjack:webhook:'.hash('sha256', $signature);
     }
 }
