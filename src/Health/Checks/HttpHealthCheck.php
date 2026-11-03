@@ -24,6 +24,13 @@ final class HttpHealthCheck implements HealthCheck
         private readonly string $method = 'GET',
         private readonly int $timeout = 10,
         private readonly ?string $slug = null,
+        /**
+         * Sent with the request, such as an Authorization or a Host header. They stay in
+         * the app: neither the headers nor their values are reported.
+         *
+         * @var array<string, string>
+         */
+        private readonly array $headers = [],
     ) {
     }
 
@@ -32,7 +39,7 @@ final class HttpHealthCheck implements HealthCheck
         $start = hrtime(true);
 
         try {
-            $response = Http::timeout($this->timeout)->send($this->method, $this->url);
+            $response = Http::timeout($this->timeout)->withHeaders($this->headers)->send($this->method, $this->url);
         } catch (ConnectionException $e) {
             return CheckResult::failed($e->getMessage());
         }

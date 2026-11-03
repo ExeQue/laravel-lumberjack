@@ -170,7 +170,7 @@ All in `ExeQue\Lumberjack\Health\Checks`, each with a method of the same name on
 | `redis()` | `RedisHealthCheck` | `connection` | `redis:<connection>` |
 | `queue()` | `QueueHealthCheck` | `connection`, `queue`, `warnAt`, `failAt` | `queue:<connection>:<queue>` |
 | `horizon()` | `HorizonHealthCheck` | | `horizon` |
-| `http()` | `HttpHealthCheck` | `url`, `status` (200), `maxLatencyMs`, `method` (`GET`) | `http:<host><path>` |
+| `http()` | `HttpHealthCheck` | `url`, `status` (200), `maxLatencyMs`, `method` (`GET`), `headers` | `http:<host><path>` |
 | `debugMode()` | `DebugModeHealthCheck` | `environments` (`['production']`) | `debug-mode` |
 | `migrations()` | `MigrationsHealthCheck` | `connection` | `migrations:<connection>` |
 | `failedJobs()` | `FailedJobsHealthCheck` | `withinMinutes` (60), `warnAt` (1), `failAt` | `failed-jobs` |
@@ -185,7 +185,15 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 - **redis**: `PING`; metric `latency_ms`.
 - **queue**: the queue's size (metric `size`), a warning at `warnAt` and failed at `failAt`.
 - **horizon**: failed when Horizon is not installed, no master supervisor runs or it is paused, as `horizon:status` sees it.
-- **http**: a request with the check's timeout; failed on a connection error or another status than `status`, a warning above `maxLatencyMs`; metric `latency_ms`.
+- **http**: a request with the check's timeout; failed on a connection error or another status than `status`, a warning above `maxLatencyMs`; metric `latency_ms`. `headers` are sent with it, for an endpoint behind a token or a virtual host:
+
+  ```php
+  Lumberjack::healthChecks()->http('https://api.internal/health', headers: [
+      'Authorization' => 'Bearer '.config('services.api.health_token'),
+  ]);
+  ```
+
+  They stay in the app; neither names nor values are reported to Lumberjack.
 - **debugMode**: failed when `app.debug` is on in one of `environments`.
 - **migrations**: failed while migrations are pending (the migration files against the ones that ran, like `migrate:status`), or when the migrations table does not exist; metric `pending`.
 - **failedJobs**: jobs that failed within the last `withinMinutes`, through the app's failed job provider (`queue.failed`); metric `count`. Ok when failed jobs are not stored (driver `null`). The database providers are counted with a query; the others list every failed job.

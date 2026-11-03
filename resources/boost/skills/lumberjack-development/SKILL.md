@@ -86,7 +86,7 @@ Every method takes its required parameters first, then `degradeAfter` (2), `reco
 | `redis(?string $connection, ...)` | `redis:<connection>` | `PING` |
 | `queue(?string $connection, ..., ?string $queue, ?int $warnAt, ?int $failAt, ...)` | `queue:<connection>:<queue>` | the queue's size |
 | `horizon(...)` | `horizon` | Horizon installed, running, not paused |
-| `http(string $url, ..., int $status = 200, ?int $maxLatencyMs, string $method = 'GET', ...)` | `http:<host><path>` | status and latency |
+| `http(string $url, ..., int $status = 200, ?int $maxLatencyMs, string $method = 'GET', ..., array $headers = [])` | `http:<host><path>` | status and latency; headers sent, never reported |
 | `debugMode(..., array $environments = ['production'], ...)` | `debug-mode` | `app.debug` off in those environments |
 | `migrations(?string $connection, ...)` | `migrations:<connection>` | no pending migrations |
 | `failedJobs(..., int $withinMinutes = 60, int $warnAt = 1, ?int $failAt, ...)` | `failed-jobs` | failed jobs within the window |

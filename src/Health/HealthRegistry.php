@@ -208,6 +208,9 @@ final class HealthRegistry
         ));
     }
 
+    /**
+     * @param  array<string, string>  $headers  sent with the request, never reported
+     */
     public function http(
         string $url,
         int $degradeAfter = 2,
@@ -218,6 +221,7 @@ final class HealthRegistry
         string $method = 'GET',
         int $timeout = 10,
         ?string $slug = null,
+        array $headers = [],
     ): self {
         return $this->add(new HttpHealthCheck(
             url: $url,
@@ -229,6 +233,7 @@ final class HealthRegistry
             method: $method,
             timeout: $timeout,
             slug: $slug,
+            headers: $headers,
         ));
     }
 

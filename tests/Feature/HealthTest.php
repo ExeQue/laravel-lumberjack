@@ -298,6 +298,12 @@ describe('built-in checks', function () {
             ->and((new HttpHealthCheck('https://down.test/health'))->run())->toMatchObject(['status' => CheckStatus::Failed, 'message' => 'Answered 503, expected 200.'])
             ->and((new HttpHealthCheck('https://down.test/health', status: 503))->run()->status)->toBe(CheckStatus::Ok)
             ->and((new HttpHealthCheck('https://gone.test/health'))->run()->status)->toBe(CheckStatus::Failed);
+
+        (new HttpHealthCheck('https://up.test/health', headers: ['Authorization' => 'Bearer secret', 'X-Probe' => 'lumberjack']))->run();
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://up.test/health'
+            && $request->hasHeader('Authorization', 'Bearer secret')
+            && $request->hasHeader('X-Probe', 'lumberjack'));
     });
 
     it('fails when debug mode is on in a listed environment', function () {
