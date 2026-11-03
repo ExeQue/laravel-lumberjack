@@ -84,37 +84,37 @@ final class HealthRegistry
 
     public function disk(string $disk, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, ?int $warnAt = null, ?int $failAt = null, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([DiskHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([DiskHealthCheck::class, 'disk' => $disk, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'warnAt' => $warnAt, 'failAt' => $failAt, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function database(?string $connection = null, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, ?int $maxLatencyMs = null, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([DatabaseHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([DatabaseHealthCheck::class, 'connection' => $connection, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'maxLatencyMs' => $maxLatencyMs, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function cache(?string $store = null, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([CacheHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([CacheHealthCheck::class, 'store' => $store, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function redis(?string $connection = null, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([RedisHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([RedisHealthCheck::class, 'connection' => $connection, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function queue(?string $connection = null, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, ?string $queue = null, ?int $warnAt = null, ?int $failAt = null, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([QueueHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([QueueHealthCheck::class, 'connection' => $connection, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'queue' => $queue, 'warnAt' => $warnAt, 'failAt' => $failAt, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function horizon(int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([HorizonHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([HorizonHealthCheck::class, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function http(string $url, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $status = 200, ?int $maxLatencyMs = null, string $method = 'GET', int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([HttpHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([HttpHealthCheck::class, 'url' => $url, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'status' => $status, 'maxLatencyMs' => $maxLatencyMs, 'method' => $method, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     /**
@@ -122,27 +122,27 @@ final class HealthRegistry
      */
     public function debugMode(int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, array $environments = ['production'], int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([DebugModeHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([DebugModeHealthCheck::class, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'environments' => $environments, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function migrations(?string $connection = null, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([MigrationsHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([MigrationsHealthCheck::class, 'connection' => $connection, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function failedJobs(int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $withinMinutes = 60, int $warnAt = 1, ?int $failAt = null, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([FailedJobsHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([FailedJobsHealthCheck::class, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'withinMinutes' => $withinMinutes, 'warnAt' => $warnAt, 'failAt' => $failAt, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function freshFile(string $disk, string $path, int $maxAgeMinutes, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, bool $recursive = false, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([FreshFileHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([FreshFileHealthCheck::class, 'disk' => $disk, 'path' => $path, 'maxAgeMinutes' => $maxAgeMinutes, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'recursive' => $recursive, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function mail(?string $mailer = null, int $degradeAfter = 2, int $recoverAfter = 5, int $downAfter = 5, int $timeout = 10, ?string $slug = null): self
     {
-        return $this->add([MailHealthCheck::class, ...get_defined_vars()]);
+        return $this->add([MailHealthCheck::class, 'mailer' => $mailer, 'degradeAfter' => $degradeAfter, 'recoverAfter' => $recoverAfter, 'downAfter' => $downAfter, 'timeout' => $timeout, 'slug' => $slug]);
     }
 
     public function isEmpty(): bool
