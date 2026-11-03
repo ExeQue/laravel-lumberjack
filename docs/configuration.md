@@ -113,29 +113,37 @@ Set it to `null` to send no release.
 
 ## Recording
 
-See [What is recorded](recording.md) for what each section covers. Every `ignore` list takes `*` wildcards.
+See [What is recorded](recording.md) for what each section covers, and [Sampling](recording.md#sampling) for the sample rates and thresholds. Every `ignore` list takes `*` wildcards.
 
 | Key | Env | Default |
 |---|---|---|
 | `requests.enabled` | `LUMBERJACK_REQUESTS` | `true` |
 | `requests.sample_rate` | `LUMBERJACK_SAMPLE_RATE` | `1.0` |
+| `requests.always_slower_than_ms` | `LUMBERJACK_REQUESTS_ALWAYS_SLOWER_THAN_MS` | `1000` |
 | `requests.ignore` | | `up`, `horizon*`, `telescope*`, `_debugbar*` |
 | `requests.ignore_methods` | | `OPTIONS`, `HEAD` |
 | `requests.ignore_status` | | none |
 | `queries.enabled` | `LUMBERJACK_QUERIES` | `true` |
 | `queries.slower_than_ms` | `LUMBERJACK_QUERIES_SLOWER_THAN_MS` | `0` |
+| `queries.always_slower_than_ms` | `LUMBERJACK_QUERIES_ALWAYS_SLOWER_THAN_MS` | `500` |
 | `queries.ignore` | | none |
 | `queries.ignore_connections` | | none |
 | `queries.location` | `LUMBERJACK_QUERY_LOCATION` | `true` |
 | `jobs.enabled` | `LUMBERJACK_JOBS` | `true` |
+| `jobs.sample_rate` | `LUMBERJACK_JOBS_SAMPLE_RATE` | `1.0` |
+| `jobs.always_slower_than_ms` | `LUMBERJACK_JOBS_ALWAYS_SLOWER_THAN_MS` | `5000` |
 | `jobs.ignore` | | none |
 | `jobs.ignore_queues` | | none |
 | `jobs.parameters` | `LUMBERJACK_JOB_PARAMETERS` | `true` |
 | `exceptions.enabled` | `LUMBERJACK_EXCEPTIONS` | `true` |
 | `exceptions.ignore` | | none |
 | `commands.enabled` | `LUMBERJACK_COMMANDS` | `true` |
+| `commands.sample_rate` | `LUMBERJACK_COMMANDS_SAMPLE_RATE` | `1.0` |
+| `commands.always_slower_than_ms` | `LUMBERJACK_COMMANDS_ALWAYS_SLOWER_THAN_MS` | `10000` |
 | `commands.ignore` | | workers and other long-running commands |
 | `schedule.enabled` | `LUMBERJACK_SCHEDULE` | `true` |
+| `schedule.sample_rate` | `LUMBERJACK_SCHEDULE_SAMPLE_RATE` | `1.0` |
+| `schedule.always_slower_than_ms` | `LUMBERJACK_SCHEDULE_ALWAYS_SLOWER_THAN_MS` | `10000` |
 | `schedule.ignore` | | none |
 
 ## Health checks

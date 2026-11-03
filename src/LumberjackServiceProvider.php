@@ -152,7 +152,7 @@ class LumberjackServiceProvider extends ServiceProvider
         if (config('lumberjack.spans.redis') && $this->app->bound('redis')) {
             $this->app->make('redis')->enableEvents();
         }
-        $this->app->make('events')->subscribe($commands = new RecordsCommands($recorder, $rules));
+        $this->app->make('events')->subscribe($commands = new RecordsCommands($recorder, $rules, $this->scheduledCommands(...)));
         $this->app->terminating(fn () => $commands->finishOpen());
 
         $this->app->terminating(fn () => $recorder->flush());
@@ -194,5 +194,30 @@ class LumberjackServiceProvider extends ServiceProvider
     private function strings(string $key): array
     {
         return array_values(array_filter((array) config('lumberjack.'.$key, []), 'is_string'));
+    }
+
+    /**
+     * Whether the app's scheduler runs this command, so its run takes the scheduler's
+     * sample rate. Looked up once per process, and only when a command starts.
+     */
+    private function scheduledCommands(string $name): bool
+    {
+        static $names = null;
+
+        if ($names === null) {
+            try {
+                $names = [];
+
+                foreach ($this->app->make(Schedule::class)->events() as $event) {
+                    if (is_string($event->command) && preg_match("/artisan'?\\s+'?([^\\s']+)/", $event->command, $match) === 1) {
+                        $names[$match[1]] = true;
+                    }
+                }
+            } catch (Throwable) {
+                $names = [];
+            }
+        }
+
+        return isset($names[$name]);
     }
 }

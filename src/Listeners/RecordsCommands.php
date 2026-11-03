@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Listeners;
 
+use Closure;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\JobParameters;
 use ExeQue\Lumberjack\Support\RecordingRules;
@@ -34,9 +35,16 @@ class RecordsCommands
      */
     private array $failures = [];
 
+    /** Whether the outermost running command is one the scheduler runs. */
+    private bool $scheduled = false;
+
+    /**
+     * @param  (Closure(string): bool)|null  $isScheduled  whether the app's scheduler runs this command
+     */
     public function __construct(
         private readonly Recorder $recorder,
         private readonly RecordingRules $rules,
+        private readonly ?Closure $isScheduled = null,
     ) {
     }
 
@@ -82,7 +90,9 @@ class RecordsCommands
             $this->sendFailures();
             $this->recorder->flush();
             $this->recorder->startTrace();
-            $this->recorder->capture();
+            // A scheduled command runs in a process of its own; it takes the scheduler's rate.
+            $this->scheduled = $this->isScheduled !== null && ($this->isScheduled)($name);
+            $this->recorder->startRun(RecordingRules::sampled($this->scheduled ? $this->rules->scheduleSampleRate : $this->rules->commandsSampleRate));
         }
 
         $run = ['uuid' => (string) Str::uuid(), 'name' => $name, 'start' => microtime(true), 'exceptions' => $this->recorder->exceptionCount()];
@@ -102,6 +112,13 @@ class RecordsCommands
 
         $event = $this->event($last, 'finished', $input) + ['exit_code' => $exitCode];
 
+        // The outermost run ends: what it held goes out before its last event.
+        if ($this->running === []) {
+            $duration = (microtime(true) - $last['start']) * 1000;
+            $slow = $this->scheduled ? $this->rules->scheduleAlwaysSlowerThanMs : $this->rules->commandsAlwaysSlowerThanMs;
+            $this->recorder->endRun(keep: $exitCode !== 0 || RecordingRules::isSlow($duration, $slow), slowQueryMs: $this->rules->alwaysSlowerThanMs);
+        }
+
         if ($exitCode !== 0) {
             // ponytail: held until the app terminates or the next command starts; a command
             // called from a queue job that fails waits for one of those.
@@ -111,7 +128,6 @@ class RecordsCommands
         }
 
         if ($this->running === []) {
-            $this->recorder->capture(false);
             $this->recorder->flush();
         }
     }

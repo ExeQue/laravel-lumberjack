@@ -20,6 +20,8 @@ class Recorder
     // ponytail: flush early so long commands do not grow without bound.
     public const int MAX_BUFFERED = 1000;
 
+    public const int MAX_HELD = 1000;
+
     /** @var list<array<string, mixed>> */
     private array $events = [];
 
@@ -27,6 +29,13 @@ class Recorder
 
     /** Whether queries and request timing are recorded right now. */
     private bool $capturing = false;
+
+    private bool $inRun = false;
+
+    private bool $tentative = false;
+
+    /** @var list<array<string, mixed>> queries and spans of an unsampled run, until it ends */
+    private array $held = [];
 
     private bool $enabled;
 
@@ -85,6 +94,54 @@ class Recorder
     }
 
     /**
+     * A request, job or command run begins. A run that was not sampled still captures,
+     * but holds its queries and spans back until endRun() knows whether it was slow.
+     */
+    public function startRun(bool $sampled = true): void
+    {
+        $this->inRun = true;
+        $this->capturing = true;
+        $this->tentative = ! $sampled;
+        $this->held = [];
+    }
+
+    /**
+     * Ends the run. A run that was not sampled sends what it held only when $keep (it
+     * turned out slow), and otherwise just its queries at least $slowQueryMs slow.
+     */
+    public function endRun(bool $keep = true, float $slowQueryMs = 0): void
+    {
+        $held = $this->held;
+        $tentative = $this->tentative;
+        $this->inRun = false;
+        $this->capturing = false;
+        $this->tentative = false;
+        $this->held = [];
+
+        if (! $tentative) {
+            return;
+        }
+
+        foreach ($held as $event) {
+            if ($keep || ($slowQueryMs > 0 && ($event['type'] ?? null) === 'query' && (float) ($event['duration_ms'] ?? 0) >= $slowQueryMs)) {
+                $this->push($event);
+            }
+        }
+    }
+
+    /** A run that was not sampled: what it records is held back. */
+    public function isTentative(): bool
+    {
+        return $this->tentative;
+    }
+
+    /** Inside a request, job or command run, whether or not it was sampled. */
+    public function inRun(): bool
+    {
+        return $this->enabled && $this->inRun;
+    }
+
+    /**
      * @param  array<string, mixed>  $event
      */
     public function record(array $event): void
@@ -93,7 +150,26 @@ class Recorder
             return;
         }
 
-        $this->events[] = $event + ['trace_id' => $this->traceId(), 'timestamp' => microtime(true)];
+        $event += ['trace_id' => $this->traceId(), 'timestamp' => microtime(true)];
+
+        if ($this->tentative && in_array($event['type'] ?? null, ['query', 'span'], true)) {
+            // ponytail: an unsampled run keeps at most MAX_HELD; a slow run past that is cut short.
+            if (count($this->held) < self::MAX_HELD) {
+                $this->held[] = $event;
+            }
+
+            return;
+        }
+
+        $this->push($event);
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function push(array $event): void
+    {
+        $this->events[] = $event;
 
         if (count($this->events) >= self::MAX_BUFFERED) {
             $this->flush();

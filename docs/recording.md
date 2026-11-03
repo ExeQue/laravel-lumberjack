@@ -24,6 +24,42 @@ Every exception your app reports, with:
 
 An exception that Laravel also logs is sent once, not again as a log line. A job's or a scheduled task's failure goes with that job or task.
 
+## Sampling
+
+A busy app does not need every run's queries to see where time goes. Each kind of run has
+its own `sample_rate`, from 0 to 1: the share of requests, jobs, commands and scheduled
+tasks whose queries and spans are recorded. A run that is not sampled is still recorded
+itself (a job's or task's status, duration and failure always are; a request only when
+it is slow, below), so the Jobs, Schedule and Commands pages stay complete and a missed
+or failed task is always noticed.
+
+A run is sampled whole or not at all, never query by query: an N+1, a trace and a share
+of database time only make sense with every query of the run.
+
+What sampling must not hide is kept anyway, each with a threshold in milliseconds you set
+in your app's config:
+
+- **A slow run**, sampled or not, is recorded with all its queries and spans:
+  `requests.always_slower_than_ms` (1000), `jobs.always_slower_than_ms` (5000),
+  `commands.always_slower_than_ms` (10000), `schedule.always_slower_than_ms` (10000).
+- **A failed run** (a failed job, a command that exits with an error, a failed scheduled
+  task) keeps its queries too.
+- **A slow query** from any run is kept on its own: `queries.always_slower_than_ms` (500).
+
+`0` turns a threshold off. A run that is not sampled holds at most 1,000 queries and spans
+in memory until it knows whether it was slow.
+
+```php
+'requests' => ['sample_rate' => 0.25, 'always_slower_than_ms' => 1000],
+'jobs' => ['sample_rate' => 0.25, 'always_slower_than_ms' => 5000],
+'commands' => ['sample_rate' => 1.0, 'always_slower_than_ms' => 10000],
+'schedule' => ['sample_rate' => 0.1, 'always_slower_than_ms' => 10000],
+'queries' => ['always_slower_than_ms' => 500],
+```
+
+A command the scheduler runs takes the schedule's rate and threshold, also in its own
+`php artisan` process.
+
 ## Requests
 
 Route, status, duration and peak memory.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -162,5 +163,78 @@ describe('the @lumberjack directive', function () {
         app()->forgetInstance(ExeQue\Lumberjack\BrowserScript::class);
 
         expect(Blade::render('@lumberjack'))->toBe('');
+    });
+});
+
+describe('sampling', function () {
+    it('records every job run, and the queries of only the sampled ones', function () {
+        $this->withConfig(['lumberjack.jobs.sample_rate' => 0.0, 'lumberjack.queries.always_slower_than_ms' => 0]);
+        $job = new TestJob();
+
+        event(new JobProcessing('redis', $job));
+        DB::select('select 2');
+        event(new JobProcessed('redis', $job));
+
+        expect(array_column($this->sentEvents(), 'type'))->toBe(['job', 'job']);
+    });
+
+    it('keeps a slow query from a run that was not sampled, and not a fast one', function () {
+        $this->withConfig(['lumberjack.jobs.sample_rate' => 0.0, 'lumberjack.queries.always_slower_than_ms' => 500]);
+        $job = new TestJob();
+        $connection = DB::connection();
+
+        event(new JobProcessing('redis', $job));
+        event(new QueryExecuted('select fast', [], 3.0, $connection));
+        event(new QueryExecuted('select slow', [], 900.0, $connection));
+        event(new JobProcessed('redis', $job));
+
+        expect(array_column($this->sentEvents('query'), 'sql'))->toBe(['select slow']);
+    });
+
+    it('keeps every query of a slow job run that was not sampled', function () {
+        $this->withConfig(['lumberjack.jobs.sample_rate' => 0.0, 'lumberjack.jobs.always_slower_than_ms' => 0.0001]);
+        $job = new TestJob();
+
+        event(new JobProcessing('redis', $job));
+        DB::select('select 2');
+        usleep(1000);
+        event(new JobProcessed('redis', $job));
+
+        expect(array_column($this->sentEvents(), 'type'))->toBe(['job', 'query', 'job']);
+    });
+
+    it('keeps the queries of a failed job run that was not sampled', function () {
+        $this->withConfig(['lumberjack.jobs.sample_rate' => 0.0, 'lumberjack.jobs.always_slower_than_ms' => 0, 'lumberjack.queries.always_slower_than_ms' => 0]);
+        $job = new TestJob();
+
+        event(new JobProcessing('redis', $job));
+        DB::select('select 2');
+        event(new JobFailed('redis', $job, new RuntimeException('SMTP down')));
+        app()->terminate();
+
+        expect(array_column($this->sentEvents('query'), 'sql'))->toBe(['select 2']);
+    });
+
+    it('records a request that was not sampled only when it was slow', function () {
+        $this->withConfig(['lumberjack.requests.sample_rate' => 0.0, 'lumberjack.requests.always_slower_than_ms' => 600000, 'lumberjack.queries.always_slower_than_ms' => 0]);
+        Route::get('/orders', fn () => DB::select('select 1 as one') ? 'ok' : 'no');
+        $this->get('/orders')->assertOk();
+        app()->terminate();
+        expect($this->sentEvents('request'))->toBe([])->and($this->sentEvents('query'))->toBe([]);
+
+        $this->withConfig(['lumberjack.requests.sample_rate' => 0.0, 'lumberjack.requests.always_slower_than_ms' => 0.0001]);
+        Route::get('/orders', fn () => DB::select('select 1 as one') ? 'ok' : 'no');
+        $this->get('/orders')->assertOk();
+        app()->terminate();
+        expect($this->sentEvents('request'))->toHaveCount(1)->and($this->sentEvents('query'))->toHaveCount(1);
+    });
+
+    it('leaves a slow query outside any run alone, like a worker waiting for jobs', function () {
+        $this->withConfig(['lumberjack.queries.always_slower_than_ms' => 500]);
+
+        event(new QueryExecuted('select slow', [], 900.0, DB::connection()));
+        app()->terminate();
+
+        expect($this->sentEvents('query'))->toBe([]);
     });
 });

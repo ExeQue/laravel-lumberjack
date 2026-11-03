@@ -73,7 +73,7 @@ class RecordsScheduledTasks
 
         $this->recorder->flush();
         $this->recorder->startTrace();
-        $this->recorder->capture();
+        $this->recorder->startRun(RecordingRules::sampled($this->rules->scheduleSampleRate));
 
         unset($this->ended[spl_object_id($task)]);
         $this->running[spl_object_id($task)] = ['uuid' => (string) Str::uuid(), 'start' => microtime(true)];
@@ -140,13 +140,18 @@ class RecordsScheduledTasks
         unset($this->running[spl_object_id($task)]);
         $this->ended[spl_object_id($task)] = true;
 
+        $duration = round((microtime(true) - $run['start']) * 1000, 3);
+
+        $this->recorder->endRun(
+            keep: $status !== 'finished' || RecordingRules::isSlow($duration, $this->rules->scheduleAlwaysSlowerThanMs),
+            slowQueryMs: $this->rules->alwaysSlowerThanMs,
+        );
+
         $this->recorder->record([
             ...$this->event($task, $status, $run['uuid']),
-            'duration_ms' => round((microtime(true) - $run['start']) * 1000, 3),
+            'duration_ms' => $duration,
             ...array_filter($extra, fn ($value): bool => $value !== null),
         ]);
-
-        $this->recorder->capture(false);
         $this->recorder->flush();
     }
 

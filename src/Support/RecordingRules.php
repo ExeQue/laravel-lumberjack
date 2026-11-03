@@ -31,23 +31,31 @@ final readonly class RecordingRules
         return new self(
             requests: (bool) ($requests['enabled'] ?? true),
             sampleRate: (float) ($requests['sample_rate'] ?? 1.0),
+            requestsAlwaysSlowerThanMs: (float) ($requests['always_slower_than_ms'] ?? 0),
             ignoreRoutes: $list($requests, 'ignore'),
             ignoreMethods: array_map('strtoupper', $list($requests, 'ignore_methods')),
             ignoreStatus: array_map('intval', $list($requests, 'ignore_status')),
             queries: (bool) ($queries['enabled'] ?? true),
             slowerThanMs: (float) ($queries['slower_than_ms'] ?? 0),
+            alwaysSlowerThanMs: (float) ($queries['always_slower_than_ms'] ?? 0),
             ignoreQueries: $list($queries, 'ignore'),
             ignoreConnections: $list($queries, 'ignore_connections'),
             queryLocation: (bool) ($queries['location'] ?? true),
             jobs: (bool) ($jobs['enabled'] ?? true),
+            jobsSampleRate: (float) ($jobs['sample_rate'] ?? 1.0),
+            jobsAlwaysSlowerThanMs: (float) ($jobs['always_slower_than_ms'] ?? 0),
             ignoreJobs: $list($jobs, 'ignore'),
             ignoreQueues: $list($jobs, 'ignore_queues'),
             jobParameters: (bool) ($jobs['parameters'] ?? true),
             exceptions: (bool) ($exceptions['enabled'] ?? true),
             ignoreExceptions: $list($exceptions, 'ignore'),
             schedule: (bool) ($schedule['enabled'] ?? true),
+            scheduleSampleRate: (float) ($schedule['sample_rate'] ?? 1.0),
+            scheduleAlwaysSlowerThanMs: (float) ($schedule['always_slower_than_ms'] ?? 0),
             ignoreTasks: $list($schedule, 'ignore'),
             commands: (bool) ($commands['enabled'] ?? true),
+            commandsSampleRate: (float) ($commands['sample_rate'] ?? 1.0),
+            commandsAlwaysSlowerThanMs: (float) ($commands['always_slower_than_ms'] ?? 0),
             ignoreCommands: $list($commands, 'ignore'),
         );
     }
@@ -67,23 +75,31 @@ final readonly class RecordingRules
     public function __construct(
         public bool $requests = true,
         public float $sampleRate = 1.0,
+        public float $requestsAlwaysSlowerThanMs = 0,
         public array $ignoreRoutes = [],
         public array $ignoreMethods = [],
         public array $ignoreStatus = [],
         public bool $queries = true,
         public float $slowerThanMs = 0,
+        public float $alwaysSlowerThanMs = 0,
         public array $ignoreQueries = [],
         public array $ignoreConnections = [],
         public bool $queryLocation = true,
         public bool $jobs = true,
+        public float $jobsSampleRate = 1.0,
+        public float $jobsAlwaysSlowerThanMs = 0,
         public array $ignoreJobs = [],
         public array $ignoreQueues = [],
         public bool $jobParameters = true,
         public bool $exceptions = true,
         public array $ignoreExceptions = [],
         public bool $schedule = true,
+        public float $scheduleSampleRate = 1.0,
+        public float $scheduleAlwaysSlowerThanMs = 0,
         public array $ignoreTasks = [],
         public bool $commands = true,
+        public float $commandsSampleRate = 1.0,
+        public float $commandsAlwaysSlowerThanMs = 0,
         public array $ignoreCommands = [],
     ) {
     }
@@ -98,6 +114,24 @@ final readonly class RecordingRules
     public function ignoresStatus(int $status): bool
     {
         return in_array($status, $this->ignoreStatus, true);
+    }
+
+    /**
+     * Whether a request, job or command run is picked for timing and queries.
+     * The run itself (status, duration, failure) is recorded either way.
+     */
+    public static function sampled(float $rate): bool
+    {
+        return $rate >= 1.0 || ($rate > 0.0 && mt_rand() / mt_getrandmax() < $rate);
+    }
+
+    /**
+     * A run that was not sampled is recorded anyway, with its queries, when it took at
+     * least $threshold milliseconds (0: never).
+     */
+    public static function isSlow(?float $milliseconds, float $threshold): bool
+    {
+        return $threshold > 0 && $milliseconds !== null && $milliseconds >= $threshold;
     }
 
     public function ignoresQuery(string $sql, string $connection, float $milliseconds): bool

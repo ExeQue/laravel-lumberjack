@@ -90,6 +90,10 @@ return [
         // Share of requests (0 to 1) whose timing and queries are recorded.
         'sample_rate' => (float) env('LUMBERJACK_SAMPLE_RATE', 1.0),
 
+        // A request at least this slow (ms) is recorded with its queries even when it
+        // was not sampled. 0: only sampled requests.
+        'always_slower_than_ms' => (float) env('LUMBERJACK_REQUESTS_ALWAYS_SLOWER_THAN_MS', 1000),
+
         // Route URIs or paths.
         'ignore' => ['up', 'horizon*', 'telescope*', '_debugbar*'],
 
@@ -105,6 +109,10 @@ return [
         // Only queries at least this slow, in milliseconds. 0 records all.
         'slower_than_ms' => (float) env('LUMBERJACK_QUERIES_SLOWER_THAN_MS', 0),
 
+        // A query at least this slow (ms) is kept even from a request, job or command
+        // run that was not sampled, so slow queries are never lost to sampling. 0: off.
+        'always_slower_than_ms' => (float) env('LUMBERJACK_QUERIES_ALWAYS_SLOWER_THAN_MS', 500),
+
         // SQL, e.g. '*information_schema*'.
         'ignore' => [],
 
@@ -117,6 +125,14 @@ return [
 
     'jobs' => [
         'enabled' => (bool) env('LUMBERJACK_JOBS', true),
+
+        // Share of job runs (0 to 1) whose queries and spans are recorded. Every
+        // run's status, duration and failure is recorded whatever this says.
+        'sample_rate' => (float) env('LUMBERJACK_JOBS_SAMPLE_RATE', 1.0),
+
+        // A job run at least this slow (ms), or a failed one, keeps its queries and
+        // spans even when it was not sampled. 0: only failures.
+        'always_slower_than_ms' => (float) env('LUMBERJACK_JOBS_ALWAYS_SLOWER_THAN_MS', 5000),
 
         // Job classes, e.g. 'Laravel\Scout\Jobs\*'.
         'ignore' => [],
@@ -139,6 +155,14 @@ return [
 
     'commands' => [
         'enabled' => (bool) env('LUMBERJACK_COMMANDS', true),
+
+        // Share of command runs (0 to 1) whose queries and spans are recorded; a
+        // command the scheduler runs takes schedule.sample_rate. Every run is recorded.
+        'sample_rate' => (float) env('LUMBERJACK_COMMANDS_SAMPLE_RATE', 1.0),
+
+        // A command run at least this slow (ms), or a failed one, keeps its queries and
+        // spans even when it was not sampled. 0: only failures.
+        'always_slower_than_ms' => (float) env('LUMBERJACK_COMMANDS_ALWAYS_SLOWER_THAN_MS', 10000),
 
         // Command names. Workers and other long-running commands are left out,
         // as they would never finish.
@@ -167,6 +191,15 @@ return [
 
     'schedule' => [
         'enabled' => (bool) env('LUMBERJACK_SCHEDULE', true),
+
+        // Share of scheduled task runs (0 to 1) whose queries and spans are recorded,
+        // also for a scheduled command in its own process. Every run, and a missed
+        // or failed task, is recorded anyway.
+        'sample_rate' => (float) env('LUMBERJACK_SCHEDULE_SAMPLE_RATE', 1.0),
+
+        // A scheduled run at least this slow (ms), or a failed one, keeps its queries
+        // and spans even when it was not sampled. 0: only failures.
+        'always_slower_than_ms' => (float) env('LUMBERJACK_SCHEDULE_ALWAYS_SLOWER_THAN_MS', 10000),
 
         // Task names as Lumberjack shows them, e.g. 'artisan horizon:snapshot'.
         'ignore' => [],

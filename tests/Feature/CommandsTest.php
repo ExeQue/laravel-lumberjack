@@ -58,11 +58,44 @@ describe('artisan commands', function () {
 
     it('leaves out ignored commands', function () {
         $this->withConfig(['lumberjack.commands.ignore' => ['reports:*']]);
+        $this->setUpWithConsoleEvents();
         Artisan::command('reports:send', fn () => 0);
+        Artisan::command('invoices:send', fn () => 0);
 
         Artisan::call('reports:send');
+        Artisan::call('invoices:send');
         app()->terminate();
 
-        expect($this->sentEvents('command'))->toBe([]);
+        expect(array_column($this->sentEvents('command'), 'name'))->toBe(['invoices:send', 'invoices:send']);
+    });
+
+    it('records every command run, and the queries of only the sampled ones', function () {
+        $this->withConfig(['lumberjack.commands.sample_rate' => 0.0, 'lumberjack.commands.always_slower_than_ms' => 0, 'lumberjack.queries.always_slower_than_ms' => 0]);
+        $this->setUpWithConsoleEvents();
+        Artisan::command('reports:send {period} {--force} {--limit=} {--dry-run}', function (): int {
+            DB::select('select 1');
+
+            return $this->option('limit') === '0' ? 1 : 0;
+        });
+
+        Artisan::call('reports:send', ['period' => 'daily']);
+        app()->terminate();
+
+        expect(array_column($this->sentEvents(), 'type'))->toBe(['command', 'command']);
+    });
+
+    it('keeps the queries of a failed command run that was not sampled', function () {
+        $this->withConfig(['lumberjack.commands.sample_rate' => 0.0, 'lumberjack.commands.always_slower_than_ms' => 0, 'lumberjack.queries.always_slower_than_ms' => 0]);
+        $this->setUpWithConsoleEvents();
+        Artisan::command('reports:send {period} {--force} {--limit=} {--dry-run}', function (): int {
+            DB::select('select 1');
+
+            return $this->option('limit') === '0' ? 1 : 0;
+        });
+
+        Artisan::call('reports:send', ['period' => 'daily', '--limit' => '0']);
+        app()->terminate();
+
+        expect($this->sentEvents('query'))->toHaveCount(1);
     });
 });

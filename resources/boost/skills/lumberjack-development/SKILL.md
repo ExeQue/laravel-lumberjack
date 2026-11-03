@@ -267,7 +267,15 @@ Exceptions, requests, queries (with the app line that ran them), jobs, artisan c
 'scrub' => ['iban'], // extra context keys blanked before anything leaves the app
 ```
 
-Spans on each trace: `cache`, `http` (Laravel HTTP client), `mail`, `notifications` on by default, `redis` off (`LUMBERJACK_SPANS_REDIS=true`); `spans.ignore_cache_keys` takes wildcards. Env switches: `LUMBERJACK_REQUESTS`, `LUMBERJACK_QUERIES`, `LUMBERJACK_JOBS`, `LUMBERJACK_EXCEPTIONS`, `LUMBERJACK_COMMANDS`, `LUMBERJACK_SCHEDULE`, `LUMBERJACK_SPANS_*`, `LUMBERJACK_SAMPLE_RATE`.
+Sampling: `requests`, `jobs`, `commands` and `schedule` each take a `sample_rate` (0 to 1), the share of runs whose queries and spans are recorded; a run is sampled whole, never query by query. Every job, command and scheduled run is still recorded itself. Slow and failed runs keep everything anyway via `always_slower_than_ms` per section (defaults 1000 / 5000 / 10000 / 10000), and `queries.always_slower_than_ms` (500) keeps a slow query from any run:
+
+```php
+'requests' => ['sample_rate' => 0.25, 'always_slower_than_ms' => 1000],
+'schedule' => ['sample_rate' => 0.1, 'always_slower_than_ms' => 10000],
+'queries' => ['always_slower_than_ms' => 500],
+```
+
+Spans on each trace: `cache`, `http` (Laravel HTTP client), `mail`, `notifications` on by default, `redis` off (`LUMBERJACK_SPANS_REDIS=true`); `spans.ignore_cache_keys` takes wildcards. Env switches: `LUMBERJACK_REQUESTS`, `LUMBERJACK_QUERIES`, `LUMBERJACK_JOBS`, `LUMBERJACK_EXCEPTIONS`, `LUMBERJACK_COMMANDS`, `LUMBERJACK_SCHEDULE`, `LUMBERJACK_SPANS_*`, `LUMBERJACK_SAMPLE_RATE`, `LUMBERJACK_JOBS_SAMPLE_RATE`, `LUMBERJACK_COMMANDS_SAMPLE_RATE`, `LUMBERJACK_SCHEDULE_SAMPLE_RATE`.
 
 ## Log channels
 
