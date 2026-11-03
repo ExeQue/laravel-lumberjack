@@ -6,6 +6,8 @@ namespace ExeQue\Lumberjack\Webhooks;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 /**
  * Receives Lumberjack's webhook: checks the signature and its age, then hands
@@ -30,6 +32,13 @@ class WebhookController
             abort(404);
         }
 
+        // The signature is unique to its timestamp and body: one seen before is a replay
+        // within the window (or the server retrying a delivery that got through), so it
+        // is accepted and not handled again. A cache that is down lets it through.
+        if (! $this->firstDelivery($signature)) {
+            return response()->noContent();
+        }
+
         $payload = json_decode($body, true);
         $status = is_array($payload) ? Status::fromPayload($payload) : null;
 
@@ -43,5 +52,16 @@ class WebhookController
         $handlers->handle($alert);
 
         return response()->noContent();
+    }
+
+    private function firstDelivery(string $signature): bool
+    {
+        try {
+            return Cache::add('lumberjack:webhook:'.hash('sha256', $signature), true, self::TOLERANCE_SECONDS * 2);
+        } catch (Throwable $e) {
+            @error_log('Lumberjack could not check a webhook for a replay: '.$e->getMessage());
+
+            return true;
+        }
     }
 }

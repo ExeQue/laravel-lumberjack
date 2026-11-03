@@ -101,3 +101,19 @@ describe('turned on without a secret', function () {
         $this->postJson('/lumberjack/webhook', ['event' => 'test'])->assertNotFound();
     });
 });
+
+describe('replays', function () {
+    it('handles a signed delivery once, even when it is sent again within the window', function () {
+        $runs = 0;
+        Lumberjack::onException(PaymentFailed::class, Status::Escalating, function () use (&$runs) {
+            $runs++;
+        });
+        $timestamp = time();
+
+        ($this->send)($this->escalation, $timestamp)->assertNoContent();
+        ($this->send)($this->escalation, $timestamp)->assertNoContent();
+        ($this->send)($this->escalation, $timestamp + 1)->assertNoContent();
+
+        expect($runs)->toBe(2);
+    });
+});
