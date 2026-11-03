@@ -6,6 +6,7 @@ namespace Tests;
 
 use ExeQue\Lumberjack\AgentClient;
 use ExeQue\Lumberjack\LumberjackServiceProvider;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Tests\Support\FakeAgentClient;
 
@@ -25,6 +26,8 @@ abstract class TestCase extends Orchestra
     {
         $this->agent = new FakeAgentClient();
         $app->instance(AgentClient::class, $this->agent);
+        // Nothing a test does may reach a real Lumberjack.
+        $app->make(HttpFactory::class)->preventStrayRequests();
 
         $app['config']->set('lumberjack.url', 'https://lumberjack.test');
         $app['config']->set('lumberjack.token', 'secret-token');

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack;
 
+use Closure;
 use ExeQue\Lumberjack\Support\Client;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\RecordingRules;
+use ExeQue\Lumberjack\Support\Scrubber;
 use Throwable;
 use WeakMap;
 
@@ -45,15 +47,16 @@ class Recorder
     private WeakMap $reported;
 
     /**
-     * @param  array{environment?: ?string, release?: ?string, project?: ?string}  $config
+     * @param  array{environment?: ?string, release?: (Closure(): ?string)|string|null, project?: ?string}  $config  release may be worked out at the first flush
      */
     public function __construct(
         private readonly AgentClient $client,
         private readonly ExceptionPresenter $presenter,
         private readonly ExceptionContext $context,
         private readonly RecordingRules $rules,
-        private readonly array $config,
+        private array $config,
         bool $enabled = true,
+        private readonly Scrubber $scrubber = new Scrubber(),
     ) {
         $this->enabled = $enabled;
         $this->reported = new WeakMap();
@@ -150,7 +153,7 @@ class Recorder
             return;
         }
 
-        $event += ['trace_id' => $this->traceId(), 'timestamp' => microtime(true)];
+        $event = $this->scrubber->event($event + ['trace_id' => $this->traceId(), 'timestamp' => microtime(true)]);
 
         if ($this->tentative && in_array($event['type'] ?? null, ['query', 'span'], true)) {
             // ponytail: an unsampled run keeps at most MAX_HELD; a slow run past that is cut short.
@@ -233,6 +236,17 @@ class Recorder
         return $this->events;
     }
 
+    public function release(): ?string
+    {
+        $release = $this->config['release'] ?? null;
+
+        if ($release instanceof Closure) {
+            $release = $this->config['release'] = $release();
+        }
+
+        return $release;
+    }
+
     public function flush(): void
     {
         if ($this->events === []) {
@@ -246,7 +260,7 @@ class Recorder
             'v' => 1,
             'sdk' => ['name' => Client::SDK, 'version' => Client::version()],
             'environment' => $this->config['environment'] ?? null,
-            'release' => $this->config['release'] ?? null,
+            'release' => $this->release(),
             'host' => gethostname() ?: null,
             'project' => $this->config['project'] ?? null,
             'events' => $events,

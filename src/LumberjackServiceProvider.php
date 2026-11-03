@@ -23,6 +23,7 @@ use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Support\Safely;
+use ExeQue\Lumberjack\Support\Scrubber;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\Lumberjack\Webhooks\WebhookController;
 use Illuminate\Console\Scheduling\Schedule;
@@ -32,6 +33,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Log\LogManager;
+use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -54,17 +56,23 @@ class LumberjackServiceProvider extends ServiceProvider
 
         $this->app->singleton(RecordingRules::class, fn (): RecordingRules => RecordingRules::fromConfig((array) config('lumberjack', [])));
 
+        $this->app->singleton(Scrubber::class, fn (): Scrubber => Scrubber::fromConfig((array) config('lumberjack.scrub', [])));
+
+        $this->app->singleton(ExceptionContext::class, fn (Application $app): ExceptionContext => new ExceptionContext($app->make(Scrubber::class)));
+
         $this->app->singleton(Recorder::class, fn (Application $app): Recorder => new Recorder(
             $app->make(AgentClient::class),
             new ExceptionPresenter($this->string('base_path') ?? $app->basePath()),
-            new ExceptionContext($app, array_map(strtolower(...), $this->strings('scrub'))),
+            $app->make(ExceptionContext::class),
             $app->make(RecordingRules::class),
             [
                 'environment' => $this->string('environment'),
-                'release' => $app->make('lumberjack.release'),
+                // Worked out at the first flush, not on every boot.
+                'release' => fn (): ?string => $app->make('lumberjack.release'),
                 'project' => ProjectFingerprint::of($this->string('token')),
             ],
             (bool) config('lumberjack.enabled', true),
+            $app->make(Scrubber::class),
         ));
 
         // LUMBERJACK_RELEASE, else what the configured resolver works out.
@@ -144,6 +152,9 @@ class LumberjackServiceProvider extends ServiceProvider
             });
         }
 
+        $context = $this->app->make(ExceptionContext::class);
+        $this->app->make('events')->listen(RouteMatched::class, Safely::wrap(fn (RouteMatched $e) => $context->serving($e->request)));
+
         $this->app->make('events')->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
         $this->app->make('events')->subscribe(new RecordsScheduledTasks($recorder, $rules));
         $this->app->make('events')->subscribe(new RecordsSpans($recorder, (array) config('lumberjack.spans', [])));
@@ -186,14 +197,6 @@ class LumberjackServiceProvider extends ServiceProvider
         $value = config('lumberjack.'.$key);
 
         return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function strings(string $key): array
-    {
-        return array_values(array_filter((array) config('lumberjack.'.$key, []), 'is_string'));
     }
 
     /**

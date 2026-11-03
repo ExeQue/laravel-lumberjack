@@ -258,8 +258,28 @@ return [
     'base_path' => null,
 
     /*
-     * Extra context keys to blank before anything leaves the app. The server
-     * scrubs passwords, tokens, cookies and the like on its own as well.
+     * What is blanked before anything leaves the app. Values under sensitive keys (headers,
+     * log context, job parameters, command options, Laravel Context, span attributes) are
+     * replaced by [filtered], matched case-insensitively with * wildcards: authorization,
+     * cookie, password, token, secret, api_key, card, iban and more (see Scrubber::DEFAULT_KEYS).
+     * Every query-string value in a URL is blanked unless its key is in query_keys. The
+     * session is left out except for session_keys. Bearer tokens, JWTs, DSN passwords and
+     * AWS and Stripe keys are blanked in any string, and so is whatever patterns match.
      */
-    'scrub' => [],
+    'scrub' => [
+        // Extra keys, on top of the defaults, e.g. ['cpr', 'x-tenant-*'].
+        'keys' => [],
+
+        // true: only the keys above, none of the defaults.
+        'replace_defaults' => false,
+
+        // Regular expressions; each match in a string becomes [filtered].
+        'patterns' => [],
+
+        // Session keys sent with an exception. None by default.
+        'session_keys' => [],
+
+        // Query-string keys whose values are sent, e.g. ['page', 'sort'].
+        'query_keys' => [],
+    ],
 ];

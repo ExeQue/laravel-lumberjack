@@ -27,4 +27,4 @@ Add the channel to your `stack` to send everything the app logs:
 - A line goes to the Lumberjack log channel named in the config. A name the project has no channel for lands in `default`, marked with the name it was sent with.
 - Lines at `error` and above become issues in Lumberjack.
 - An exception that was reported is not sent again as a log line.
-- A line's context goes with it, scrubbed, and so does its trace id: Lumberjack shows it on the request or job that wrote it.
+- A line's context goes with it, scrubbed in the app (see [Scrubbing](recording.md#scrubbing)), and so does its trace id: Lumberjack shows it on the request or job that wrote it.

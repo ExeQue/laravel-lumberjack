@@ -176,4 +176,8 @@ See [Reacting to alerts](webhooks.md).
 | Key | Default | |
 |---|---|---|
 | `base_path` | `base_path()` | Where the app's own code lives, for code lines and in-app frames |
-| `scrub` | none | Extra context keys to blank before anything leaves the app |
+| `scrub.keys` | none | Extra sensitive keys, on top of the defaults (`*` wildcards). See [Scrubbing](recording.md#scrubbing) |
+| `scrub.replace_defaults` | `false` | `true`: only `scrub.keys`, none of the built-in keys |
+| `scrub.patterns` | none | Regular expressions whose matches are blanked in any string |
+| `scrub.session_keys` | none | Session keys sent with an exception; the rest of the session is left out |
+| `scrub.query_keys` | none | Query-string keys whose values are sent; every other value is blanked |

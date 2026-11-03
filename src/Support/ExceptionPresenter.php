@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Support;
 
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -46,11 +48,40 @@ class ExceptionPresenter
 
         return [
             'class' => $e::class,
-            'message' => $e->getMessage(),
+            'message' => $this->message($e),
             'file' => $this->relative($e->getFile()),
             'line' => $e->getLine(),
             'stacktrace' => array_map($this->frame(...), array_slice($frames, 0, self::MAX_FRAMES)),
         ];
+    }
+
+    /**
+     * The message, but a query's without the values bound to it: they can be anything the
+     * app stored, passwords and personal data included. The SQL keeps its placeholders.
+     */
+    private function message(Throwable $e): string
+    {
+        $message = $e->getMessage();
+
+        if (! $e instanceof QueryException || $e->getBindings() === []) {
+            return $message;
+        }
+
+        try {
+            $clean = str_replace(Str::replaceArray('?', $e->getBindings(), $e->getSql()), $e->getSql(), $message);
+        } catch (Throwable) {
+            $clean = $message;
+        }
+
+        if ($clean !== $message) {
+            return $clean;
+        }
+
+        // Laravel writes "<driver's message> (Connection: ..., SQL: <sql with values>)".
+        $previous = (string) $e->getPrevious()?->getMessage();
+        $at = strpos($message, ', SQL: ', strlen($previous));
+
+        return $at !== false ? substr($message, 0, $at).', SQL: '.$e->getSql().')' : $previous.' (SQL: '.$e->getSql().')';
     }
 
     /**

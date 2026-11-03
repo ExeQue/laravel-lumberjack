@@ -13,7 +13,8 @@ php artisan vendor:publish --tag=lumberjack-config
 Every exception your app reports, with:
 
 - its frames, and a few lines of code around the app's own frames,
-- the request (method, URL, route, headers), the signed-in user's id and the session,
+- the request (method, URL, route, headers), the signed-in user's id and the session keys you allow,
+  all [scrubbed](#scrubbing) first,
 - Laravel's `Context`.
 
 ```php
@@ -92,7 +93,7 @@ Lumberjack marks a query an **N+1** when one request or job runs it 5 times or m
 
 Queued, processing, processed, released and failed, each job in its own trace, with its attempt, queue, duration and, when it fails, its exception.
 
-When a job is queued, its public properties are sent along as parameters: scalars as they are, models as `App\Models\Order#42`, dates as ISO 8601, arrays and collections cut at 10 items, anything else as its class name. Jobs that implement `ShouldBeEncrypted` send none, and Lumberjack scrubs the rest like any other context.
+When a job is queued, its public properties are sent along as parameters: scalars as they are, models as `App\Models\Order#42`, dates as ISO 8601, arrays and collections cut at 10 items, anything else as its class name. Jobs that implement `ShouldBeEncrypted` send none, and the rest is [scrubbed](#scrubbing) like any other context: a `$password` property goes as `[filtered]`.
 
 ```php
 'jobs' => [
@@ -156,8 +157,40 @@ Each kind has an environment variable too: `LUMBERJACK_SPANS_CACHE`, `LUMBERJACK
 
 ## Scrubbing
 
-Lumberjack blanks passwords, tokens, cookies, authorization headers and the like before anything is stored. Add keys of your own to blank them before they leave the app:
+Secrets are blanked in the app, before anything reaches the agent, its spool or Lumberjack.
+What is blanked becomes `[filtered]`. By default:
+
+- **Sensitive keys**, wherever context is sent: request headers, log context, job
+  parameters, command arguments and options, Laravel `Context`, span attributes.
+  Keys match case-insensitively, `-` and `_` alike: `authorization`, `proxy-authorization`,
+  `cookie`, `set-cookie`, `x-api-key`, `x-auth-token`, `x-csrf-token`, `x-xsrf-token`,
+  `php-auth-pw`, `password`, `password_confirmation`, `passwd`, `secret`, `token`, `api_key`,
+  `apikey`, `access_token`, `refresh_token`, `client_secret`, `card`, `card_number`, `cvv`,
+  `cvc`, `iban`, `ssn`, `private_key`, `_token`, and any key containing `secret`,
+  `password`, `token`, `api_key`, `apikey` or `private_key`.
+- **Query strings**: every value in a URL (the request's, and the one sent with an
+  exception) is blanked, the keys stay: `/reset?token=[filtered]&page=[filtered]`.
+- **The session**: left out, except for the keys you allow.
+- **Credentials in any string** (messages and context values): bearer and basic tokens,
+  JWTs, the password in `scheme://user:password@host`, AWS access keys and Stripe secret
+  keys.
+- **Failed queries**: a `QueryException`'s message keeps the SQL with its `?`
+  placeholders, never the values bound to it.
+
+Queries are always sent without their bindings, and outgoing HTTP spans without their
+query string. Objects in context are sent as what they are about (a model as
+`App\Models\User#42`, a date as ISO 8601), taken when the event is recorded.
+
+Change it in `config/lumberjack.php`:
 
 ```php
-'scrub' => ['iban', 'cpr'],
+'scrub' => [
+    'keys' => ['cpr', 'x-tenant-*'],    // extra keys, on top of the defaults
+    'replace_defaults' => false,        // true: only your keys
+    'patterns' => ['/\d{6}-\d{4}/'],    // regular expressions blanked in any string
+    'session_keys' => ['locale'],       // session keys sent with an exception
+    'query_keys' => ['page', 'sort'],   // query-string keys whose values are sent
+],
 ```
+
+The old shape, a list of extra keys (`'scrub' => ['iban', 'cpr']`), still works.
