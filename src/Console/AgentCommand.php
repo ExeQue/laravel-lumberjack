@@ -25,6 +25,8 @@ class AgentCommand extends Command
 {
     public const int MAX_CLIENT_BUFFER = 16 * 1024 * 1024;
 
+    public const int BACKLOG = 1024;
+
     protected $name = 'lumberjack:agent';
 
     protected $description = 'Run the local Lumberjack agent';
@@ -49,7 +51,9 @@ class AgentCommand extends Command
         $host = (string) ($this->option('host') ?? config('lumberjack.agent.host'));
         $port = (int) ($this->option('port') ?? config('lumberjack.agent.port'));
 
-        $server = @stream_socket_server("tcp://{$host}:{$port}", $errno, $error);
+        // A deep backlog: while the agent sends, apps still connect and write into the
+        // kernel's buffer instead of timing out.
+        $server = @stream_socket_server("tcp://{$host}:{$port}", $errno, $error, context: stream_context_create(['socket' => ['backlog' => self::BACKLOG]]));
 
         if ($server === false) {
             $this->components->error("Cannot listen on {$host}:{$port}: {$error}");
@@ -64,7 +68,7 @@ class AgentCommand extends Command
         $metrics = new HostMetrics(base_path());
 
         $agent = new Agent(
-            new Sender($http, $url, $token),
+            new Sender($http, $url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT))),
             new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes')),
             (int) config('lumberjack.agent.interval', 5),
             gethostname() ?: null,

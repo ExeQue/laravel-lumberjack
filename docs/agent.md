@@ -91,11 +91,22 @@ or `LUMBERJACK_AGENT_NAME=queue` in `.env`.
 
 A batch that cannot be sent is kept on disk in `storage/lumberjack/spool`, and tried again with a growing pause, up to 5 minutes. New batches wait behind it, so nothing arrives out of order. The spool holds at most 100 MB; past that, the oldest batches go first. A batch Lumberjack refuses as such (a 4xx other than 401, 408 or 429) is dropped rather than tried forever.
 
+The agent is one process with one thread: while it sends, it does not accept connections.
+That time is bounded. One send may take `agent.send_timeout` seconds (5, or
+`LUMBERJACK_AGENT_SEND_TIMEOUT`; connecting at most 2 s), and a flush or a pass over the
+spool stops starting new sends after 250 ms, leaving the rest for the next tick. After an
+outage the spool drains a few batches per tick rather than all at once. Meanwhile apps
+still connect: the agent listens with a backlog of 1,024 connections, so a batch goes into
+the kernel's buffer and the app carries on.
+
 ### What the app notices
 
 Nothing. The app never talks to Lumberjack while it records: it hands each batch to
-the local agent over TCP with a 50 ms connect timeout and a 1 s write timeout, and
-drops the batch if the agent is not there. Lumberjack being slow or down only reaches
+the local agent over TCP with a 50 ms connect timeout and 1 s for the whole write, and
+drops the batch if the agent is not there. After a failed send a process stops trying
+for 5 seconds, so a queue worker does not pay the timeout on every job while the agent
+is down; the first batch that gets through again carries a warning log line saying how
+many batches were dropped. Lumberjack being slow or down only reaches
 the agent, which spools. Recording itself is guarded too: a listener or the log
 handler that fails gives up on that one event, writes a line to PHP's error log and
 lets the app's request, job or command carry on.

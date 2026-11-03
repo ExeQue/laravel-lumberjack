@@ -106,6 +106,7 @@ Set it to `null` to send no release.
 | `agent.port` | `LUMBERJACK_AGENT_PORT` | `2407` | |
 | `agent.name` | `LUMBERJACK_AGENT_NAME` | the host | What Lumberjack lists the agent as |
 | `agent.interval` | | `5` | Seconds between batches |
+| `agent.send_timeout` | `LUMBERJACK_AGENT_SEND_TIMEOUT` | `5` | Seconds one send to Lumberjack may take before it is retried from the spool |
 | `agent.spool_path` | | `storage/lumberjack/spool` | Where unsent batches wait |
 | `agent.spool_max_bytes` | | 100 MB | Past this, the oldest batches go |
 | `agent.memory_limit` | `LUMBERJACK_AGENT_MEMORY` | `128` | MB before the agent exits for a fresh one; 0 is no limit |

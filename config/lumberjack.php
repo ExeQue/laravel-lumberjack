@@ -64,6 +64,9 @@ return [
         // Seconds between batches sent to Lumberjack.
         'interval' => 5,
 
+        // Seconds one send to Lumberjack may take before it is retried later from the spool.
+        'send_timeout' => (int) env('LUMBERJACK_AGENT_SEND_TIMEOUT', 5),
+
         // Where failed batches wait for a retry, and how much they may take.
         'spool_path' => storage_path('lumberjack/spool'),
         'spool_max_bytes' => 100 * 1024 * 1024,

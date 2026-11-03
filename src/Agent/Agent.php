@@ -27,6 +27,15 @@ class Agent
 
     public const int MAX_BACKOFF = 300;
 
+    /**
+     * How long one flush or one pass over the spool may keep sending before the agent goes
+     * back to accepting connections (plus at most one send's timeout). The agent is one
+     * thread: while it sends, apps' connections wait in the listen backlog.
+     */
+    public const float SEND_BUDGET = 0.25;
+
+    private float $budgetEnds = 0.0;
+
     /** @var array<string, array{envelope: array<string, mixed>, events: list<mixed>}> */
     private array $batches = [];
 
@@ -158,6 +167,7 @@ class Agent
     public function flush(float $now): void
     {
         $this->lastFlush = $now;
+        $this->budgetEnds = microtime(true) + self::SEND_BUDGET;
         $batches = $this->batches;
         $this->batches = [];
         $this->bytes = 0;
@@ -185,8 +195,9 @@ class Agent
 
     private function deliver(string $body, float $now): void
     {
-        // While Lumberjack is down, new data waits its turn behind the spool.
-        if ($this->backingOff($now) || $this->spool->count() > 0) {
+        // While Lumberjack is down, new data waits its turn behind the spool; past the
+        // budget, it waits there for the next tick.
+        if ($this->backingOff($now) || microtime(true) > $this->budgetEnds || $this->spool->count() > 0) {
             $this->spool->push($body);
 
             return;
@@ -204,7 +215,9 @@ class Agent
 
     private function retrySpool(float $now): void
     {
-        while (! $this->backingOff($now) && ($file = $this->spool->oldest()) !== null) {
+        $this->budgetEnds = microtime(true) + self::SEND_BUDGET;
+
+        while (! $this->backingOff($now) && microtime(true) <= $this->budgetEnds && ($file = $this->spool->oldest()) !== null) {
             $body = $this->spool->read($file);
 
             if ($body !== null && $this->sender->send($body) === SendResult::Retry) {

@@ -160,3 +160,45 @@ it('never sends the mark on to Lumberjack', function () {
     [[$request]] = Http::recorded();
     expect(json_decode((string) gzdecode($request->body()), true))->not->toHaveKey('project');
 });
+
+it('stops trying a missing agent for a while, and reports what it dropped once the agent is back', function () {
+    $server = stream_socket_server('tcp://127.0.0.1:0');
+    $port = (int) substr((string) strrchr((string) stream_socket_get_name($server, false), ':'), 1);
+    fclose($server);
+    $client = new AgentClient('127.0.0.1', $port, breakSeconds: 0.2);
+
+    expect($client->send(['v' => 1, 'events' => []]))->toBeFalse();
+
+    // The agent comes back, but the breaker is still open: nothing connects.
+    $server = stream_socket_server("tcp://127.0.0.1:{$port}");
+    expect($client->send(['v' => 1, 'events' => []]))->toBeFalse()
+        ->and(@stream_socket_accept($server, 0.05))->toBeFalse();
+
+    usleep(250_000);
+    expect($client->send(['v' => 1, 'events' => [['type' => 'query']]]))->toBeTrue();
+
+    $events = json_decode((string) fgets(stream_socket_accept($server, 1)), true)['events'];
+    expect($events)->toHaveCount(2)
+        ->and($events[1])->toMatchArray(['type' => 'log', 'level' => 'warning', 'message' => 'Lumberjack dropped 2 batches while the agent could not be reached.']);
+});
+
+it('drains the spool a little per tick, so it goes back to accepting connections', function () {
+    $spool = new Spool($this->spoolPath, 10_000_000);
+
+    foreach (range(1, 10) as $i) {
+        $spool->push((string) gzencode('{"events":[]}'));
+    }
+
+    Http::fake(function () {
+        usleep(100_000);
+
+        return Http::response(['accepted' => 1], 202);
+    });
+    $agent = new Agent(new Sender(app(Factory::class), 'https://lumberjack.test', 'secret-token'), $spool, 5, 'web-1');
+
+    $start = microtime(true);
+    $agent->tick(microtime(true));
+
+    expect(microtime(true) - $start)->toBeLessThan(0.6)
+        ->and($spool->count())->toBeGreaterThanOrEqual(5);
+});

@@ -12,12 +12,15 @@ use Throwable;
  */
 class Sender
 {
-    public const int TIMEOUT = 10;
+    public const int TIMEOUT = 5;
+
+    public const int CONNECT_TIMEOUT = 2;
 
     public function __construct(
         private readonly Http $http,
         private readonly string $url,
         private readonly string $token,
+        private readonly int|float $timeout = self::TIMEOUT,
     ) {
     }
 
@@ -27,7 +30,7 @@ class Sender
             $response = $this->http
                 ->withToken($this->token)
                 ->withHeaders(['Content-Encoding' => 'gzip'])
-                ->timeout(self::TIMEOUT)
+                ->timeout($this->timeout)->connectTimeout(min($this->timeout, self::CONNECT_TIMEOUT))
                 ->withBody($gzippedBody, 'application/json')
                 ->post($this->url.'/api/ingest');
         } catch (Throwable) {
@@ -52,7 +55,7 @@ class Sender
     public function heartbeat(string $host, array $client, ?string $name = null, array $status = []): ?array
     {
         try {
-            $response = $this->http->withToken($this->token)->timeout(self::TIMEOUT)
+            $response = $this->http->withToken($this->token)->timeout($this->timeout)->connectTimeout(min($this->timeout, self::CONNECT_TIMEOUT))
                 // version too, for servers from before agents described themselves.
                 ->post($this->url.'/api/ingest/heartbeat', [...$status, ...array_filter(['host' => $host, 'client' => $client, 'version' => $client['sdk']['version'] ?? null, 'name' => $name])]);
 
