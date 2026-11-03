@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Listeners;
 
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Cache\Events\CacheHit;
 use Illuminate\Cache\Events\CacheMissed;
 use Illuminate\Cache\Events\KeyForgotten;
@@ -40,27 +41,27 @@ class RecordsSpans
     public function subscribe(Dispatcher $events): void
     {
         if ($this->config['cache'] ?? true) {
-            $events->listen(CacheHit::class, fn (CacheHit $e) => $this->cache('hit', $e->key, $e->storeName ?? null));
-            $events->listen(CacheMissed::class, fn (CacheMissed $e) => $this->cache('miss', $e->key, $e->storeName ?? null));
-            $events->listen(KeyWritten::class, fn (KeyWritten $e) => $this->cache('write', $e->key, $e->storeName ?? null));
-            $events->listen(KeyForgotten::class, fn (KeyForgotten $e) => $this->cache('forget', $e->key, $e->storeName ?? null));
+            $events->listen(CacheHit::class, Safely::wrap(fn (CacheHit $e) => $this->cache('hit', $e->key, $e->storeName ?? null)));
+            $events->listen(CacheMissed::class, Safely::wrap(fn (CacheMissed $e) => $this->cache('miss', $e->key, $e->storeName ?? null)));
+            $events->listen(KeyWritten::class, Safely::wrap(fn (KeyWritten $e) => $this->cache('write', $e->key, $e->storeName ?? null)));
+            $events->listen(KeyForgotten::class, Safely::wrap(fn (KeyForgotten $e) => $this->cache('forget', $e->key, $e->storeName ?? null)));
         }
 
         if ($this->config['http'] ?? true) {
-            $events->listen(ResponseReceived::class, $this->responseReceived(...));
-            $events->listen(ConnectionFailed::class, $this->connectionFailed(...));
+            $events->listen(ResponseReceived::class, Safely::wrap($this->responseReceived(...)));
+            $events->listen(ConnectionFailed::class, Safely::wrap($this->connectionFailed(...)));
         }
 
         if ($this->config['mail'] ?? true) {
-            $events->listen(MessageSent::class, $this->messageSent(...));
+            $events->listen(MessageSent::class, Safely::wrap($this->messageSent(...)));
         }
 
         if ($this->config['notifications'] ?? true) {
-            $events->listen(NotificationSent::class, $this->notificationSent(...));
+            $events->listen(NotificationSent::class, Safely::wrap($this->notificationSent(...)));
         }
 
         if ($this->config['redis'] ?? false) {
-            $events->listen(CommandExecuted::class, $this->commandExecuted(...));
+            $events->listen(CommandExecuted::class, Safely::wrap($this->commandExecuted(...)));
         }
     }
 

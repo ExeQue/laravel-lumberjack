@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Logging;
 
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Support\Safely;
 use Monolog\Handler\AbstractProcessingHandler;
 use Monolog\Level;
 use Monolog\LogRecord;
@@ -25,6 +26,11 @@ class LumberjackHandler extends AbstractProcessingHandler
     }
 
     protected function write(LogRecord $record): void
+    {
+        Safely::run($this->record(...), $record);
+    }
+
+    private function record(LogRecord $record): void
     {
         $context = $record->context;
         $exception = $context['exception'] ?? null;

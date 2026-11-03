@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack\Listeners;
 
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\RecordingRules;
+use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
@@ -40,11 +41,11 @@ class RecordsScheduledTasks
             return;
         }
 
-        $events->listen(ScheduledTaskStarting::class, fn (ScheduledTaskStarting $e) => $this->starting($e->task));
-        $events->listen(ScheduledTaskFinished::class, fn (ScheduledTaskFinished $e) => $this->finished($e->task));
-        $events->listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $e) => $this->failed($e->task, $e->exception));
-        $events->listen(ScheduledTaskSkipped::class, fn (ScheduledTaskSkipped $e) => $this->skipped($e->task));
-        $events->listen(ScheduledBackgroundTaskFinished::class, fn (ScheduledBackgroundTaskFinished $e) => $this->backgroundFinished($e->task));
+        $events->listen(ScheduledTaskStarting::class, Safely::wrap(fn (ScheduledTaskStarting $e) => $this->starting($e->task)));
+        $events->listen(ScheduledTaskFinished::class, Safely::wrap(fn (ScheduledTaskFinished $e) => $this->finished($e->task)));
+        $events->listen(ScheduledTaskFailed::class, Safely::wrap(fn (ScheduledTaskFailed $e) => $this->failed($e->task, $e->exception)));
+        $events->listen(ScheduledTaskSkipped::class, Safely::wrap(fn (ScheduledTaskSkipped $e) => $this->skipped($e->task)));
+        $events->listen(ScheduledBackgroundTaskFinished::class, Safely::wrap(fn (ScheduledBackgroundTaskFinished $e) => $this->backgroundFinished($e->task)));
     }
 
     public static function name(Task $task): string

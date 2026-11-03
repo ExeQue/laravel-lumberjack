@@ -8,6 +8,7 @@ use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\CallerLocation;
 use ExeQue\Lumberjack\Support\JobParameters;
 use ExeQue\Lumberjack\Support\RecordingRules;
+use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Database\Events\QueryExecuted;
@@ -41,21 +42,21 @@ class RecordsLaravelEvents
     public function subscribe(Dispatcher $events): void
     {
         if ($this->rules->requests) {
-            $events->listen(RouteMatched::class, $this->routeMatched(...));
-            $events->listen(RequestHandled::class, $this->requestHandled(...));
+            $events->listen(RouteMatched::class, Safely::wrap($this->routeMatched(...)));
+            $events->listen(RequestHandled::class, Safely::wrap($this->requestHandled(...)));
         }
 
         if ($this->rules->queries) {
-            $events->listen(QueryExecuted::class, $this->queryExecuted(...));
+            $events->listen(QueryExecuted::class, Safely::wrap($this->queryExecuted(...)));
         }
 
         if ($this->rules->jobs) {
-            $events->listen(JobQueued::class, $this->jobQueued(...));
-            $events->listen(JobProcessing::class, $this->jobProcessing(...));
-            $events->listen(JobProcessed::class, fn (JobProcessed $e) => $this->jobFinished($e->connectionName, $e->job, 'processed'));
-            $events->listen(JobReleasedAfterException::class, fn (JobReleasedAfterException $e) => $this->jobFinished($e->connectionName, $e->job, 'released'));
-            $events->listen(JobFailed::class, $this->jobFailed(...));
-            $events->listen(Looping::class, fn () => $this->recorder->flush());
+            $events->listen(JobQueued::class, Safely::wrap($this->jobQueued(...)));
+            $events->listen(JobProcessing::class, Safely::wrap($this->jobProcessing(...)));
+            $events->listen(JobProcessed::class, Safely::wrap(fn (JobProcessed $e) => $this->jobFinished($e->connectionName, $e->job, 'processed')));
+            $events->listen(JobReleasedAfterException::class, Safely::wrap(fn (JobReleasedAfterException $e) => $this->jobFinished($e->connectionName, $e->job, 'released')));
+            $events->listen(JobFailed::class, Safely::wrap($this->jobFailed(...)));
+            $events->listen(Looping::class, Safely::wrap(fn () => $this->recorder->flush()));
         }
     }
 

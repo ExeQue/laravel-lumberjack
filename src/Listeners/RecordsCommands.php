@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack\Listeners;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\JobParameters;
 use ExeQue\Lumberjack\Support\RecordingRules;
+use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -45,8 +46,8 @@ class RecordsCommands
             return;
         }
 
-        $events->listen(CommandStarting::class, fn (CommandStarting $e) => $this->starting($e->command));
-        $events->listen(CommandFinished::class, fn (CommandFinished $e) => $this->finished($e->command, $e->input, $e->exitCode));
+        $events->listen(CommandStarting::class, Safely::wrap(fn (CommandStarting $e) => $this->starting($e->command)));
+        $events->listen(CommandFinished::class, Safely::wrap(fn (CommandFinished $e) => $this->finished($e->command, $e->input, $e->exitCode)));
     }
 
     /**

@@ -21,6 +21,7 @@ use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use ExeQue\Lumberjack\Support\RecordingRules;
+use ExeQue\Lumberjack\Support\Safely;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\Lumberjack\Webhooks\WebhookController;
 use Illuminate\Console\Scheduling\Schedule;
@@ -136,7 +137,7 @@ class LumberjackServiceProvider extends ServiceProvider
             $this->callAfterResolving(ExceptionHandler::class, function (ExceptionHandler $handler) use ($recorder): void {
                 if (method_exists($handler, 'reportable')) {
                     $handler->reportable(function (Throwable $e) use ($recorder): void {
-                        $recorder->exception($e);
+                        Safely::run($recorder->exception(...), $e);
                     });
                 }
             });

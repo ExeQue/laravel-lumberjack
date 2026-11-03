@@ -53,6 +53,20 @@ or `LUMBERJACK_AGENT_NAME=queue` in `.env`.
 
 A batch that cannot be sent is kept on disk in `storage/lumberjack/spool`, and tried again with a growing pause, up to 5 minutes. New batches wait behind it, so nothing arrives out of order. The spool holds at most 100 MB; past that, the oldest batches go first. A batch Lumberjack refuses as such (a 4xx other than 401, 408 or 429) is dropped rather than tried forever.
 
+### What the app notices
+
+Nothing. The app never talks to Lumberjack while it records: it hands each batch to
+the local agent over TCP with a 50 ms connect timeout and a 1 s write timeout, and
+drops the batch if the agent is not there. Lumberjack being slow or down only reaches
+the agent, which spools. Recording itself is guarded too: a listener or the log
+handler that fails gives up on that one event, writes a line to PHP's error log and
+lets the app's request, job or command carry on.
+
+The one call the app may make itself is reading health states back when they are
+older than their ttl ([health checks](health-checks.md#reading-states)): at most once
+per ttl for everything that shares the cache, with a 2 s timeout, and a failure gives
+`Unknown`, never an exception.
+
 ## Memory
 
 Past 128 MB the agent sends what it has and exits, so the process manager starts a fresh one. Change it with `--memory=256` or `LUMBERJACK_AGENT_MEMORY`; `0` turns the limit off.
