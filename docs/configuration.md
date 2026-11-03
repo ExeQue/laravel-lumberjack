@@ -39,18 +39,35 @@ git rev-parse HEAD > latest-release   # before rsync
 
 ```php
 // config/lumberjack.php
-use ExeQue\Lumberjack\Release\FileReleaseResolver;
-
-'release_resolver' => [FileReleaseResolver::class, 'file' => 'latest-release'],
+'release_resolver' => [\ExeQue\Lumberjack\Release\FileReleaseResolver::class, 'file' => 'latest-release'],
 ```
 
-It reads the first line of the file and defaults to `REVISION` without an argument.
-A missing or empty file means no release.
+It reads the first line of the file, and `REVISION` when no `file` is given. An
+absolute path (starting with `/`) works too. A missing or empty file means no release.
 
 Your own class works too: implement `ExeQue\Lumberjack\Contracts\ReleaseResolver` and
 set `release_resolver` to the class, or to `[Class::class, 'parameter' => value]`.
 The container makes it with those constructor parameters, so other dependencies are
-injected, and passes the app's root as `path` if the constructor takes one.
+injected, and passes the app's root as `path` if the constructor takes one:
+
+```php
+use ExeQue\Lumberjack\Contracts\ReleaseResolver;
+use Illuminate\Contracts\Cache\Repository;
+
+final class DeployedRelease implements ReleaseResolver
+{
+    public function __construct(private readonly Repository $cache, private readonly string $key) {}
+
+    public function resolve(): ?string
+    {
+        return $this->cache->get($this->key);
+    }
+}
+```
+
+```php
+'release_resolver' => [App\Support\DeployedRelease::class, 'key' => 'deploy:release'],
+```
 
 Set it to `null` to send no release.
 
