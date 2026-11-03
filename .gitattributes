@@ -19,3 +19,4 @@
 /package.json          export-ignore
 /package-lock.json     export-ignore
 /.nvmrc                export-ignore
+/.ai                   export-ignore
