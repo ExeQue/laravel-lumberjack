@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Lumberjack\Recorder;
+use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,22 @@ describe('true traffic despite sampling', function () {
             ->groupBy('domain')->map->sum('count');
 
         expect($rows->all())->toBe(['shop.example.com' => 1, 'api.example.com' => 2]);
+    });
+
+    it('still records a request whose Host header is malformed or very long', function () {
+        Route::get('/bad', fn (Request $request) => $request->headers->set('host', 'bad host!'));
+        Route::get('/long', fn (Request $request) => $request->headers->set('host', str_repeat('a', 300).'.example.com'));
+
+        $this->get('/bad');
+        $this->get('/long');
+
+        $requests = $this->sentEvents('request');
+        $counted = collect($this->sentEvents('request_counts'))->flatMap(fn (array $e): array => $e['counts']);
+
+        expect(array_column($requests, 'route'))->toBe(['/bad', '/long'])
+            ->and($requests[0]['domain'])->toBe('')
+            ->and(strlen($requests[1]['domain']))->toBe(255)
+            ->and($counted->pluck('domain')->map(fn (string $domain): int => strlen($domain))->all())->toBe([0, 255]);
     });
 
     it('weighs request, job and command runs and their queries by the rate that applied', function () {

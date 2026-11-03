@@ -25,6 +25,18 @@ describe('recording never breaks the app', function () {
         expect($ran)->toBeTrue();
     });
 
+    it('remembers at most MAX_PROBLEMS problems, so a long-running worker does not grow', function () {
+        $log = ini_set('error_log', '/dev/null');
+
+        foreach (range(1, Safely::MAX_PROBLEMS + 50) as $i) {
+            Safely::problem("Lumberjack test problem {$i}");
+        }
+
+        ini_set('error_log', (string) $log);
+
+        expect((new ReflectionProperty(Safely::class, 'problems'))->getValue())->toHaveCount(Safely::MAX_PROBLEMS);
+    });
+
     it('keeps a query working when recording it fails', function () {
         $recorder = Mockery::mock(Recorder::class)->makePartial();
         $recorder->shouldReceive('record')->andThrow(new RuntimeException('Recorder broke'));

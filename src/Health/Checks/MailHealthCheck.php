@@ -42,9 +42,13 @@ final class MailHealthCheck implements HealthCheck
         }
 
         $start = hrtime(true);
-        $transport->start();
-        $latency = self::since($start);
-        $transport->stop();
+
+        try {
+            $transport->start();
+            $latency = self::since($start);
+        } finally {
+            $transport->stop();
+        }
 
         return CheckResult::ok(metrics: ['latency_ms' => $latency]);
     }

@@ -15,6 +15,9 @@ use Throwable;
  */
 final class Safely
 {
+    /** Problems remembered, so a long-running worker meeting many distinct ones does not grow. */
+    public const int MAX_PROBLEMS = 100;
+
     /** @var array<string, true> problems already reported by this process */
     private static array $problems = [];
 
@@ -26,6 +29,11 @@ final class Safely
     {
         if (isset(self::$problems[$message])) {
             return;
+        }
+
+        // ponytail: past the cap the oldest is forgotten, and may be said once more.
+        if (count(self::$problems) >= self::MAX_PROBLEMS) {
+            unset(self::$problems[array_key_first(self::$problems)]);
         }
 
         self::$problems[$message] = true;

@@ -13,6 +13,7 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -20,6 +21,7 @@ use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Queue\Events\JobReleasedAfterException;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Routing\Events\RouteMatched;
+use Throwable;
 
 /**
  * Turns Laravel's request, query and queue events into Lumberjack events.
@@ -30,6 +32,8 @@ class RecordsLaravelEvents
     public const string OCTANE_REQUEST_RECEIVED = 'Laravel\\Octane\\Events\\RequestReceived';
 
     public const string OCTANE_REQUEST_TERMINATED = 'Laravel\\Octane\\Events\\RequestTerminated';
+
+    public const int MAX_DOMAIN = 255;
 
     /** @var array<string, float> */
     private array $jobStarts = [];
@@ -116,8 +120,7 @@ class RecordsLaravelEvents
         $route = $request->route();
         $routeName = is_object($route) ? $route->getName() : null;
         $route = is_object($route) ? '/'.ltrim($route->uri(), '/') : '/'.ltrim($request->path(), '/');
-        // The host the request was made to, with its port only when it is not the default.
-        $domain = strtolower($request->getHttpHost());
+        $domain = self::domain($request);
 
         // Every request is counted, sampled or not, so the server knows the true traffic.
         if (! $this->rules->ignoresStatus($status)) {
@@ -146,12 +149,34 @@ class RecordsLaravelEvents
             'route' => $route,
             'route_name' => $routeName,
             'domain' => $domain,
-            'url' => $request->fullUrl(),
+            'url' => self::url($request),
             'status' => $status,
             'duration_ms' => $duration,
             'memory_peak' => memory_get_peak_usage(true),
             'timestamp' => $start,
         ]);
+    }
+
+    /**
+     * The host the request was made to, with its port only when it is not the default. The
+     * client chooses it: a malformed one (Symfony refuses it) is empty, a long one is cut.
+     */
+    private static function domain(Request $request): string
+    {
+        try {
+            return mb_substr(strtolower($request->getHttpHost()), 0, self::MAX_DOMAIN);
+        } catch (Throwable) {
+            return '';
+        }
+    }
+
+    private static function url(Request $request): string
+    {
+        try {
+            return $request->fullUrl();
+        } catch (Throwable) {
+            return '/'.ltrim($request->path(), '/');
+        }
     }
 
     public function queryExecuted(QueryExecuted $event): void

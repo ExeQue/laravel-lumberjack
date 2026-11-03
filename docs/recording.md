@@ -82,8 +82,9 @@ Sampling never hides how much traffic there is:
 
 Route, route name, domain, status, duration and peak memory. The domain is the host the
 request was made to (`shop.example.com`, `api.example.com`), lowercased, with the port only
-when it is not the default one, so the same route served on two domains is told apart. The
-route name (`orders.show`) is sent when the route has one.
+when it is not the default one, so the same route served on two domains is told apart. It
+comes from the client's Host header: a malformed one is sent empty, and it is cut at 255
+characters. The route name (`orders.show`) is sent when the route has one.
 
 ```php
 'requests' => [
