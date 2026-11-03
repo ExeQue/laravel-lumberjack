@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack\Console;
 use ExeQue\Lumberjack\Agent\Agent;
 use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Agent\Spool;
+use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\HostMetrics;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
@@ -30,7 +31,7 @@ class AgentCommand extends Command
 
     private bool $running = true;
 
-    public function handle(Recorder $recorder, Http $http): int
+    public function handle(Recorder $recorder, Http $http, HealthStates $states): int
     {
         // The agent must never report on itself.
         $recorder->disable();
@@ -70,7 +71,9 @@ class AgentCommand extends Command
             $this->agentName(),
             ProjectFingerprint::of($token),
             fn (string $message) => $this->components->warn($message),
-            fn (): array => ['queues' => $queues->measure(), 'metrics' => $metrics->measure()],
+            // The environment, so the heartbeat's answer holds the health states of this app's.
+            fn (): array => ['environment' => config('lumberjack.environment'), 'queues' => $queues->measure(), 'metrics' => $metrics->measure()],
+            fn (array $health) => $states->fill($health),
         );
 
         if (extension_loaded('pcntl')) {

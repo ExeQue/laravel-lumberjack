@@ -191,6 +191,17 @@ return [
         'one_server' => (bool) env('LUMBERJACK_HEALTH_ONE_SERVER', true),
         'cooldown' => (int) env('LUMBERJACK_HEALTH_COOLDOWN', 30),
         'checks' => [],
+
+        // Reading back where Lumberjack says the checks stand (Lumberjack::health($slug)->state()).
+        // The agent writes them into this cache store every minute, so the store must be one the
+        // agent and the app share (redis, database, or file on the same server; not array).
+        // States older than ttl seconds are fetched from Lumberjack, at most once per ttl;
+        // pull false leaves them to the agent alone. null is the default store.
+        'states' => [
+            'store' => env('LUMBERJACK_HEALTH_STATES_STORE'),
+            'ttl' => (int) env('LUMBERJACK_HEALTH_STATES_TTL', 30),
+            'pull' => (bool) env('LUMBERJACK_HEALTH_STATES_PULL', true),
+        ],
     ],
 
     /*

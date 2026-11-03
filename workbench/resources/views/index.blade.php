@@ -20,6 +20,10 @@
         .status { background: #fef6e7; border-color: #f5d9a8; }
         dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; font-size: 13px; }
         dt { color: var(--muted); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+        th { color: var(--muted); font-weight: 500; }
+        .state-ok { color: #15803d; } .state-degraded { color: #b45309; } .state-down { color: #b91c1c; } .state-recovering { color: #1d4ed8; }
         dd { margin: 0; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
     </style>
 </head>
@@ -96,6 +100,15 @@
             <form method="post" action="/demo/health/run">@csrf<button>Run payments-api now</button></form>
             <form method="post" action="/demo/health/report">@csrf<button>Report a failed disk read</button></form>
         </div>
+        <p style="margin-top: 14px">As Lumberjack says they stand, from <code>Lumberjack::healthStates()</code>. Each change is logged to the Logs page.</p>
+        <table>
+            <tr><th>Slug</th><th>State</th><th>Since</th></tr>
+            @forelse (ExeQue\Lumberjack\Facades\Lumberjack::healthStates() as $snapshot)
+                <tr><td>{{ $snapshot->slug }}</td><td class="state-{{ $snapshot->state->value }}">{{ $snapshot->state->value }}</td><td>{{ $snapshot->since?->diffForHumans() ?? '' }}</td></tr>
+            @empty
+                <tr><td colspan="3">No states yet: is the agent running, and does Lumberjack answer?</td></tr>
+            @endforelse
+        </table>
     </section>
 
     <section>

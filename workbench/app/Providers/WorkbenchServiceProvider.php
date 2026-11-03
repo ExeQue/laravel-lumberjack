@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace Workbench\App\Providers;
 
 use Dotenv\Dotenv;
+use ExeQue\Lumberjack\Events\HealthStateChanged;
 use ExeQue\Lumberjack\Facades\Lumberjack;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Workbench\App\Listeners\LogHealthStateChange;
 
 /**
  * Points the demo at a local Lumberjack. The keys come from the package's own
@@ -77,6 +80,8 @@ class WorkbenchServiceProvider extends ServiceProvider
             ->disk('local')
             ->debugMode(environments: ['production'])
             ->check('payments-api', fn (): bool => ! is_file(self::path('storage/payments-down')), 2, 3);
+
+        Event::listen(HealthStateChanged::class, LogHealthStateChange::class);
 
         if (! Schema::hasTable('jobs')) {
             Schema::create('jobs', function (Blueprint $table): void {

@@ -6,6 +6,8 @@ namespace ExeQue\Lumberjack\Facades;
 
 use ExeQue\Lumberjack\Health\HealthCheckHandle;
 use ExeQue\Lumberjack\Health\HealthRegistry;
+use ExeQue\Lumberjack\Health\HealthStates;
+use ExeQue\Lumberjack\Health\HealthStateSnapshot;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use Illuminate\Support\Facades\Facade;
 
@@ -27,12 +29,22 @@ class Lumberjack extends Facade
     }
 
     /**
-     * A handle to fire the registered check with this slug from the app's own code.
-     * It never registers anything.
+     * A handle to fire the registered check with this slug from the app's own code, or
+     * to read where Lumberjack says any check stands. It never registers anything.
      */
     public static function health(string $slug): HealthCheckHandle
     {
         return new HealthCheckHandle(app(HealthRegistry::class), app(), $slug);
+    }
+
+    /**
+     * Every check Lumberjack knows for this app, by slug, as it last said they stand.
+     *
+     * @return array<string, HealthStateSnapshot>
+     */
+    public static function healthStates(): array
+    {
+        return app(HealthStates::class)->all();
     }
 
     protected static function getFacadeAccessor(): string

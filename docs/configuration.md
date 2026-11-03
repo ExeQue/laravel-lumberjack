@@ -148,6 +148,9 @@ See [Health checks](health-checks.md).
 | `health.one_server` | `LUMBERJACK_HEALTH_ONE_SERVER` | `true` | Run it on one server only |
 | `health.checks` | | `[]` | Checks, besides those registered with `Lumberjack::healthChecks()` |
 | `health.cooldown` | `LUMBERJACK_HEALTH_COOLDOWN` | `30` | Seconds between results fired from code with `Lumberjack::health($slug)`, per slug; `0` turns it off |
+| `health.states.store` | `LUMBERJACK_HEALTH_STATES_STORE` | `null` | Cache store the states are kept in; the default store when null. The agent and the app must share it, see [Reading states](health-checks.md#reading-states) |
+| `health.states.ttl` | `LUMBERJACK_HEALTH_STATES_TTL` | `30` | Seconds stored states count as fresh; older ones are fetched from Lumberjack, at most once per ttl |
+| `health.states.pull` | `LUMBERJACK_HEALTH_STATES_PULL` | `true` | Fetch states from Lumberjack when they are older than the ttl; `false` leaves them to the agent |
 
 ## Webhook
 

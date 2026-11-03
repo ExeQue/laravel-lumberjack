@@ -2,14 +2,15 @@
 
 `php artisan lumberjack:health` runs a set of checks (the database answers, a disk can be written, the backup is fresh, ...) and sends each result to Lumberjack. Lumberjack keeps the history per check and alerts when one keeps failing. The package runs the command from your app's scheduler, so all you do is register checks.
 
-## Two facade methods
+## Three facade methods
 
 | Method | Does | |
 |---|---|---|
 | `Lumberjack::healthChecks()` | Returns the registry: fluent built-ins, `->check()`, `->add()` | The only way to register a check |
-| `Lumberjack::health('disk:s3')` | Returns a handle for one registered check: `->run()`, `->report()`, `->ok()`, `->warning()`, `->failed()` | Only fires a check; it never registers one |
+| `Lumberjack::health('disk:s3')` | Returns a handle for one registered check: `->run()`, `->report()`, `->ok()`, `->warning()`, `->failed()` | Only fires a check; it never registers one. Its `->state()`, `->isHealthy()`, `->since()` and `->message()` read where Lumberjack says any check stands |
+| `Lumberjack::healthStates()` | Returns every check Lumberjack knows for the app, by slug | Read only; see [Reading states](#reading-states) |
 
-They are separate so a call that means "fire this check" can never quietly register something, and registration stays in one place, a service provider. See [Firing a check from your code](#firing-a-check-from-your-code) for the handle.
+Registering and firing are separate so a call that means "fire this check" can never quietly register something, and registration stays in one place, a service provider. See [Firing a check from your code](#firing-a-check-from-your-code) and [Reading states](#reading-states) for the handle.
 
 ## Registering checks
 
@@ -259,6 +260,86 @@ A busy code path can fail on every request, so each slug fires at most once per
 the check fires anyway. The slug is looked up when the handle is used: a slug that is
 not registered throws an `InvalidArgumentException` from `run()`, `report()`, `ok()`,
 `warning()` and `failed()`.
+
+## Reading states
+
+The app can ask where Lumberjack says a check stands, for example to hide an upload
+button while `disk:s3` is down. This works for any slug Lumberjack knows for the app's
+environment, whether it is registered here or not:
+
+```php
+use ExeQue\Lumberjack\Facades\Lumberjack;
+use ExeQue\Lumberjack\Health\HealthState;
+
+if (! Lumberjack::health('disk:s3')->isHealthy()) {
+    return back()->with('notice', 'Uploads are paused: '.Lumberjack::health('disk:s3')->message());
+}
+
+Lumberjack::health('payments-api')->state() === HealthState::Down;
+```
+
+| Method | Returns | |
+|---|---|---|
+| `state()` | `HealthState` | `Ok`, `Degraded`, `Down`, `Recovering`, `Stale`, `Pending`, or `Unknown` for a slug Lumberjack does not list (or no answer from it) |
+| `isHealthy()` | `bool` | `true` for `Ok` only; a recovering check is still part of its outage |
+| `since()` | `?CarbonImmutable` | When the check entered its state; for a stale one, its last result |
+| `message()` | `?string` | The message of its latest result |
+
+`HealthState` also has `isBad()`, true for `Degraded` and `Down`.
+`Lumberjack::healthStates()` returns every check at once, keyed by slug, as
+`HealthStateSnapshot`s (`slug`, `state`, `since`, `message`). Only checks the app
+reports are listed; checks Lumberjack runs itself have no slug.
+
+None of these throw. Without an answer from Lumberjack a check is `Unknown`.
+
+### Where the states come from
+
+The states are kept in the app's cache, and filled two ways:
+
+- **By the agent.** Every heartbeat (once a minute) gets the states back, and the
+  agent writes them into the cache. The agent is a separate process, so the store
+  must be one it shares with the app: redis, database, memcached, or file when they
+  run on the same server. The array store does not work.
+- **By the app itself.** When the stored states are older than `health.states.ttl`
+  (30 seconds), the next read fetches `GET /api/health` with the server token, with a
+  2 second timeout. That happens at most once per ttl for everything sharing the
+  cache, whether Lumberjack answered or not, so a server that is down is not asked on
+  every request; in the meantime the last states stay in use. Set
+  `LUMBERJACK_HEALTH_STATES_PULL=false` to rely on the agent alone, or raise the ttl
+  above 60 seconds so the agent's heartbeat keeps the states fresh without the app
+  asking in between.
+
+| Key | Env | Default | |
+|---|---|---|---|
+| `health.states.store` | `LUMBERJACK_HEALTH_STATES_STORE` | `null` | Cache store; the default store when null |
+| `health.states.ttl` | `LUMBERJACK_HEALTH_STATES_TTL` | `30` | Seconds the stored states count as fresh |
+| `health.states.pull` | `LUMBERJACK_HEALTH_STATES_PULL` | `true` | Fetch from Lumberjack when they are older |
+
+### Reacting to a change
+
+Whenever new states are written, `ExeQue\Lumberjack\Events\HealthStateChanged` is
+dispatched for each check whose state differs from the stored one. It carries `slug`,
+`from` and `to` (both `HealthState`) and the new `snapshot`. The first time the app
+hears of a slug the event comes `from` `Unknown`, so a check that is already down when
+the app starts is reported too; a slug Lumberjack stops listing (archived) goes `to`
+`Unknown`.
+
+```php
+use ExeQue\Lumberjack\Events\HealthStateChanged;
+use Illuminate\Support\Facades\Event;
+
+Event::listen(function (HealthStateChanged $event): void {
+    if ($event->slug === 'payments-api' && $event->to->isBad()) {
+        Cache::forever('checkout:paused', true);
+    }
+});
+```
+
+The event is dispatched in whichever process wrote the states: in the agent's process
+when its heartbeat brought them, in the request, job or command that fetched them
+otherwise. Keep listeners light, or make them queued (`ShouldQueue`): the agent does
+not record anything itself, so logs or exceptions from a listener running in the
+agent never reach Lumberjack, and a slow listener holds the agent up.
 
 ## Scheduling
 

@@ -47,16 +47,24 @@ class Sender
     /**
      * @param  array<string, array{name: string, version: string}>  $client  what the agent is, see Client
      * @param  array<string, mixed>  $status  e.g. queue sizes
+     * @return array<mixed>|null the server's answer, e.g. the health states; null when it failed
      */
-    public function heartbeat(string $host, array $client, ?string $name = null, array $status = []): bool
+    public function heartbeat(string $host, array $client, ?string $name = null, array $status = []): ?array
     {
         try {
-            return $this->http->withToken($this->token)->timeout(self::TIMEOUT)
+            $response = $this->http->withToken($this->token)->timeout(self::TIMEOUT)
                 // version too, for servers from before agents described themselves.
-                ->post($this->url.'/api/ingest/heartbeat', [...$status, ...array_filter(['host' => $host, 'client' => $client, 'version' => $client['sdk']['version'] ?? null, 'name' => $name])])
-                ->successful();
+                ->post($this->url.'/api/ingest/heartbeat', [...$status, ...array_filter(['host' => $host, 'client' => $client, 'version' => $client['sdk']['version'] ?? null, 'name' => $name])]);
+
+            if (! $response->successful()) {
+                return null;
+            }
+
+            $body = $response->json();
+
+            return is_array($body) ? $body : [];
         } catch (Throwable) {
-            return false;
+            return null;
         }
     }
 }

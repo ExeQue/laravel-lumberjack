@@ -9,6 +9,7 @@ use ExeQue\Lumberjack\Console\HealthCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
 use ExeQue\Lumberjack\Health\HealthRegistry;
+use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
@@ -23,8 +24,11 @@ use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\Lumberjack\Webhooks\WebhookController;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Log\LogManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
@@ -73,6 +77,18 @@ class LumberjackServiceProvider extends ServiceProvider
         $this->app->singleton(Handlers::class);
 
         $this->app->singleton(HealthRegistry::class, fn (Application $app): HealthRegistry => new HealthRegistry($app, (array) config('lumberjack.health.checks', [])));
+
+        $this->app->singleton(HealthStates::class, fn (Application $app): HealthStates => new HealthStates(
+            $app->make(CacheFactory::class),
+            $app->make(HttpFactory::class),
+            $app->make(Dispatcher::class),
+            $this->string('url') ?? '',
+            $this->string('token'),
+            $this->string('environment'),
+            $this->string('health.states.store'),
+            (int) config('lumberjack.health.states.ttl', 30),
+            (bool) config('lumberjack.health.states.pull', true),
+        ));
 
         $this->app->singleton(BrowserScript::class, fn (Application $app): BrowserScript => new BrowserScript(
             $app->make(Recorder::class),

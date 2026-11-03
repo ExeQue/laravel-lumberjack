@@ -54,6 +54,7 @@ class Agent
         private readonly ?string $project = null,
         private readonly ?Closure $warn = null,
         private readonly ?Closure $status = null,
+        private readonly ?Closure $health = null,
     ) {
         $this->lastFlush = microtime(true);
     }
@@ -116,7 +117,24 @@ class Agent
 
         if ($now - $this->lastHeartbeat >= self::HEARTBEAT_SECONDS) {
             $this->lastHeartbeat = $now;
-            $this->sender->heartbeat($this->host ?? (gethostname() ?: 'unknown'), Client::describe(), $this->name, $this->status());
+            $answer = $this->sender->heartbeat($this->host ?? (gethostname() ?: 'unknown'), Client::describe(), $this->name, $this->status());
+            $this->storeHealth($answer['health'] ?? null);
+        }
+    }
+
+    /**
+     * Hands the health states the heartbeat got back to the app's store. A store that
+     * fails (its cache is down) costs the states, never the agent.
+     */
+    private function storeHealth(mixed $health): void
+    {
+        if (! is_array($health)) {
+            return;
+        }
+
+        try {
+            ($this->health)?->__invoke($health);
+        } catch (Throwable) {
         }
     }
 
