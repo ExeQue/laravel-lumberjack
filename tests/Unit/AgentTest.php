@@ -307,6 +307,23 @@ describe('the spool', function () {
         expect($warnings)->toHaveCount(1)->and($warnings[0])->toContain('Could not write to the spool');
         unlink($file);
     });
+
+    it('picks up what an earlier agent left, oldest first, also batches named by an older version', function () {
+        mkdir($this->spoolPath, 0700, true);
+        // An older version named batches by hrtime(), which starts over at boot.
+        file_put_contents($this->spoolPath.'/00000003600000000000-0000aaaa.json.gz', str_repeat('a', 1000));
+
+        $earlier = new Spool($this->spoolPath, 2500);
+        $earlier->push(str_repeat('b', 1000));
+
+        // The agent restarts: the next one reads the directory, sizes included.
+        $spool = new Spool($this->spoolPath, 2500);
+        $spool->push(str_repeat('c', 1000));
+
+        expect($spool->count())->toBe(2)
+            ->and($spool->read((string) $spool->oldest()))->toStartWith('b')
+            ->and(count((array) glob($this->spoolPath.'/*.json.gz')))->toBe(2);
+    });
 });
 
 it('sends request counts in batches of their own, so a server that refuses them keeps the rest', function () {
