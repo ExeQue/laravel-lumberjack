@@ -119,6 +119,7 @@ final class HealthRegistry
         ?int $maxLatencyMs = null,
         int $timeout = 10,
         ?string $slug = null,
+        ?float $warnAtConnections = null,
     ): self {
         return $this->add([
             DatabaseHealthCheck::class,
@@ -129,6 +130,7 @@ final class HealthRegistry
             'maxLatencyMs' => $maxLatencyMs,
             'timeout' => $timeout,
             'slug' => $slug,
+            'warnAtConnections' => $warnAtConnections,
         ]);
     }
 

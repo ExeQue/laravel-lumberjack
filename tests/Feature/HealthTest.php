@@ -240,6 +240,20 @@ describe('built-in checks', function () {
     it('checks the database, warning when it is slow', function () {
         expect((new DatabaseHealthCheck())->run()->status)->toBe(CheckStatus::Ok)
             ->and((new DatabaseHealthCheck(maxLatencyMs: -1))->run()->status)->toBe(CheckStatus::Warning);
+
+        expect((new DatabaseHealthCheck())->run()->metrics)->toHaveKey('latency_ms');
+    });
+
+    it('reports the size of an SQLite database file', function () {
+        $file = tempnam(sys_get_temp_dir(), 'lj-db');
+        config(['database.connections.lj_file' => ['driver' => 'sqlite', 'database' => $file, 'prefix' => '']]);
+        DB::connection('lj_file')->statement('create table t (id integer)');
+
+        $metrics = (new DatabaseHealthCheck('lj_file'))->run()->metrics;
+        unlink($file);
+
+        expect($metrics['size_bytes'])->toBeGreaterThan(0)
+            ->and($metrics)->not->toHaveKey('connections');
     });
 
     it('checks the cache', function () {
