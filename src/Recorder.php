@@ -86,6 +86,19 @@ class Recorder
         return $this->traceId = bin2hex(random_bytes(16));
     }
 
+    /**
+     * A new request in a long-lived worker (Octane, a test): a new trace, and nothing of
+     * the last request's run carries over.
+     */
+    public function reset(): void
+    {
+        $this->startTrace();
+        $this->inRun = false;
+        $this->capturing = false;
+        $this->tentative = false;
+        $this->held = [];
+    }
+
     public function capturing(): bool
     {
         return $this->enabled && $this->capturing;

@@ -1,6 +1,6 @@
 # What is recorded
 
-Everything is grouped by a trace id: a request, a job, a command or a scheduled task gets one, and the queries, logs and exceptions it caused share it. In Lumberjack a trace shows all of them in order.
+Everything is grouped by a trace id: a request, a job, a command or a scheduled task gets one, and the queries, logs and exceptions it caused share it. In Lumberjack a trace shows all of them in order. A long-lived worker (Octane with Swoole, RoadRunner or FrankenPHP) gives every request its own trace too, and an exception carries the request being served; Octane is not required.
 
 Every kind has its own section in the [configuration](configuration.md), with an `enabled` switch and `ignore` lists that take `*` wildcards. Publish the config to change them:
 

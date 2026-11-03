@@ -32,6 +32,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Factory as HttpFactory;
+use Illuminate\Http\Request;
 use Illuminate\Log\LogManager;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Blade;
@@ -154,6 +155,12 @@ class LumberjackServiceProvider extends ServiceProvider
 
         $context = $this->app->make(ExceptionContext::class);
         $this->app->make('events')->listen(RouteMatched::class, Safely::wrap(fn (RouteMatched $e) => $context->serving($e->request)));
+        // Octane's workers run in the console; exceptions still carry the request being served.
+        $this->app->make('events')->listen(RecordsLaravelEvents::OCTANE_REQUEST_RECEIVED, Safely::wrap(fn (object $e) => $context->serving(property_exists($e, 'request') && $e->request instanceof Request ? $e->request : null)));
+        $this->app->make('events')->listen(RecordsLaravelEvents::OCTANE_REQUEST_TERMINATED, Safely::wrap(function () use ($context, $recorder): void {
+            $context->serving(null);
+            $recorder->flush();
+        }));
 
         $this->app->make('events')->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
         $this->app->make('events')->subscribe(new RecordsScheduledTasks($recorder, $rules));

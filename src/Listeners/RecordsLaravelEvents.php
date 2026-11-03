@@ -26,11 +26,19 @@ use Illuminate\Routing\Events\RouteMatched;
  */
 class RecordsLaravelEvents
 {
+    /** Listened to by name, so Octane is not needed. */
+    public const string OCTANE_REQUEST_RECEIVED = 'Laravel\\Octane\\Events\\RequestReceived';
+
+    public const string OCTANE_REQUEST_TERMINATED = 'Laravel\\Octane\\Events\\RequestTerminated';
+
     /** @var array<string, float> */
     private array $jobStarts = [];
 
     /** @var array<string, true> jobs the rules leave out, by key */
     private array $ignoredJobs = [];
+
+    /** Whether the current trace already belongs to a request that was handled. */
+    private bool $traceUsed = false;
 
     public function __construct(
         private readonly Recorder $recorder,
@@ -41,10 +49,10 @@ class RecordsLaravelEvents
 
     public function subscribe(Dispatcher $events): void
     {
-        if ($this->rules->requests) {
-            $events->listen(RouteMatched::class, Safely::wrap($this->routeMatched(...)));
-            $events->listen(RequestHandled::class, Safely::wrap($this->requestHandled(...)));
-        }
+        // Always, so each request in a long-lived worker gets its own trace.
+        $events->listen(RouteMatched::class, Safely::wrap($this->routeMatched(...)));
+        $events->listen(RequestHandled::class, Safely::wrap($this->requestHandled(...)));
+        $events->listen(self::OCTANE_REQUEST_RECEIVED, Safely::wrap(fn () => $this->newRequest()));
 
         if ($this->rules->queries) {
             $events->listen(QueryExecuted::class, Safely::wrap($this->queryExecuted(...)));
@@ -60,8 +68,28 @@ class RecordsLaravelEvents
         }
     }
 
+    /**
+     * Octane hands this worker its next request: what the last one left is sent, and the
+     * new one starts on a trace of its own.
+     */
+    public function newRequest(): void
+    {
+        $this->recorder->flush();
+        $this->recorder->reset();
+        $this->traceUsed = false;
+    }
+
     public function routeMatched(RouteMatched $event): void
     {
+        // A worker serving its next request without Octane's events, e.g. tests.
+        if ($this->traceUsed) {
+            $this->newRequest();
+        }
+
+        if (! $this->rules->requests) {
+            return;
+        }
+
         if ($this->rules->ignoresRoute($event->request->method(), $event->route->uri(), $event->request->path())) {
             $this->recorder->capture(false);
 
@@ -74,7 +102,9 @@ class RecordsLaravelEvents
 
     public function requestHandled(RequestHandled $event): void
     {
-        if (! $this->recorder->inRun()) {
+        $this->traceUsed = true;
+
+        if (! $this->rules->requests || ! $this->recorder->inRun()) {
             return;
         }
 
