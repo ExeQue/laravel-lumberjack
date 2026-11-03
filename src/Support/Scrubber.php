@@ -50,6 +50,12 @@ final class Scrubber
         '/\bwhsec_[0-9A-Za-z]{16,}\b/' => self::FILTERED,
     ];
 
+    /**
+     * A URL with a query string inside any text, e.g. Guzzle's "`GET https://api.example.com/x?api_key=...`
+     * resulted in": the address, then the query up to whitespace, a quote, a bracket or a fragment.
+     */
+    private const string URL_IN_TEXT = '#\b([a-z][a-z0-9+.\-]*://[^\s?\#"\'`<>]*)\?([^\s\#"\'`<>]*)#i';
+
     /** Event fields holding context to walk. */
     private const array CONTEXTS = ['context', 'parameters', 'arguments', 'options', 'attributes'];
 
@@ -153,19 +159,7 @@ final class Scrubber
             return $this->string($url);
         }
 
-        $pairs = [];
-
-        foreach (explode('&', substr($url, $at + 1)) as $pair) {
-            if ($pair === '') {
-                continue;
-            }
-
-            [$key, $value] = array_pad(explode('=', $pair, 2), 2, null);
-            $name = (string) strtok(urldecode($key), '[');
-            $pairs[] = $key.($value === null ? '' : '='.(isset($this->queryKeys[$name]) ? $this->string($value) : self::FILTERED));
-        }
-
-        return $this->string(substr($url, 0, $at)).($pairs === [] ? '' : '?'.implode('&', $pairs));
+        return $this->string(substr($url, 0, $at).$this->query(substr($url, $at + 1)));
     }
 
     /**
@@ -193,7 +187,37 @@ final class Scrubber
             $value = mb_strcut($value, 0, self::MAX_STRING).'…';
         }
 
+        // The cheap test first: most strings hold no URL with a query.
+        if (str_contains($value, '://') && str_contains($value, '?')) {
+            $value = preg_replace_callback(
+                self::URL_IN_TEXT,
+                fn (array $match): string => $match[1].$this->query($match[2]),
+                $value,
+            ) ?? $value;
+        }
+
         return (string) (preg_replace(array_keys($this->patterns), array_values($this->patterns), $value) ?? $value);
+    }
+
+    /**
+     * A query string (without its "?") as "?key=[filtered]&...", values of allowed keys kept;
+     * empty when it has no pairs.
+     */
+    private function query(string $query): string
+    {
+        $pairs = [];
+
+        foreach (explode('&', $query) as $pair) {
+            if ($pair === '') {
+                continue;
+            }
+
+            [$key, $value] = array_pad(explode('=', $pair, 2), 2, null);
+            $name = (string) strtok(urldecode($key), '[');
+            $pairs[] = $key.($value === null ? '' : '='.(isset($this->queryKeys[$name]) ? $value : self::FILTERED));
+        }
+
+        return $pairs === [] ? '' : '?'.implode('&', $pairs);
     }
 
     /**

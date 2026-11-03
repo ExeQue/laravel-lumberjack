@@ -268,7 +268,7 @@ Exceptions, requests, queries (with the app line that ran them), jobs, artisan c
 'exceptions' => ['ignore' => [Illuminate\Auth\AuthenticationException::class]], // and subclasses
 'commands' => ['ignore' => ['queue:work', 'horizon', 'schedule:run', 'lumberjack:*']],
 'schedule' => ['ignore' => ['artisan horizon:snapshot']],
-'scrub' => ['keys' => ['iban'], 'session_keys' => [], 'query_keys' => ['page']], // added to the built-in deny-list; blanked in the app
+'scrub' => ['keys' => ['iban'], 'session_keys' => [], 'query_keys' => ['page']], // added to the built-in deny-list; blanked in the app; query values blanked in every URL, also inside messages
 ```
 
 Sampling: `requests`, `jobs`, `commands` and `schedule` each take a `sample_rate` (0 to 1), the share of runs whose queries and spans are recorded; a run is sampled whole, never query by query. Every job, command and scheduled run is still recorded itself. Slow and failed runs keep everything anyway via `always_slower_than_ms` per section (defaults 1000 / 5000 / 10000 / 10000), and `queries.always_slower_than_ms` (500) keeps a slow query from any run:

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Facades\Lumberjack;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\Scrubber;
 use Illuminate\Console\Events\CommandFinished;
@@ -21,7 +22,7 @@ use Symfony\Component\Console\Output\NullOutput;
 const SECRETS = [
     'Bearer-SECRET-abc123', 'KEYSECRET-9f8e7d', 'laravel_session=SESSIONCOOKIE', 'REFRESH-SECRET-777',
     'hunter2', '4111111111111111', 'SIGNEDURLSECRET', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0MiJ9.c2lnbmF0dXJlLXNlY3JldA',
-    'AKIAIOSFODNN7EXAMPLE', 'sk_live_51HxSECRETSECRET', 'dbpass-SECRET', 'alice@example.com',
+    'AKIAIOSFODNN7EXAMPLE', 'sk_live_51HxSECRETSECRET', 'dbpass-SECRET', 'alice@example.com', 'URLKEY-SECRET-42',
 ];
 
 function assertNoSecrets(array $payloads): void
@@ -107,6 +108,24 @@ describe('nothing secret leaves the app', function () {
 
         assertNoSecrets($this->agent->payloads);
         expect($this->sentEvents('exception')[0]['message'])->toContain('SQL: select * from users where email = ? and password = ?');
+    });
+
+    it('blanks query-string values of URLs inside exception, log and health check messages', function () {
+        $this->withConfig(['lumberjack.scrub.query_keys' => ['page'], 'lumberjack.health.cooldown' => 0]);
+        config()->set('logging.channels.lumberjack', ['driver' => 'lumberjack']);
+
+        report(new RuntimeException('Client error: `GET https://api.example.com/v1/charges?api_key=URLKEY-SECRET-42&page=2` resulted in a `401 Unauthorized` response'));
+        Log::channel('lumberjack')->warning('Retrying https://api.example.com/x?sig=URLKEY-SECRET-42 (attempt 2)');
+        Lumberjack::healthChecks()->check('api', fn () => throw new RuntimeException(
+            'cURL error 28: Operation timed out for https://api.example.com/health?token=URLKEY-SECRET-42',
+        ));
+        Lumberjack::health('api')->run();
+        app()->terminate();
+
+        assertNoSecrets($this->agent->payloads);
+        expect($this->sentEvents('exception')[0]['message'])->toBe('Client error: `GET https://api.example.com/v1/charges?api_key=[filtered]&page=2` resulted in a `401 Unauthorized` response')
+            ->and($this->sentEvents('log')[0]['message'])->toBe('Retrying https://api.example.com/x?sig=[filtered] (attempt 2)')
+            ->and($this->sentEvents('health')[0]['message'])->toBe('cURL error 28: Operation timed out for https://api.example.com/health?token=[filtered]');
     });
 
     it('blanks queued job parameters', function () {

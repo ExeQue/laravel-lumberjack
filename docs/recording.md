@@ -188,8 +188,10 @@ What is blanked becomes `[filtered]`. By default:
   `apikey`, `access_token`, `refresh_token`, `client_secret`, `card`, `card_number`, `cvv`,
   `cvc`, `iban`, `ssn`, `private_key`, `_token`, and any key containing `secret`,
   `password`, `token`, `api_key`, `apikey` or `private_key`.
-- **Query strings**: every value in a URL (the request's, and the one sent with an
-  exception) is blanked, the keys stay: `/reset?token=[filtered]&page=[filtered]`.
+- **Query strings**: every value in a URL (the request's, the one sent with an
+  exception, and any URL inside a message, such as Guzzle's
+  `` `GET https://api.example.com/x?api_key=[filtered]` resulted in ``) is blanked, the
+  keys stay: `/reset?token=[filtered]&page=[filtered]`.
 - **The session**: left out, except for the keys you allow.
 - **Credentials in any string** (messages and context values): bearer and basic tokens,
   JWTs, the password in `scheme://user:password@host`, AWS access keys and Stripe secret

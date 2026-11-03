@@ -198,4 +198,4 @@ See [Reacting to alerts](webhooks.md).
 | `scrub.replace_defaults` | `false` | `true`: only `scrub.keys`, none of the built-in keys |
 | `scrub.patterns` | none | Regular expressions whose matches are blanked in any string |
 | `scrub.session_keys` | none | Session keys sent with an exception; the rest of the session is left out |
-| `scrub.query_keys` | none | Query-string keys whose values are sent; every other value is blanked |
+| `scrub.query_keys` | none | Query-string keys whose values are sent; every other value is blanked, also in URLs inside messages |

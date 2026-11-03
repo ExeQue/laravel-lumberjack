@@ -282,9 +282,10 @@ return [
      * log context, job parameters, command options, Laravel Context, span attributes) are
      * replaced by [filtered], matched case-insensitively with * wildcards: authorization,
      * cookie, password, token, secret, api_key, card, iban and more (see Scrubber::DEFAULT_KEYS).
-     * Every query-string value in a URL is blanked unless its key is in query_keys. The
-     * session is left out except for session_keys. Bearer tokens, JWTs, DSN passwords and
-     * AWS and Stripe keys are blanked in any string, and so is whatever patterns match.
+     * Every query-string value in a URL (also one inside a message) is blanked unless its
+     * key is in query_keys. The session is left out except for session_keys. Bearer tokens,
+     * JWTs, DSN passwords and AWS and Stripe keys are blanked in any string, and so is
+     * whatever patterns match.
      */
     'scrub' => [
         // Extra keys, on top of the defaults, e.g. ['cpr', 'x-tenant-*'].
