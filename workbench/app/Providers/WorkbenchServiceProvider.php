@@ -55,18 +55,34 @@ class WorkbenchServiceProvider extends ServiceProvider
         config()->set('queue.connections.database', ['driver' => 'database', 'connection' => 'workbench', 'table' => 'jobs', 'queue' => 'default', 'retry_after' => 90]);
         config()->set('queue.failed.driver', 'null');
 
-        // lerd's MySQL, only for the database:mysql health check: the app runs on SQLite,
-        // which has no connections to report.
-        config()->set('database.connections.mysql', [
-            'driver' => 'mysql',
-            'host' => env('WORKBENCH_MYSQL_HOST', 'lerd-mysql'),
-            'port' => (int) env('WORKBENCH_MYSQL_PORT', 3306),
-            'database' => env('WORKBENCH_MYSQL_DATABASE', 'mysql'),
-            'username' => env('WORKBENCH_MYSQL_USERNAME', 'root'),
-            'password' => env('WORKBENCH_MYSQL_PASSWORD', 'lerd'),
-            'charset' => 'utf8mb4',
-            'collation' => 'utf8mb4_unicode_ci',
+        // lerd's MySQL, MariaDB and PostgreSQL, only for the database health checks: the
+        // app runs on SQLite, which has no connections to report.
+        foreach (['mysql' => 'lerd-mysql', 'mariadb' => 'lerd-mariadb-11-8'] as $driver => $host) {
+            $key = strtoupper($driver);
+            config()->set("database.connections.{$driver}", [
+                'driver' => $driver,
+                'host' => env("WORKBENCH_{$key}_HOST", $host),
+                'port' => (int) env("WORKBENCH_{$key}_PORT", 3306),
+                'database' => env("WORKBENCH_{$key}_DATABASE", 'mysql'),
+                'username' => env("WORKBENCH_{$key}_USERNAME", 'root'),
+                'password' => env("WORKBENCH_{$key}_PASSWORD", 'lerd'),
+                'charset' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'prefix' => '',
+            ]);
+        }
+
+        config()->set('database.connections.pgsql', [
+            'driver' => 'pgsql',
+            'host' => env('WORKBENCH_PGSQL_HOST', 'lerd-postgres'),
+            'port' => (int) env('WORKBENCH_PGSQL_PORT', 5432),
+            'database' => env('WORKBENCH_PGSQL_DATABASE', 'postgres'),
+            'username' => env('WORKBENCH_PGSQL_USERNAME', 'postgres'),
+            'password' => env('WORKBENCH_PGSQL_PASSWORD', 'lerd'),
+            'charset' => 'utf8',
             'prefix' => '',
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
         ]);
 
         // A bucket on lerd's RustFS service, for the disk:rustfs health check. RUSTFS_*,
@@ -123,6 +139,8 @@ class WorkbenchServiceProvider extends ServiceProvider
         Lumberjack::healthChecks()
             ->database()
             ->database('mysql', warnAtConnections: 0.8)
+            ->database('mariadb', warnAtConnections: 0.8)
+            ->database('pgsql', warnAtConnections: 0.8)
             ->cache()
             ->disk('local')
             ->disk('rustfs')

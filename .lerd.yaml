@@ -4,6 +4,8 @@ secured: true
 services:
   - rustfs
   - mysql
+  - mariadb-11-8
+  - postgres
 workers:
   - agent
   - queue

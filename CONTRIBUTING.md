@@ -29,7 +29,7 @@ php vendor/bin/testbench demo:bucket
 
 The `disk:rustfs` health check writes, reads back and deletes a file in that bucket every minute. To see it fail, press "Break disk:rustfs" on the demo page (the disk then points at a bucket that does not exist), or stop RustFS with `lerd service stop rustfs`. `php` through lerd's shim starts the site's services again, so while it is stopped leave the runs to the scheduler worker.
 
-The workbench app runs on SQLite, which has no connections to report, so a second `database:mysql` check runs against lerd's MySQL service (listed under `services` in `.lerd.yaml`, lerd's default local login, the `mysql` system schema; see `WORKBENCH_MYSQL_*` in `.env.example`). It reports connections, the server's limit and the size, and warns at 80 % of the limit.
+The workbench app runs on SQLite, which has no connections to report, so `database:mysql`, `database:mariadb` and `database:pgsql` checks run against lerd's MySQL, MariaDB and PostgreSQL services (listed under `services` in `.lerd.yaml`, lerd's default local login, their system databases; see `WORKBENCH_*` in `.env.example`). Each reports connections, the server's limit and the size, and warns at 80 % of the limit.
 
 The `queue:database:bulk` health check watches the size of the bulk queue, which no worker runs: a warning at 100 jobs, failed at 1000. "Flood the bulk queue" on the demo page puts 1200 jobs on it, so the check degrades after 2 runs and goes down after 5; "Drain the bulk queue" empties it and the check recovers after 5 good runs.
 
