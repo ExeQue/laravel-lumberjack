@@ -80,7 +80,22 @@ It applies to the check added last in that chain (the last argument of `add()`);
 ],
 ```
 
-A check class can set its own by overriding `everyMinutes(): ?int` (part of the `HealthCheck` contract; the `ConfiguresHealthCheck` trait returns `null`, every run). `every()` wins over it.
+A check class can set its own by also implementing `ExeQue\Lumberjack\Contracts\HasHealthCheckInterval`, whose `everyMinutes(): ?int` returns the minutes (null for every run). `every()` wins over it. A check that implements only `HealthCheck` runs on every run.
+
+```php
+use ExeQue\Lumberjack\Contracts\HasHealthCheckInterval;
+use ExeQue\Lumberjack\Contracts\HealthCheck;
+
+final class LicenseServerCheck implements HealthCheck, HasHealthCheckInterval
+{
+    // ...
+
+    public function everyMinutes(): ?int
+    {
+        return 60;
+    }
+}
+```
 
 The interval is whole minutes, at least as long as `health.schedule` runs (`every(3)` with `*/5 * * * *` throws; a bad `every` in config skips that check, see [Slugs](#slugs) for how). It need not be a multiple of the schedule: the check runs on the first scheduled run after it is due, so `every(7)` on a five-minute schedule runs every 10 minutes. A run a few seconds late is still on time.
 

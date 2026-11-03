@@ -10,7 +10,8 @@ use ExeQue\Lumberjack\Health\CheckResult;
  * One thing lumberjack:health checks. Lumberjack marks it degraded after
  * degradeAfter() bad runs in a row (warnings or failures), down after downAfter()
  * failed runs in a row (never fewer than degradeAfter()), and healthy again after
- * recoverAfter() good ones.
+ * recoverAfter() good ones. To run less often than lumberjack:health is scheduled, also
+ * implement {@see HasHealthCheckInterval}.
  */
 interface HealthCheck
 {
@@ -27,10 +28,4 @@ interface HealthCheck
 
     /** Seconds the check may take before it counts as failed. */
     public function timeout(): int;
-
-    /**
-     * Minutes between runs when the check should run less often than lumberjack:health
-     * is scheduled; null runs it on every run. ->every() on the registry wins over it.
-     */
-    public function everyMinutes(): ?int;
 }

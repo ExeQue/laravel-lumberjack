@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack\Health;
 
 use Closure;
 use Cron\CronExpression;
+use ExeQue\Lumberjack\Contracts\HasHealthCheckInterval;
 use ExeQue\Lumberjack\Contracts\HealthCheck;
 use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException;
 use ExeQue\Lumberjack\Health\Checks\CacheHealthCheck;
@@ -127,7 +128,7 @@ final class HealthRegistry
      */
     public function everyMinutes(HealthCheck $check): ?int
     {
-        return $this->intervals[$check] ?? $check->everyMinutes();
+        return $this->intervals[$check] ?? self::own($check);
     }
 
     /**
@@ -424,7 +425,7 @@ final class HealthRegistry
                     ));
                 }
 
-                $every = $this->every[$index] ?? $check->everyMinutes();
+                $every = $this->every[$index] ?? self::own($check);
                 $this->intervals[$check] = $every !== null ? self::interval($every) : null;
                 $checks[$check->slug()] = $check;
             } catch (Throwable $e) {
@@ -433,6 +434,14 @@ final class HealthRegistry
         }
 
         return $checks;
+    }
+
+    /**
+     * The interval a check sets itself; a check without {@see HasHealthCheckInterval} runs every time.
+     */
+    private static function own(HealthCheck $check): ?int
+    {
+        return $check instanceof HasHealthCheckInterval ? $check->everyMinutes() : null;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Contracts\HasHealthCheckInterval;
 use ExeQue\Lumberjack\Contracts\HealthCheck;
 use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException;
 use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckSlugException;
@@ -54,7 +55,7 @@ final class StripeConnectionCheck implements HealthCheck
     }
 }
 
-final class HourlyCheck implements HealthCheck
+final class HourlyCheck implements HasHealthCheckInterval, HealthCheck
 {
     use ConfiguresHealthCheck;
 
@@ -75,6 +76,40 @@ final class HourlyCheck implements HealthCheck
     public function everyMinutes(): ?int
     {
         return 60;
+    }
+}
+
+/** Written against the HealthCheck contract alone: no trait, no interval. */
+final class BareCheck implements HealthCheck
+{
+    public function slug(): string
+    {
+        return 'bare';
+    }
+
+    public function run(): CheckResult
+    {
+        return CheckResult::ok();
+    }
+
+    public function degradeAfter(): int
+    {
+        return 2;
+    }
+
+    public function recoverAfter(): int
+    {
+        return 5;
+    }
+
+    public function downAfter(): int
+    {
+        return 5;
+    }
+
+    public function timeout(): int
+    {
+        return 10;
     }
 }
 
@@ -193,6 +228,21 @@ describe('intervals', function () {
             'hourly' => 60,
             'hourly-overridden' => 30,
         ]);
+    });
+
+    it('runs a check that implements only the HealthCheck contract on every run, or as every() says', function () {
+        Lumberjack::healthChecks()->add(new BareCheck());
+
+        $this->artisan('lumberjack:health')->assertExitCode(0);
+        $this->artisan('lumberjack:health')->assertExitCode(0);
+
+        expect(intervals())->toBe(['bare' => null])
+            ->and(array_column(healthEvents(), 'interval_minutes', 'slug'))->toBe(['bare' => null])
+            ->and(healthEvents())->toHaveCount(2);
+
+        Lumberjack::healthChecks()->add(new BareCheck())->every(10);
+
+        expect(intervals())->toBe(['bare' => 10]);
     });
 
     it('refuses every() before any check was added in code, and fewer minutes than the schedule runs', function () {
