@@ -64,6 +64,7 @@ class Agent
         private readonly ?Closure $warn = null,
         private readonly ?Closure $status = null,
         private readonly ?Closure $health = null,
+        private readonly ?string $key = null,
     ) {
         $this->lastFlush = microtime(true);
     }
@@ -75,26 +76,34 @@ class Agent
     {
         $payload = json_decode($line, true);
 
+        if (! is_array($payload)) {
+            return;
+        }
+
+        $from = is_string($payload['project'] ?? null) ? $payload['project'] : null;
+
+        // Another project's app on this port: its key differs too, but this says why.
+        if ($from !== null && $this->project !== null && ! hash_equals($this->project, $from)) {
+            $this->warnOnce($from, "Turned away data from an app of another project (mark {$from}). Give each app its own agent and LUMBERJACK_AGENT_PORT.");
+
+            return;
+        }
+
+        // Only an app that knows the key may hand over data or stop the agent.
+        if ($this->key !== null && ! (is_string($payload['key'] ?? null) && hash_equals($this->key, $payload['key']))) {
+            $this->warnOnce('', 'Turned away a line without the agent key. The app and the agent need the same LUMBERJACK_TOKEN (or LUMBERJACK_AGENT_KEY) and the same package version.');
+
+            return;
+        }
+
         // php artisan lumberjack:terminate, e.g. after a deploy.
-        if (is_array($payload) && ($payload['control'] ?? null) === 'terminate') {
+        if (($payload['control'] ?? null) === 'terminate') {
             $this->stopRequested = true;
 
             return;
         }
 
-        if (! is_array($payload) || ! is_array($payload['events'] ?? null)) {
-            return;
-        }
-
-        // Without a mark on either side (an older SDK, an app without the token) there is nothing to compare.
-        $from = is_string($payload['project'] ?? null) ? $payload['project'] : null;
-
-        if ($from !== null && $this->project !== null && ! hash_equals($this->project, $from)) {
-            if (! isset($this->foreign[$from])) {
-                $this->foreign[$from] = true;
-                ($this->warn)?->__invoke("Turned away data from an app of another project (mark {$from}). Give each app its own agent and LUMBERJACK_AGENT_PORT.");
-            }
-
+        if (! is_array($payload['events'] ?? null)) {
             return;
         }
 
@@ -114,6 +123,17 @@ class Agent
         if ($this->bytes >= self::FLUSH_BYTES) {
             $this->flush(microtime(true));
         }
+    }
+
+    private function warnOnce(string $about, string $message): void
+    {
+        // ponytail: at most 100 remembered, so a flood of made-up marks cannot grow it.
+        if (isset($this->foreign[$about]) || count($this->foreign) >= 100) {
+            return;
+        }
+
+        $this->foreign[$about] = true;
+        ($this->warn)?->__invoke($message);
     }
 
     public function tick(float $now): void

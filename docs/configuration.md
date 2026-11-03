@@ -105,6 +105,7 @@ Set it to `null` to send no release.
 | `agent.host` | `LUMBERJACK_AGENT_HOST` | `127.0.0.1` | Where the agent listens and the app sends |
 | `agent.port` | `LUMBERJACK_AGENT_PORT` | `2407` | |
 | `agent.name` | `LUMBERJACK_AGENT_NAME` | the host | What Lumberjack lists the agent as |
+| `agent.key` | `LUMBERJACK_AGENT_KEY` | derived from the token | The secret on every line the app hands the agent; app and agent must agree. See [Who may talk to it](agent.md#who-may-talk-to-it) |
 | `agent.interval` | | `5` | Seconds between batches |
 | `agent.send_timeout` | `LUMBERJACK_AGENT_SEND_TIMEOUT` | `5` | Seconds one send to Lumberjack may take before it is retried from the spool |
 | `agent.spool_path` | | `storage/lumberjack/spool` | Where unsent batches wait |

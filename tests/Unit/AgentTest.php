@@ -202,3 +202,109 @@ it('drains the spool a little per tick, so it goes back to accepting connections
     expect(microtime(true) - $start)->toBeLessThan(0.6)
         ->and($spool->count())->toBeGreaterThanOrEqual(5);
 });
+
+describe('the agent key', function () {
+    beforeEach(function () {
+        Http::fake(['*/api/ingest' => Http::response(['accepted' => 1], 202), '*/heartbeat' => Http::response(['ok' => true])]);
+        $this->warnings = [];
+        $this->key = ProjectFingerprint::agentKey('secret-token');
+        $this->keyed = new Agent(new Sender(app(Factory::class), 'https://lumberjack.test', 'secret-token'), $this->spool, 5, 'web-1', null, ProjectFingerprint::of('secret-token'), function (string $message): void {
+            $this->warnings[] = $message;
+        }, key: $this->key);
+    });
+
+    it('turns away data and commands without it, and warns once', function () {
+        $this->keyed->receive((string) json_encode(['events' => [['type' => 'exception', 'message' => 'forged']]]));
+        $this->keyed->receive((string) json_encode(['key' => 'guess', 'events' => [['type' => 'exception']]]));
+        $this->keyed->receive((string) json_encode(['control' => 'terminate']));
+        $this->keyed->flush(microtime(true));
+
+        expect($this->keyed->stopRequested())->toBeFalse()
+            ->and($this->warnings)->toHaveCount(1)->and($this->warnings[0])->toContain('without the agent key');
+        Http::assertNothingSent();
+    });
+
+    it('takes data and commands with it', function () {
+        $this->keyed->receive((string) json_encode(['key' => $this->key, 'events' => [['type' => 'log']]]));
+        $this->keyed->flush(microtime(true));
+        $this->keyed->receive((string) json_encode(['key' => $this->key, 'control' => 'terminate']));
+
+        expect($this->keyed->stopRequested())->toBeTrue();
+        Http::assertSentCount(1);
+    });
+
+    it('is put on every line by the app, derived from the token, never the token itself', function () {
+        $server = stream_socket_server('tcp://127.0.0.1:0');
+        $port = (int) substr((string) strrchr((string) stream_socket_get_name($server, false), ':'), 1);
+
+        (new AgentClient('127.0.0.1', $port, key: $this->key))->send(['control' => 'terminate']);
+
+        $line = (string) fgets(stream_socket_accept($server, 1));
+        expect(json_decode($line, true))->toBe(['control' => 'terminate', 'key' => $this->key])
+            ->and($line)->not->toContain('secret-token')
+            ->and(ProjectFingerprint::agentKey('secret-token', 'explicit'))->toBe('explicit');
+    });
+
+    it('splits a batch that is too long for one line', function () {
+        $client = new class ('127.0.0.1', 1) extends AgentClient {
+            /** @var list<string> */
+            public array $lines = [];
+
+            protected function write(string $line): bool
+            {
+                $this->lines[] = $line;
+
+                return true;
+            }
+        };
+        $event = ['type' => 'log', 'message' => str_repeat('x', 10_000)];
+
+        expect($client->send(['v' => 1, 'events' => array_fill(0, 1000, $event)]))->toBeTrue()
+            ->and(count($client->lines))->toBeGreaterThan(1)
+            ->and(max(array_map(strlen(...), $client->lines)))->toBeLessThanOrEqual(AgentClient::MAX_LINE)
+            ->and(array_sum(array_map(fn (string $line): int => count(json_decode($line, true)['events']), $client->lines)))->toBe(1000);
+    });
+});
+
+describe('the agent host', function () {
+    it('sends to a host name', function () {
+        $server = stream_socket_server('tcp://127.0.0.1:0');
+        $port = (int) substr((string) strrchr((string) stream_socket_get_name($server, false), ':'), 1);
+        $client = new AgentClient('localhost', $port);
+
+        expect($client->send(['events' => []]))->toBeTrue()
+            ->and($client->send(['events' => []]))->toBeTrue();
+    });
+
+    it('does not look up a name that failed again for a while', function () {
+        $client = new AgentClient('lumberjack-agent.invalid', 2407);
+        $client->send(['events' => []]);
+
+        $start = microtime(true);
+        expect($client->send(['events' => []]))->toBeFalse()
+            ->and(microtime(true) - $start)->toBeLessThan(0.002);
+    });
+});
+
+describe('the spool', function () {
+    it('keeps batches readable by the agent\'s user only', function () {
+        $this->spool->push('batch');
+
+        expect(fileperms($this->spoolPath) & 0777)->toBe(0700)
+            ->and(fileperms((string) $this->spool->oldest()) & 0777)->toBe(0600);
+    });
+
+    it('says once when it cannot write', function () {
+        $warnings = [];
+        $file = tempnam(sys_get_temp_dir(), 'lj');
+        $spool = new Spool($file.'/spool', 10_000, function (string $message) use (&$warnings): void {
+            $warnings[] = $message;
+        });
+
+        $spool->push('a');
+        $spool->push('b');
+
+        expect($warnings)->toHaveCount(1)->and($warnings[0])->toContain('Could not write to the spool');
+        unlink($file);
+    });
+});

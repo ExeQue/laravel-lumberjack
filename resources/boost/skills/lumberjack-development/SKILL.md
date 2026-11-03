@@ -312,7 +312,7 @@ user=www-data
 
 - Options: `--name` (`LUMBERJACK_AGENT_NAME`), `--host`/`--port` (`LUMBERJACK_AGENT_HOST`, `LUMBERJACK_AGENT_PORT`, 2407), `--memory` (MB, `LUMBERJACK_AGENT_MEMORY`, 128; it exits past it for a fresh one).
 - Several apps on one server: each its own agent and port.
-- Docker Compose: a separate service from the app's image running `php artisan lumberjack:agent --host=0.0.0.0`, and `LUMBERJACK_AGENT_HOST=<service name>` in the app. Kubernetes: a sidecar container in the app's pod (shares 127.0.0.1).
+- Docker Compose: a separate service from the app's image running `php artisan lumberjack:agent --host=0.0.0.0`, and `LUMBERJACK_AGENT_HOST=<service name>` in the app. Never publish the agent's port. App and agent share `LUMBERJACK_TOKEN` (or `LUMBERJACK_AGENT_KEY`) and the package version, or the agent turns the app's lines away. Kubernetes: a sidecar container in the app's pod (shares 127.0.0.1).
 - After a deploy: `php artisan lumberjack:terminate` (next to `queue:restart`), so it restarts on the new code.
 - Unsent batches wait in `storage/lumberjack/spool` (100 MB at most) and are retried in order.
 - Every minute's heartbeat carries queue sizes (`LUMBERJACK_QUEUES=default,redis:emails`; empty is the default queue) and host metrics (CPU load, memory, disk).

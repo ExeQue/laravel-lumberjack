@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack\Console;
 use ExeQue\Lumberjack\Agent\Agent;
 use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Agent\Spool;
+use ExeQue\Lumberjack\AgentClient;
 use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\HostMetrics;
@@ -23,7 +24,14 @@ use Symfony\Component\Console\Input\InputOption;
  */
 class AgentCommand extends Command
 {
-    public const int MAX_CLIENT_BUFFER = 16 * 1024 * 1024;
+    /** The longest line a client may send; the app splits a batch that would be longer. */
+    public const int MAX_CLIENT_BUFFER = AgentClient::MAX_LINE;
+
+    /** Connections open at once; more wait in the backlog. */
+    public const int MAX_CLIENTS = 256;
+
+    /** Seconds a connection may stay open without sending. */
+    public const int IDLE_SECONDS = 10;
 
     public const int BACKLOG = 1024;
 
@@ -73,7 +81,7 @@ class AgentCommand extends Command
 
         $agent = new Agent(
             new Sender($http, $url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT))),
-            new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes')),
+            new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes'), fn (string $message) => $this->components->warn($message)),
             (int) config('lumberjack.agent.interval', 5),
             gethostname() ?: null,
             $this->agentName(),
@@ -82,6 +90,7 @@ class AgentCommand extends Command
             // The environment, so the heartbeat's answer holds the health states of this app's.
             fn (): array => ['environment' => config('lumberjack.environment'), 'queues' => $queues->measure(), 'metrics' => $metrics->measure()],
             fn (array $health) => $states->fill($health, fromAgent: true),
+            ProjectFingerprint::agentKey($token, is_string(config('lumberjack.agent.key')) ? config('lumberjack.agent.key') : null),
         );
 
         if (extension_loaded('pcntl')) {
@@ -109,9 +118,12 @@ class AgentCommand extends Command
         $clients = [];
         /** @var array<int, string> $buffers */
         $buffers = [];
+        /** @var array<int, float> $seen */
+        $seen = [];
 
         while ($this->running) {
-            $read = [$server, ...array_values($clients)];
+            // At the cap, new connections wait in the backlog until one closes.
+            $read = count($clients) < self::MAX_CLIENTS ? [$server, ...array_values($clients)] : array_values($clients);
             $write = $except = null;
 
             if (@stream_select($read, $write, $except, 1) === false) {
@@ -126,6 +138,7 @@ class AgentCommand extends Command
                         stream_set_blocking($client, false);
                         $clients[(int) $client] = $client;
                         $buffers[(int) $client] = '';
+                        $seen[(int) $client] = microtime(true);
                     }
 
                     continue;
@@ -135,6 +148,7 @@ class AgentCommand extends Command
                 $chunk = fread($stream, 65536);
 
                 if ($chunk !== false && $chunk !== '') {
+                    $seen[$id] = microtime(true);
                     $buffers[$id] .= $chunk;
 
                     while (($pos = strpos($buffers[$id], "\n")) !== false) {
@@ -145,7 +159,15 @@ class AgentCommand extends Command
 
                 if (feof($stream) || strlen($buffers[$id]) > self::MAX_CLIENT_BUFFER) {
                     fclose($stream);
-                    unset($clients[$id], $buffers[$id]);
+                    unset($clients[$id], $buffers[$id], $seen[$id]);
+                }
+            }
+
+            // A connection that sends nothing holds a slot; it gets a few seconds.
+            foreach ($seen as $id => $at) {
+                if (microtime(true) - $at > self::IDLE_SECONDS) {
+                    fclose($clients[$id]);
+                    unset($clients[$id], $buffers[$id], $seen[$id]);
                 }
             }
 

@@ -8,6 +8,29 @@ php artisan lumberjack:agent
 
 It reads the app's own `.env`, so the token is set in one place. Queue workers and artisan commands send to the same agent as web requests.
 
+### Who may talk to it
+
+Every line an app hands the agent carries the agent key, and the agent turns away any line
+without it: data, and `lumberjack:terminate` too. The key is derived from
+`LUMBERJACK_TOKEN` (an HMAC of it, never the token itself), so an app and an agent that
+share the `.env` agree on it with nothing to set. An app that does not have the token sets
+the same `LUMBERJACK_AGENT_KEY` as the agent. The app and the agent must run the same
+package version: an agent from before the key turns nothing away, and an agent with the
+key turns away an app from before it, with this warning once:
+
+```
+WARN  Turned away a line without the agent key. The app and the agent need the same LUMBERJACK_TOKEN (or LUMBERJACK_AGENT_KEY) and the same package version.
+```
+
+The agent also bounds what a client can make it hold: a line of at most 4 MB (the app
+sends a larger batch in parts), 256 connections at once (more wait in the backlog), and
+a connection that sends nothing for 10 seconds is closed.
+
+The key keeps out what cannot read it, not a network you do not trust: it travels in
+plain text. Keep the agent on `127.0.0.1` (the default), a pod's shared network, or a
+private Docker network. Never bind it to `0.0.0.0` on a host whose port is reachable
+from outside without a firewall.
+
 ## Running it
 
 Run one agent per app per server, and let the process manager restart it. With Supervisor:
@@ -42,7 +65,7 @@ WantedBy=multi-user.target
 
 ### Docker and Kubernetes
 
-With Docker Compose, run the agent as its own service from the app's image. A container has its own `127.0.0.1`, so the agent listens on all of its addresses and the app sends to it by service name:
+With Docker Compose, run the agent as its own service from the app's image. A container has its own `127.0.0.1`, so the agent listens on all of the container's addresses and the app sends to it by service name. Do not publish the agent's port (no `ports:` for it): only containers on the compose network should reach it.
 
 ```yaml
 services:
@@ -67,6 +90,8 @@ containers:
           name: your-app-env   # the same environment as the app
 ```
 
+A host name in `LUMBERJACK_AGENT_HOST` is looked up once a minute per process (with APCu, once a minute for the whole PHP-FPM pool), not on every batch. PHP-FPM without APCu looks it up once per request, a few milliseconds on Docker's DNS; set an IP to skip the lookup altogether.
+
 Either way the agent writes [health states](health-checks.md#reading-states) into the app's cache, so use a store both containers reach, such as Redis.
 
 Several apps on one server each run their own agent on their own port (`LUMBERJACK_AGENT_PORT`). An agent sends everything with the token of the app it runs in, so it serves one project. Each app marks what it hands the agent with a short fingerprint of its token (never the token itself), and an agent turns away data from an app of another project instead of sending it under the wrong token. It warns once per such project in its output:
@@ -89,7 +114,7 @@ or `LUMBERJACK_AGENT_NAME=queue` in `.env`.
 
 ## When Lumberjack is down
 
-A batch that cannot be sent is kept on disk in `storage/lumberjack/spool`, and tried again with a growing pause, up to 5 minutes. New batches wait behind it, so nothing arrives out of order. The spool holds at most 100 MB; past that, the oldest batches go first. A batch Lumberjack refuses as such (a 4xx other than 401, 408 or 429) is dropped rather than tried forever.
+A batch that cannot be sent is kept on disk in `storage/lumberjack/spool` (a directory only the agent's user can read, `0700`, with files `0600`: they hold the app's data), and tried again with a growing pause, up to 5 minutes. New batches wait behind it, so nothing arrives out of order. The spool holds at most 100 MB; past that, the oldest batches go first. When the spool cannot be written, the agent says so once in its output and in PHP's error log, and batches are dropped while Lumberjack is down. A batch Lumberjack refuses as such (a 4xx other than 401, 408 or 429) is dropped rather than tried forever.
 
 The agent is one process with one thread: while it sends, it does not accept connections.
 That time is bounded. One send may take `agent.send_timeout` seconds (5, or

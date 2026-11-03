@@ -60,6 +60,11 @@ return [
         'host' => env('LUMBERJACK_AGENT_HOST', '127.0.0.1'),
         'port' => (int) env('LUMBERJACK_AGENT_PORT', 2407),
 
+        // The secret the app puts on every line it hands the agent; the agent turns away
+        // anything without it. Derived from LUMBERJACK_TOKEN when empty, so it only needs
+        // setting for an app that does not have the token. App and agent must agree.
+        'key' => env('LUMBERJACK_AGENT_KEY'),
+
         // What Lumberjack lists this agent as, e.g. "web-1" or "queue"; the host when empty.
         'name' => env('LUMBERJACK_AGENT_NAME'),
 
