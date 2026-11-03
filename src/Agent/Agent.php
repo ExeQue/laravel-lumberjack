@@ -116,8 +116,13 @@ class Agent
         ];
         $key = md5(serialize($envelope));
 
-        $this->batches[$key] ??= ['envelope' => $envelope, 'events' => []];
-        array_push($this->batches[$key]['events'], ...array_values($payload['events']));
+        // Request counts go in batches of their own: a server from before them refuses a
+        // batch holding one, and that must not cost the rest of the data.
+        foreach ($payload['events'] as $event) {
+            $batch = is_array($event) && ($event['type'] ?? null) === 'request_counts' ? $key.':counts' : $key;
+            $this->batches[$batch] ??= ['envelope' => $envelope, 'events' => []];
+            $this->batches[$batch]['events'][] = $event;
+        }
         $this->bytes += strlen($line);
 
         if ($this->bytes >= self::FLUSH_BYTES) {

@@ -308,3 +308,19 @@ describe('the spool', function () {
         unlink($file);
     });
 });
+
+it('sends request counts in batches of their own, so a server that refuses them keeps the rest', function () {
+    Http::fake(function (Request $request) {
+        $events = json_decode((string) gzdecode($request->body()), true)['events'] ?? [];
+
+        return in_array('request_counts', array_column($events, 'type'), true) ? Http::response([], 422) : Http::response(['accepted' => 1], 202);
+    });
+    $agent = ($this->makeAgent)();
+
+    $agent->receive(($this->line)([['type' => 'request', 'route' => '/'], ['type' => 'request_counts', 'counts' => []]]));
+    $agent->flush(microtime(true));
+
+    $types = array_map(fn (array $pair): array => array_column(json_decode((string) gzdecode($pair[0]->body()), true)['events'], 'type'), Http::recorded()->all());
+    expect($types)->toBe([['request'], ['request_counts']])
+        ->and($this->spool->count())->toBe(0);
+});
