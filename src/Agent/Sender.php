@@ -44,11 +44,15 @@ class Sender
             : SendResult::Retry;
     }
 
-    public function heartbeat(string $host, string $version, ?string $name = null): bool
+    /**
+     * @param  array<string, array{name: string, version: string}>  $client  what the agent is, see Client
+     */
+    public function heartbeat(string $host, array $client, ?string $name = null): bool
     {
         try {
             return $this->http->withToken($this->token)->timeout(self::TIMEOUT)
-                ->post($this->url.'/api/ingest/heartbeat', array_filter(['host' => $host, 'version' => $version, 'name' => $name]))
+                // version too, for servers from before agents described themselves.
+                ->post($this->url.'/api/ingest/heartbeat', array_filter(['host' => $host, 'client' => $client, 'version' => $client['sdk']['version'] ?? null, 'name' => $name]))
                 ->successful();
         } catch (Throwable) {
             return false;

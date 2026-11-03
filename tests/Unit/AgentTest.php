@@ -88,11 +88,15 @@ it('drops the oldest spooled batch when the spool is full', function () {
     expect($spool->count())->toBe(2)->and($spool->read((string) $spool->oldest()))->toStartWith('b');
 });
 
-it('sends a heartbeat with host and version', function () {
+it('sends a heartbeat with host and what it is', function () {
     Http::fake();
     ($this->makeAgent)()->tick(microtime(true));
 
-    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/api/ingest/heartbeat') && $request['host'] === 'web-1' && $request['version'] !== null && ! isset($request['name']));
+    Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/api/ingest/heartbeat') && $request['host'] === 'web-1'
+        && $request['client']['sdk']['name'] === 'lumberjack.php.laravel'
+        && $request['client']['runtime'] === ['name' => 'php', 'version' => PHP_VERSION]
+        && $request['version'] === $request['client']['sdk']['version']
+        && ! isset($request['name']));
 });
 
 it('sends its name with the heartbeat when it has one', function () {

@@ -69,4 +69,13 @@ The agent sends what it holds and exits; Supervisor or systemd starts it again. 
 
 ## Heartbeat
 
-Every minute the agent tells Lumberjack it is alive, with its host, name and version. A project's settings show each agent as online while its heartbeat is recent.
+Every minute the agent tells Lumberjack it is alive, with its host, its name and what it is:
+
+| Part | Sent as |
+|---|---|
+| SDK | `lumberjack.php.laravel` and the package version |
+| Agent | `lumberjack-agent-php` and its version |
+| Runtime | `php` and the PHP version |
+| Framework | `laravel` and the Laravel version |
+
+A project's settings show each agent as online while its heartbeat is recent, with what it runs (e.g. "Laravel 0.1.0 · PHP 8.5.1"). The ids stay the same when packages are renamed; SDKs for other languages follow the same `lumberjack.<language>.<integration>` scheme.

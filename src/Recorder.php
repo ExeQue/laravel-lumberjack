@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack;
 
+use ExeQue\Lumberjack\Support\Client;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\RecordingRules;
@@ -16,8 +17,6 @@ use WeakMap;
  */
 class Recorder
 {
-    public const string VERSION = '0.1.0';
-
     // ponytail: flush early so long commands do not grow without bound.
     public const int MAX_BUFFERED = 1000;
 
@@ -169,7 +168,7 @@ class Recorder
 
         $this->client->send([
             'v' => 1,
-            'sdk' => 'exeque/laravel-lumberjack@'.self::VERSION,
+            'sdk' => ['name' => Client::SDK, 'version' => Client::VERSION],
             'environment' => $this->config['environment'] ?? null,
             'release' => $this->config['release'] ?? null,
             'host' => gethostname() ?: null,

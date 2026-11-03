@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Agent;
 
 use Closure;
-use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Support\Client;
 
 /**
  * Collects batches from one app's processes on this server and sends them on
@@ -114,7 +114,7 @@ class Agent
 
         if ($now - $this->lastHeartbeat >= self::HEARTBEAT_SECONDS) {
             $this->lastHeartbeat = $now;
-            $this->sender->heartbeat($this->host ?? (gethostname() ?: 'unknown'), Recorder::VERSION, $this->name);
+            $this->sender->heartbeat($this->host ?? (gethostname() ?: 'unknown'), Client::describe(), $this->name);
         }
     }
 
