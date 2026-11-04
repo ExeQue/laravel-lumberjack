@@ -201,7 +201,7 @@ For each queue the agent sends:
 
 ### Queue workers
 
-Every queue worker (`queue:work`, `queue:listen` and Horizon's, which loop through the same worker) leaves a sign of life in the app's default cache, at most every 30 seconds per queue it takes. A worker that has not looped for 90 seconds counts as gone; one running a long job stays counted for the job's timeout plus 30 seconds. Writing it never fails a job.
+Every queue worker (`queue:work`, `queue:listen` and Horizon's, which loop through the same worker) leaves a sign of life in the app's default cache, at most every 30 seconds per queue it takes. A worker that stops (Horizon scaling down, `queue:restart`) leaves at once; one that dies without stopping counts as gone after 90 seconds without a loop; one running a long job stays counted for the job's timeout plus 30 seconds. Writing it never fails a job.
 
 The count is only as wide as the cache: with Redis or the database cache every host's workers count, with the file cache only those of the host the agent runs on.
 

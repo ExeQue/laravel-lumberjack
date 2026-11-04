@@ -2,18 +2,24 @@ domains:
   - laravel-lumberjack
 secured: true
 services:
-  - rustfs
-  - mysql
   - mariadb-11-8
+  - mysql
   - postgres
+  - redis
+  - rustfs
 workers:
   - agent
+  - horizon
   - queue
   - schedule
 custom_workers:
   agent:
     label: Lumberjack agent
     command: php vendor/bin/testbench lumberjack:agent --name=lumberjack-agent
+    restart: always
+  horizon:
+    label: Horizon
+    command: php vendor/bin/testbench horizon
     restart: always
   queue:
     label: Queue worker

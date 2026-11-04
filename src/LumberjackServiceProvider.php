@@ -38,6 +38,7 @@ use Illuminate\Http\Request;
 use Illuminate\Log\LogManager;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\Looping;
+use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -200,6 +201,7 @@ class LumberjackServiceProvider extends ServiceProvider
 
         // Each worker's sign of life, for how many work each queue; a long job never loops.
         $events->listen(Looping::class, Safely::wrap(fn (Looping $e) => $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->queue)));
+        $events->listen(WorkerStopping::class, Safely::wrap(fn () => $this->app->make(QueueWorkers::class)->stop()));
         $events->listen(JobProcessing::class, Safely::wrap(function (JobProcessing $e): void {
             if ($e->connectionName !== 'sync') {
                 $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->job->getQueue(), ($e->job->timeout() ?? 60) + 30);

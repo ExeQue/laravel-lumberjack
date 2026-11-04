@@ -2,6 +2,7 @@ laravel: '@testbench'
 
 providers:
   - ExeQue\Lumberjack\LumberjackServiceProvider
+  - Laravel\Horizon\HorizonServiceProvider
   - Workbench\App\Providers\WorkbenchServiceProvider
 
 env:
@@ -11,6 +12,10 @@ env:
   - APP_KEY=base64:Tlk4bnlKZkJTT3hFQW1OZmxKYXBwYXp0VlJMbHZFbmc=
   - SESSION_DRIVER=file
   - CACHE_STORE=file
+  # lerd's Redis, for Horizon's reports queue; set here, as Horizon copies the
+  # connection before the workbench's provider runs.
+  - REDIS_HOST=lerd-redis
+  - REDIS_CLIENT=phpredis
 
 workbench:
   start: '/'

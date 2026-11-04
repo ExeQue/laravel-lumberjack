@@ -67,6 +67,25 @@ class QueueWorkers
         }
     }
 
+    /**
+     * This worker stops (Horizon scaling down, a deploy restarting the workers): it
+     * leaves the queues it said it works at once, instead of counting for a while more.
+     */
+    public function stop(): void
+    {
+        foreach (array_keys($this->last) as $key) {
+            try {
+                $workers = $this->read($key);
+                unset($workers[self::id()]);
+                $this->cache->put(self::PREFIX.$key, $workers, self::LIST_TTL_S);
+            } catch (Throwable) {
+                // Its sign of life runs out on its own.
+            }
+        }
+
+        $this->last = [];
+    }
+
     /** Workers alive on the queue; null when none has ever said so (not measured). */
     public function count(string $connection, string $queue): ?int
     {

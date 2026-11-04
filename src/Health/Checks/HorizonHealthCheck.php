@@ -29,7 +29,8 @@ final class HorizonHealthCheck implements HealthCheck
 
     public function run(): CheckResult
     {
-        if (! interface_exists(self::REPOSITORY)) {
+        // Installed but not registered (no HorizonServiceProvider) counts as not installed.
+        if (! interface_exists(self::REPOSITORY) || ! app()->bound(self::REPOSITORY)) {
             return CheckResult::failed('Horizon is not installed (laravel/horizon).');
         }
 

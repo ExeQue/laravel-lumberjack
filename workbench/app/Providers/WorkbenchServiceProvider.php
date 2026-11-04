@@ -38,8 +38,9 @@ class WorkbenchServiceProvider extends ServiceProvider
         // The demo's Deploy button writes a release here, as a deploy script would.
         $release = self::path('storage/release');
         config()->set('lumberjack.release', is_file($release) ? trim((string) file_get_contents($release)) : env('LUMBERJACK_RELEASE', 'dev'));
-        // The agent reports the size of both queues; nothing works the bulk one.
-        config()->set('lumberjack.queues', ['database:default', 'database:bulk']);
+        // The agent reports the size of every queue; nothing works the bulk one, and
+        // Horizon scales the reports one.
+        config()->set('lumberjack.queues', ['database:default', 'database:bulk', 'redis:reports']);
         config()->set('lumberjack.agent.port', (int) env('LUMBERJACK_AGENT_PORT', 2408));
         config()->set('lumberjack.agent.spool_path', self::path('storage/spool'));
 
@@ -54,6 +55,25 @@ class WorkbenchServiceProvider extends ServiceProvider
         config()->set('queue.default', 'database');
         config()->set('queue.connections.database', ['driver' => 'database', 'connection' => 'workbench', 'table' => 'jobs', 'queue' => 'default', 'retry_after' => 90]);
         config()->set('queue.failed.driver', 'null');
+
+        // lerd's Redis, for the reports queue Horizon works: auto balancing between 1 and
+        // 6 processes, by how many jobs wait.
+        // The host comes from testbench.yaml (REDIS_HOST).
+        config()->set('queue.connections.redis', ['driver' => 'redis', 'connection' => 'default', 'queue' => 'reports', 'retry_after' => 90]);
+        config()->set('horizon.prefix', 'lumberjack-workbench-horizon:');
+        config()->set('horizon.defaults', []);
+        config()->set('horizon.environments', ['local' => ['reports' => [
+            'connection' => 'redis',
+            'queue' => ['reports'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'size',
+            'minProcesses' => 1,
+            'maxProcesses' => 6,
+            'balanceMaxShift' => 1,
+            'balanceCooldown' => 3,
+            'tries' => 1,
+            'timeout' => 60,
+        ]]]);
 
         // lerd's MySQL, MariaDB and PostgreSQL, only for the database health checks: the
         // app runs on SQLite, which has no connections to report.
@@ -147,6 +167,9 @@ class WorkbenchServiceProvider extends ServiceProvider
             ->disk('rustfs')->every(5)
             // The bulk queue no worker runs: the demo's Flood button puts 1200 jobs on it.
             ->queue('database', queue: 'bulk', warnAt: 100, failAt: 1000)
+            // Horizon's queue, with its workers counted: the Reports button scales it up.
+            ->queue('redis', queue: 'reports', warnAt: 200, failAt: 1000)
+            ->horizon()
             ->debugMode(environments: ['production'])
             ->check('payments-api', fn (): bool => ! is_file(self::path('storage/payments-down')), 2, 3);
 

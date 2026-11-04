@@ -26,4 +26,5 @@ Route::post('/demo/health/report', [DemoController::class, 'reportHealth'])->nam
 Route::post('/demo/rustfs/break', [DemoController::class, 'breakRustfs'])->name('demo.break_rustfs');
 Route::post('/demo/rustfs/fix', [DemoController::class, 'fixRustfs'])->name('demo.fix_rustfs');
 Route::post('/demo/queue/flood', [DemoController::class, 'floodQueue'])->name('demo.flood_queue');
+Route::post('/demo/queue/reports', [DemoController::class, 'reports'])->name('demo.reports');
 Route::post('/demo/queue/drain', [DemoController::class, 'drainQueue'])->name('demo.drain_queue');

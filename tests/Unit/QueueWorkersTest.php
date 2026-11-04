@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use ExeQue\Lumberjack\Support\QueueWorkers;
 use Illuminate\Queue\Events\Looping;
+use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Support\Facades\Cache;
 
 it('counts each worker on every queue it takes, once per beat', function () {
@@ -41,4 +42,12 @@ it('beats from the worker loop', function () {
     event(new Looping('redis', 'emails'));
 
     expect(app(QueueWorkers::class)->count('redis', 'emails'))->toBe(1);
+});
+
+it('leaves its queues when it stops', function () {
+    event(new Looping('redis', 'emails,default'));
+    event(new WorkerStopping(0));
+
+    expect(app(QueueWorkers::class)->count('redis', 'emails'))->toBe(0)
+        ->and(app(QueueWorkers::class)->count('redis', 'default'))->toBe(0);
 });

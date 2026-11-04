@@ -73,12 +73,13 @@
 
     <section>
         <h2>Jobs, queues and commands</h2>
-        <p>Jobs run in the queue worker. The bulk queue has no worker, so flooding it builds a backlog.</p>
+        <p>Jobs run in the queue worker. The bulk queue has no worker, so flooding it builds a backlog. The reports queue runs on Horizon (Redis), which scales its workers from 1 to 6 as jobs wait.</p>
         <div class="actions">
             <form method="post" action="/demo/job">@csrf<button>Dispatch a job</button></form>
             <form method="post" action="/demo/failing-job">@csrf<button>Dispatch a failing job</button></form>
             <form method="post" action="/demo/queue/flood">@csrf<button>Flood the bulk queue</button></form>
             <form method="post" action="/demo/queue/drain">@csrf<button>Drain the bulk queue</button></form>
+            <form method="post" action="/demo/queue/reports">@csrf<button>Queue 150 slow reports (Horizon)</button></form>
             <form method="post" action="/demo/command">@csrf<button>Run an artisan command</button></form>
         </div>
     </section>

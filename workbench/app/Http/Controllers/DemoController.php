@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use LogicException;
 use RuntimeException;
+use Workbench\App\Jobs\BuildReport;
 use Workbench\App\Jobs\SendInvoice;
 use Workbench\App\Notifications\OrderShipped;
 use Workbench\App\Providers\WorkbenchServiceProvider;
@@ -198,6 +199,13 @@ class DemoController
         Queue::bulk(array_map(fn (int $id): SendInvoice => new SendInvoice($id), range(1, 1200)), '', 'bulk');
 
         return $this->done('1200 jobs on the bulk queue, which no worker runs. A backlog alert follows after 5 minutes.');
+    }
+
+    public function reports(): RedirectResponse
+    {
+        Queue::connection('redis')->bulk(array_map(fn (int $id): BuildReport => new BuildReport($id), range(1, 150)), '', 'reports');
+
+        return $this->done('150 slow reports on the Horizon queue. Watch its workers go from 1 up to 6, and back once it is empty.');
     }
 
     public function drainQueue(): RedirectResponse
