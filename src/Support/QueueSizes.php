@@ -21,11 +21,12 @@ class QueueSizes
         private readonly QueueFactory $queue,
         private readonly array $queues = [],
         private readonly ?string $defaultConnection = null,
+        private readonly ?QueueWorkers $workers = null,
     ) {
     }
 
     /**
-     * @return list<array{connection: string, queue: string, size: int, oldest_age_s: int|null}>
+     * @return list<array{connection: string, queue: string, size: int, oldest_age_s: int|null, workers?: int}>
      */
     public function measure(): array
     {
@@ -39,7 +40,10 @@ class QueueSizes
                 continue;
             }
 
-            $samples[] = ['connection' => $connection, 'queue' => $queue, 'size' => $size, 'oldest_age_s' => $size > 0 ? $this->oldestAge($driver, $queue) : null];
+            $workers = $this->workers?->count($connection, $queue);
+            $samples[] = ['connection' => $connection, 'queue' => $queue, 'size' => $size, 'oldest_age_s' => $size > 0 ? $this->oldestAge($driver, $queue) : null]
+                // Only where a worker has ever said so: an app without workers here sends none.
+                + ($workers !== null ? ['workers' => $workers] : []);
         }
 
         return $samples;

@@ -22,6 +22,7 @@ use ExeQue\Lumberjack\Support\CallerLocation;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
+use ExeQue\Lumberjack\Support\QueueWorkers;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Support\Safely;
 use ExeQue\Lumberjack\Support\Scrubber;
@@ -35,6 +36,8 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Request;
 use Illuminate\Log\LogManager;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -95,6 +98,7 @@ class LumberjackServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(Handlers::class);
+        $this->app->singleton(QueueWorkers::class, fn (Application $app): QueueWorkers => new QueueWorkers($app->make('cache')->store()));
 
         $this->app->singleton(HealthRegistry::class, fn (Application $app): HealthRegistry => new HealthRegistry($app, (array) config('lumberjack.health.checks', [])));
 
@@ -192,6 +196,14 @@ class LumberjackServiceProvider extends ServiceProvider
         $events->listen(RecordsLaravelEvents::OCTANE_REQUEST_TERMINATED, Safely::wrap(function () use ($context, $recorder): void {
             $context->serving(null);
             $recorder->flush();
+        }));
+
+        // Each worker's sign of life, for how many work each queue; a long job never loops.
+        $events->listen(Looping::class, Safely::wrap(fn (Looping $e) => $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->queue)));
+        $events->listen(JobProcessing::class, Safely::wrap(function (JobProcessing $e): void {
+            if ($e->connectionName !== 'sync') {
+                $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->job->getQueue(), ($e->job->timeout() ?? 60) + 30);
+            }
         }));
 
         $events->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));

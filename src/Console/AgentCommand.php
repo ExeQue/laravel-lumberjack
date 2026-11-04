@@ -13,6 +13,7 @@ use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\HostMetrics;
 use ExeQue\Lumberjack\Support\ProjectFingerprint;
 use ExeQue\Lumberjack\Support\QueueSizes;
+use ExeQue\Lumberjack\Support\QueueWorkers;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Http\Client\Factory as Http;
@@ -75,7 +76,11 @@ class AgentCommand extends Command
 
         stream_set_blocking($server, false);
 
-        $queues = new QueueSizes($this->laravel->make(QueueFactory::class), array_values(array_filter((array) config('lumberjack.queues', []), is_string(...))));
+        $queues = new QueueSizes(
+            $this->laravel->make(QueueFactory::class),
+            array_values(array_filter((array) config('lumberjack.queues', []), is_string(...))),
+            workers: $this->laravel->make(QueueWorkers::class),
+        );
 
         $metrics = new HostMetrics(base_path());
 

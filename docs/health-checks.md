@@ -223,7 +223,7 @@ A null connection, store or mailer is the app's default. `warnAt` and `failAt` a
 - **database**: `select 1`; metric `latency_ms`, a warning above `maxLatencyMs`. It also reports what the server says about itself: `connections` (the server's open client connections, every database, as the limit is the server's), `max_connections` and `size_bytes` (this connection's database only) on PostgreSQL, MySQL and MariaDB, and the file's `size_bytes` on SQLite. A user without the rights to ask gives fewer figures; they never fail the check. `warnAtConnections` (a share, `0.8` is 80 %) warns when open connections reach that share of the limit.
 - **cache**: puts, reads and forgets a random key; metric `latency_ms`.
 - **redis**: `PING`; metric `latency_ms`.
-- **queue**: the queue's size (metric `size`), a warning at `warnAt` and failed at `failAt`.
+- **queue**: the queue's size (metric `size`), a warning at `warnAt` and failed at `failAt`. Where workers run on it, also how many (metric `workers`, from their [signs of life](agent.md#queue-workers)), and failed whenever jobs wait with no worker: "12 waiting · 0 workers".
 - **horizon**: failed when Horizon is not installed, no master supervisor runs or it is paused, as `horizon:status` sees it.
 - **http**: a request with the check's timeout; failed on a connection error or another status than `status`, a warning above `maxLatencyMs`; metric `latency_ms`. `headers` are sent with it, for an endpoint behind a token or a virtual host:
 

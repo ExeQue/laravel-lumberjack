@@ -27,6 +27,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Queue\Failed\NullFailedJobProvider;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -450,6 +451,24 @@ describe('built-in checks', function () {
             ->and($result->metrics)->toBe(['size' => 2])
             ->and((new QueueHealthCheck(failAt: 2))->run()->status)->toBe(CheckStatus::Failed)
             ->and((new QueueHealthCheck(warnAt: 3))->run()->status)->toBe(CheckStatus::Ok);
+    });
+
+    it('counts the workers of a queue, and fails when jobs wait with none', function () {
+        Queue::fake();
+        Queue::push('first');
+        $connection = (string) config('queue.default');
+        $queue = (string) (config("queue.connections.{$connection}.queue") ?? 'default');
+        Cache::put("lumberjack:queue-workers:{$connection}:{$queue}", ['web-1:10' => now()->getTimestamp() + 60, 'web-1:11' => now()->getTimestamp() - 1]);
+
+        $result = (new QueueHealthCheck())->run();
+
+        expect($result->status)->toBe(CheckStatus::Ok)
+            ->and($result->message)->toBe('1 waiting · 1 worker')
+            ->and($result->metrics)->toBe(['size' => 1, 'workers' => 1]);
+
+        Cache::put("lumberjack:queue-workers:{$connection}:{$queue}", ['web-1:10' => now()->getTimestamp() - 1]);
+
+        expect((new QueueHealthCheck())->run())->toMatchObject(['status' => CheckStatus::Failed, 'message' => '1 waiting · 0 workers']);
     });
 
     it('fails horizon when it is not installed', function () {
