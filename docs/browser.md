@@ -48,6 +48,12 @@ The page's origin must be listed under **allowed origins** in the project's sett
 
 Uncaught errors and unhandled promise rejections, with their stack, the page's URL and the browser. Errors are sent with `navigator.sendBeacon`, so they survive the page being closed.
 
+It also measures Core Web Vitals (LCP, INP, CLS, TTFB and FCP) on every page view and sends
+them once, when the page is hidden or left, with the class of device the page ran on:
+`mobile`, `tablet` or `desktop`, from the browser's client hints where it has them, else
+from its user agent. Lumberjack's **Browser** page shows them, split by device. Turn the
+measuring off with `data-vitals="false"` on the script tag.
+
 To keep the noise down the script:
 
 - stays silent for crawlers, link previews and automated browsers, and Lumberjack drops their batches as well,
