@@ -4,15 +4,10 @@ Lumberjack for Laravel needs PHP 8.3 or newer and Laravel 12 or 13.
 
 ## The package
 
-The package lives in a private GitHub repository. Add it as a VCS repository in your app's `composer.json`:
-
-```json
-"repositories": [
-    { "type": "vcs", "url": "git@github.com:ExeQue/laravel-lumberjack.git" }
-]
-```
+Until the package is on Packagist, install it from GitHub:
 
 ```bash
+composer config repositories.lumberjack vcs https://github.com/ExeQue/laravel-lumberjack
 composer require exeque/laravel-lumberjack
 ```
 
