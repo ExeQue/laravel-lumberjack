@@ -1,6 +1,6 @@
 # Contributing
 
-Keep a change small and covered by tests. CI checks the formatting, runs static analysis, runs the suite on PHP 8.4 and 8.5 with Laravel 12 and 13 (Pest 5 needs PHP 8.4), and checks that the package installs and parses on PHP 8.3.
+Keep a change small and covered by tests. CI checks the formatting, runs static analysis and runs the suite on Laravel 12 and 13.
 
 ## The workbench
 
