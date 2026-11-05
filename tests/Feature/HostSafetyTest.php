@@ -112,7 +112,7 @@ describe('nothing of the app runs late, inside its terminate', function () {
     });
 
     it('keeps the app\'s terminate going when sending fails', function () {
-        app()->instance(ExeQue\Lumberjack\AgentClient::class, new class () extends Tests\Support\FakeAgentClient {
+        app()->instance(ExeQue\LumberjackAgent\AgentClient::class, new class () extends Tests\Support\FakeAgentClient {
             public function send(array $payload): bool
             {
                 throw new RuntimeException('socket broke');

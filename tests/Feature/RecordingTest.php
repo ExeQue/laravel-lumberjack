@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use ExeQue\Lumberjack\Recorder;
-use ExeQue\Lumberjack\Support\ProjectFingerprint;
+use ExeQue\LumberjackAgent\ProjectFingerprint;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;

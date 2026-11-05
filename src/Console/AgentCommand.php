@@ -4,38 +4,31 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Console;
 
-use ExeQue\Lumberjack\Agent\Agent;
-use ExeQue\Lumberjack\Agent\Sender;
-use ExeQue\Lumberjack\Agent\Spool;
-use ExeQue\Lumberjack\AgentClient;
 use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Recorder;
-use ExeQue\Lumberjack\Support\HostMetrics;
-use ExeQue\Lumberjack\Support\ProjectFingerprint;
+use ExeQue\Lumberjack\Support\Client as ClientInfo;
 use ExeQue\Lumberjack\Support\QueueSizes;
 use ExeQue\Lumberjack\Support\QueueWorkers;
+use ExeQue\LumberjackAgent\Agent;
+use ExeQue\LumberjackAgent\Exceptions\CannotListenException;
+use ExeQue\LumberjackAgent\HostMetrics;
+use ExeQue\LumberjackAgent\ProjectFingerprint;
+use ExeQue\LumberjackAgent\Sender;
+use ExeQue\LumberjackAgent\Server;
+use ExeQue\LumberjackAgent\Spool;
+use GuzzleHttp\Client as Guzzle;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Http\Client\Factory as Http;
 use Symfony\Component\Console\Input\InputOption;
 
 /**
- * The local agent: listens on 127.0.0.1 for batches from this app and sends
- * them on to Lumberjack. Run it under Supervisor or systemd.
+ * The local agent (exeque/lumberjack-agent), run by artisan: listens on 127.0.0.1 for
+ * batches from this app and sends them on to Lumberjack, with the app's queue sizes and
+ * the health states for its checks on top. Run it under Supervisor or systemd.
  */
 class AgentCommand extends Command
 {
-    /** The longest line a client may send; the app splits a batch that would be longer. */
-    public const int MAX_CLIENT_BUFFER = AgentClient::MAX_LINE;
-
-    /** Connections open at once; more wait in the backlog. */
-    public const int MAX_CLIENTS = 256;
-
-    /** Seconds a connection may stay open without sending. */
-    public const int IDLE_SECONDS = 10;
-
-    public const int BACKLOG = 1024;
-
     protected $name = 'lumberjack:agent';
 
     protected $description = 'Run the local Lumberjack agent';
@@ -60,21 +53,9 @@ class AgentCommand extends Command
             return self::FAILURE;
         }
 
-        $memoryLimit = (int) ($this->option('memory') ?? config('lumberjack.agent.memory_limit', 128));
         $host = (string) ($this->option('host') ?? config('lumberjack.agent.host'));
         $port = (int) ($this->option('port') ?? config('lumberjack.agent.port'));
-
-        // A deep backlog: while the agent sends, apps still connect and write into the
-        // kernel's buffer instead of timing out.
-        $server = @stream_socket_server("tcp://{$host}:{$port}", $errno, $error, context: stream_context_create(['socket' => ['backlog' => self::BACKLOG]]));
-
-        if ($server === false) {
-            $this->components->error("Cannot listen on {$host}:{$port}: {$error}");
-
-            return self::FAILURE;
-        }
-
-        stream_set_blocking($server, false);
+        $warn = fn (string $message) => $this->components->warn($message);
 
         $queues = new QueueSizes(
             $this->laravel->make(QueueFactory::class),
@@ -85,109 +66,38 @@ class AgentCommand extends Command
         $metrics = new HostMetrics(base_path());
 
         $agent = new Agent(
-            new Sender($http, $url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT))),
-            new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes'), fn (string $message) => $this->components->warn($message)),
+            // Through Laravel's HTTP stack, so its global middleware and Http::fake() apply.
+            new Sender($url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)), new Guzzle(['handler' => $http->createPendingRequest()->buildHandlerStack()])),
+            new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes'), $warn),
             (int) config('lumberjack.agent.interval', 5),
             gethostname() ?: null,
             $this->agentName(),
             ProjectFingerprint::of($token),
-            fn (string $message) => $this->components->warn($message),
+            $warn,
             // The environment, so the heartbeat's answer holds the health states of this app's.
             fn (): array => ['environment' => config('lumberjack.environment'), 'queues' => $queues->measure(), 'metrics' => $metrics->measure()],
             fn (array $health) => $states->fill($health, fromAgent: true),
             ProjectFingerprint::agentKey($token, is_string(config('lumberjack.agent.key')) ? config('lumberjack.agent.key') : null),
+            ClientInfo::describe(),
         );
 
+        $server = new Server($agent, $host, $port, (int) ($this->option('memory') ?? config('lumberjack.agent.memory_limit', 128)), $warn);
+
         if (extension_loaded('pcntl')) {
-            $this->trap([SIGTERM, SIGINT, SIGQUIT], function (): void {
-                $this->running = false;
-            });
+            $this->trap([SIGTERM, SIGINT, SIGQUIT], fn () => $server->stop());
         }
 
         $this->components->info(($this->agentName() !== null ? "Lumberjack agent {$this->agentName()}" : 'Lumberjack agent')." listening on {$host}:{$port}, sending to {$url}.");
 
-        $this->loop($server, $agent, $memoryLimit);
+        try {
+            $server->run();
+        } catch (CannotListenException $exception) {
+            $this->components->error($exception->getMessage());
 
-        $agent->flush(microtime(true));
-        fclose($server);
+            return self::FAILURE;
+        }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * @param  resource  $server
-     */
-    private function loop($server, Agent $agent, int $memoryLimit): void
-    {
-        /** @var array<int, resource> $clients */
-        $clients = [];
-        /** @var array<int, string> $buffers */
-        $buffers = [];
-        /** @var array<int, float> $seen */
-        $seen = [];
-
-        while ($this->running) {
-            // At the cap, new connections wait in the backlog until one closes.
-            $read = count($clients) < self::MAX_CLIENTS ? [$server, ...array_values($clients)] : array_values($clients);
-            $write = $except = null;
-
-            if (@stream_select($read, $write, $except, 1) === false) {
-                $read = [];
-            }
-
-            foreach ($read as $stream) {
-                if ($stream === $server) {
-                    $client = @stream_socket_accept($server, 0);
-
-                    if ($client !== false) {
-                        stream_set_blocking($client, false);
-                        $clients[(int) $client] = $client;
-                        $buffers[(int) $client] = '';
-                        $seen[(int) $client] = microtime(true);
-                    }
-
-                    continue;
-                }
-
-                $id = (int) $stream;
-                $chunk = fread($stream, 65536);
-
-                if ($chunk !== false && $chunk !== '') {
-                    $seen[$id] = microtime(true);
-                    $buffers[$id] .= $chunk;
-
-                    while (($pos = strpos($buffers[$id], "\n")) !== false) {
-                        $agent->receive(substr($buffers[$id], 0, $pos));
-                        $buffers[$id] = substr($buffers[$id], $pos + 1);
-                    }
-                }
-
-                if (feof($stream) || strlen($buffers[$id]) > self::MAX_CLIENT_BUFFER) {
-                    fclose($stream);
-                    unset($clients[$id], $buffers[$id], $seen[$id]);
-                }
-            }
-
-            // A connection that sends nothing holds a slot; it gets a few seconds.
-            foreach ($seen as $id => $at) {
-                if (microtime(true) - $at > self::IDLE_SECONDS) {
-                    fclose($clients[$id]);
-                    unset($clients[$id], $buffers[$id], $seen[$id]);
-                }
-            }
-
-            $agent->tick(microtime(true));
-
-            if ($agent->stopRequested()) {
-                $this->components->info('Asked to terminate; sending what is left and exiting.');
-                $this->running = false;
-            }
-
-            if ($memoryLimit > 0 && memory_get_usage(true) > $memoryLimit * 1024 * 1024) {
-                $this->components->warn("Memory passed {$memoryLimit} MB; sending what is left and exiting.");
-                $this->running = false;
-            }
-        }
     }
 
     /**

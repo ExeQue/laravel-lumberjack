@@ -10,6 +10,7 @@ use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Support\Scrubber;
+use ExeQue\LumberjackAgent\AgentClient;
 use Throwable;
 use WeakMap;
 

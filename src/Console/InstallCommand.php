@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Console;
 
-use ExeQue\Lumberjack\AgentClient;
 use ExeQue\Lumberjack\Install\AgentSnippets;
 use ExeQue\Lumberjack\Install\EnvFile;
 use ExeQue\Lumberjack\Install\HealthCheckProvider;
 use ExeQue\Lumberjack\Install\LayoutInjector;
 use ExeQue\Lumberjack\Support\Client;
+use ExeQue\LumberjackAgent\AgentClient;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Http\Client\ConnectionException;

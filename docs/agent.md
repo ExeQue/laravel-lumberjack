@@ -8,6 +8,8 @@ php artisan lumberjack:agent
 
 It reads the app's own `.env`, so the token is set in one place. Queue workers and artisan commands send to the same agent as web requests.
 
+The agent itself is the package [`exeque/lumberjack-agent`](https://github.com/ExeQue/lumberjack-agent), which this package installs. `lumberjack:agent` runs it with what only Laravel knows on top: the queue sizes and workers, and the health states for the app's checks. The package also runs on its own, as `vendor/bin/lumberjack-agent`, for apps that are not Laravel; its README describes the line protocol for SDKs in other languages.
+
 ### Who may talk to it
 
 Every line an app hands the agent carries the agent key, and the agent turns away any line
@@ -174,7 +176,7 @@ Every minute the agent tells Lumberjack it is alive, with its host, its name and
 | Part | Sent as |
 |---|---|
 | SDK | `lumberjack.php.laravel` and the package version |
-| Agent | `lumberjack-agent-php` and its version |
+| Agent | `lumberjack-agent-php` and the version of `exeque/lumberjack-agent` |
 | Runtime | `php` and the PHP version |
 | Framework | `laravel` and the Laravel version |
 

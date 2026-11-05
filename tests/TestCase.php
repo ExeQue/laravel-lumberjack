@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests;
 
-use ExeQue\Lumberjack\AgentClient;
 use ExeQue\Lumberjack\LumberjackServiceProvider;
+use ExeQue\LumberjackAgent\AgentClient;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Orchestra\Testbench\TestCase as Orchestra;
 use Tests\Support\FakeAgentClient;

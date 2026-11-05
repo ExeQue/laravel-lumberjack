@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
-use ExeQue\Lumberjack\AgentClient;
+use ExeQue\LumberjackAgent\AgentClient;
 
 class FakeAgentClient extends AgentClient
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Console;
 
-use ExeQue\Lumberjack\AgentClient;
+use ExeQue\LumberjackAgent\AgentClient;
 use Illuminate\Console\Command;
 
 /**
