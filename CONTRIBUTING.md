@@ -71,4 +71,4 @@ npm run docs:build
 - Security problems go through [SECURITY.md](SECURITY.md), never a public issue.
 - Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages and the pull request title, e.g. `fix(agent): retry when the server is unreachable`.
 - A new or changed feature updates its page in `docs/` in the same pull request.
-- By contributing you agree that your work is released under the [MIT License](LICENSE).
+- By contributing you agree that your work is released under the [MIT License](https://github.com/ExeQue/laravel-lumberjack/blob/main/LICENSE).
