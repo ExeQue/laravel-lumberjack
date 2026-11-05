@@ -10,3 +10,5 @@ composer.lock
 node_modules/
 .vitepress/dist/
 .vitepress/cache/
+
+/.ai/
