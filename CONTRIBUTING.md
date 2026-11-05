@@ -64,3 +64,11 @@ npm install
 npm run docs:dev     # http://localhost:5173/laravel-lumberjack/
 npm run docs:build
 ```
+
+## Pull requests
+
+- For anything bigger than a bug fix, open an issue first so we can agree on the approach.
+- Security problems go through [SECURITY.md](SECURITY.md), never a public issue.
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages and the pull request title, e.g. `fix(agent): retry when the server is unreachable`.
+- A new or changed feature updates its page in `docs/` in the same pull request.
+- By contributing you agree that your work is released under the [MIT License](LICENSE).
