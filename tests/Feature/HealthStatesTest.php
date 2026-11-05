@@ -132,7 +132,7 @@ describe('the agent', function () {
         Http::fake(['*/heartbeat' => Http::response(['ok' => true, 'health' => ($this->answer)()])]);
         $states = app(HealthStates::class);
         $agent = new Agent(
-            new Sender('https://lumberjack.test', 'secret-token', http: new GuzzleHttp\Client(['handler' => Http::buildHandlerStack()])),
+            new Sender('https://lumberjack.test', 'secret-token', http: new GuzzleHttp\Client(['handler' => ExeQue\Lumberjack\Support\LaravelHttpStack::for(Http::getFacadeRoot())])),
             new Spool(sys_get_temp_dir().'/lumberjack-spool-'.bin2hex(random_bytes(4)), 10_000),
             5,
             'web-1',
@@ -149,7 +149,7 @@ describe('the agent', function () {
     it('carries on when the store fails', function () {
         Http::fake(['*/heartbeat' => Http::response(['ok' => true, 'health' => ['checks' => []]])]);
         $agent = new Agent(
-            new Sender('https://lumberjack.test', 'secret-token', http: new GuzzleHttp\Client(['handler' => Http::buildHandlerStack()])),
+            new Sender('https://lumberjack.test', 'secret-token', http: new GuzzleHttp\Client(['handler' => ExeQue\Lumberjack\Support\LaravelHttpStack::for(Http::getFacadeRoot())])),
             new Spool(sys_get_temp_dir().'/lumberjack-spool-'.bin2hex(random_bytes(4)), 10_000),
             health: fn () => throw new RuntimeException('cache down'),
         );

@@ -50,7 +50,7 @@ it('measures the default queue when none are named, and skips a queue it cannot 
 it('sends queue sizes with the heartbeat, and still beats when measuring fails', function () {
     Http::fake();
     $spool = new Spool(sys_get_temp_dir().'/lumberjack-spool-'.bin2hex(random_bytes(4)), 10_000);
-    $sender = new Sender('https://lumberjack.test', 'secret-token', http: new GuzzleHttp\Client(['handler' => Http::buildHandlerStack()]));
+    $sender = new Sender('https://lumberjack.test', 'secret-token', http: new GuzzleHttp\Client(['handler' => ExeQue\Lumberjack\Support\LaravelHttpStack::for(Http::getFacadeRoot())]));
 
     (new Agent($sender, $spool, 5, 'web-1', status: fn (): array => ['queues' => [['connection' => 'redis', 'queue' => 'default', 'size' => 3, 'oldest_age_s' => 5]]]))->tick(microtime(true));
     (new Agent($sender, $spool, 5, 'web-2', status: fn () => throw new RuntimeException('redis is down')))->tick(microtime(true));
