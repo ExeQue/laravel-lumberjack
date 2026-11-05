@@ -1,8 +1,8 @@
 # Lumberjack for Laravel
 
-**Documentation: [exeque.github.io/laravel-lumberjack](https://exeque.github.io/laravel-lumberjack/)**, or the [`docs`](docs/README.md) folder.
+**Documentation: [exeque.github.io/laravel-lumberjack](https://exeque.github.io/laravel-lumberjack/)**, or the [`docs`](https://exeque.github.io/laravel-lumberjack/docs/) folder.
 
-Sends a Laravel app's errors, requests, queries, jobs, artisan commands, scheduled tasks and log lines to [Lumberjack](https://github.com/ExeQue/lumberjack), through a local agent so a slow or unreachable Lumberjack never slows the app down. Browser errors come along with one Blade directive, and the app can react to Lumberjack's alerts through a signed webhook.
+Sends a Laravel app's errors, requests, queries, jobs, artisan commands, scheduled tasks and log lines to [Lumberjack](https://exeque.github.io/lumberjack/), through a local agent so a slow or unreachable Lumberjack never slows the app down. Browser errors come along with one Blade directive, and the app can react to Lumberjack's alerts through a signed webhook.
 
 Requires PHP 8.3+ and Laravel 12 or 13.
 
@@ -20,18 +20,18 @@ Lumberjack::onException(PaymentGatewayException::class, [Status::New, Status::Es
 
 ## Documentation
 
-- [Installation](docs/installation.md)
-- [The agent](docs/agent.md)
-- [What is recorded](docs/recording.md)
-- [Logs](docs/logs.md)
-- [Browser errors](docs/browser.md)
-- [Health checks](docs/health-checks.md)
-- [Reacting to alerts](docs/webhooks.md)
-- [Testing your app](docs/testing.md)
-- [Artisan commands](docs/commands.md)
-- [Configuration](docs/configuration.md)
-- [Laravel Boost](docs/boost.md)
+- [Installation](https://exeque.github.io/laravel-lumberjack/docs/installation)
+- [The agent](https://exeque.github.io/laravel-lumberjack/docs/agent)
+- [What is recorded](https://exeque.github.io/laravel-lumberjack/docs/recording)
+- [Logs](https://exeque.github.io/laravel-lumberjack/docs/logs)
+- [Browser errors](https://exeque.github.io/laravel-lumberjack/docs/browser)
+- [Health checks](https://exeque.github.io/laravel-lumberjack/docs/health-checks)
+- [Reacting to alerts](https://exeque.github.io/laravel-lumberjack/docs/webhooks)
+- [Testing your app](https://exeque.github.io/laravel-lumberjack/docs/testing)
+- [Artisan commands](https://exeque.github.io/laravel-lumberjack/docs/commands)
+- [Configuration](https://exeque.github.io/laravel-lumberjack/docs/configuration)
+- [Laravel Boost](https://exeque.github.io/laravel-lumberjack/docs/boost)
 
 ## Development
 
-See [Contributing](CONTRIBUTING.md).
+See [Contributing](https://exeque.github.io/laravel-lumberjack/CONTRIBUTING).
