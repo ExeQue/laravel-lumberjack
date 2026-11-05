@@ -22,8 +22,9 @@ final class LaravelHttpStack
     {
         $stack = $http->buildHandlerStack();
 
-        // Laravel 12's fakes read the request data from an option only its own requests set.
-        $stack->push(fn (callable $handler): callable => fn (RequestInterface $request, array $options) => $handler($request, $options + ['laravel_data' => []]));
+        // Laravel 12's fakes read the request data from an option only its own requests set;
+        // outermost, so it is there before they run.
+        $stack->unshift(fn (callable $handler): callable => fn (RequestInterface $request, array $options) => $handler($request, $options + ['laravel_data' => []]));
 
         return $stack;
     }
