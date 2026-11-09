@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-09
+
 ### Added
 
 - `SeriesResult::runningCount()` and `SeriesResult::runningSum()` give a running total per bucket, starting from everything before the range.
@@ -70,7 +72,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.6...v0.2.0
