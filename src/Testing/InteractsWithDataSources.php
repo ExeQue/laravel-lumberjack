@@ -67,6 +67,10 @@ trait InteractsWithDataSources
         }
 
         $query = ['from' => $range->from->getTimestamp(), 'only' => $key, 'to' => $range->to->getTimestamp()];
+
+        if ($range->bucket !== 3600 || $range->timezone !== 'UTC') {
+            $query += ['bucket' => $range->bucket, 'timezone' => $range->timezone];
+        }
         $url = DataSourceEndpoint::url();
         $headers = PullSignature::headers($token, $url, $query);
 

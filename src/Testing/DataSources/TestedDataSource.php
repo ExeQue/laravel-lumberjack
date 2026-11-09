@@ -55,6 +55,12 @@ final class TestedDataSource
         return $this->over(new DataRange(CarbonImmutable::instance($from)->utc(), CarbonImmutable::instance($to)->utc()));
     }
 
+    /** The resolution and time zone Lumberjack asks for, for the range already set. */
+    public function inBuckets(int $seconds, string $timezone = 'UTC'): self
+    {
+        return $this->over(new DataRange($this->range->from, $this->range->to, $seconds, $timezone));
+    }
+
     public function result(): DataSourceResult
     {
         return $this->result ??= $this->source->resolve($this->range);

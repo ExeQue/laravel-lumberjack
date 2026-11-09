@@ -280,8 +280,27 @@ describe('what the endpoint answers', function () {
         expect(($this->pull)($query)->json('sources.cached.data'))->toBe(1);
         expect(($this->pull)($query, ['timestamp' => time() + 1])->json('sources.cached.data'))->toBe(1);
         expect(($this->pull)([...$query, 'to' => 4_700])->json('sources.cached.data'))->toBe(2);
-        expect(Cache::has('lumberjack:data-source:cached:number:1000:4600'))->toBeTrue();
+        expect(Cache::has('lumberjack:data-source:cached:number:1000:4600:3600:UTC'))->toBeTrue();
     });
+
+    it('keeps an answer apart for each resolution and time zone', function () {
+        $query = [...$this->query, 'only' => 'cached'];
+
+        expect(($this->pull)([...$query, 'bucket' => 3600])->json('sources.cached.data'))->toBe(1)
+            ->and(($this->pull)([...$query, 'bucket' => 60])->json('sources.cached.data'))->toBe(2)
+            ->and(($this->pull)([...$query, 'bucket' => 3600, 'timezone' => 'Europe/Copenhagen'])->json('sources.cached.data'))->toBe(3);
+    });
+
+    it('refuses a resolution or time zone it cannot use', function (array $extra) {
+        ($this->pull)([...$this->query, 'only' => 'cached', ...$extra])->assertStatus(400);
+    })->with([
+        'too fine' => [['bucket' => 59]],
+        'too coarse' => [['bucket' => 86401]],
+        'no number' => [['bucket' => 'hour']],
+        'not dividing a day' => [['bucket' => 7000]],
+        'too many points' => [['bucket' => 60, 'to' => 61_000 + 1000]],
+        'unknown zone' => [['timezone' => 'Mars/Olympus']],
+    ]);
 
     it('refuses more sources than one call may ask for, and a range that makes no sense', function (array $query) {
         ($this->pull)($query)->assertStatus(400);

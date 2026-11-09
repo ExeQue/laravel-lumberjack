@@ -93,6 +93,33 @@ class TotalMediaDataSource implements DataSource
 `DataRange` has `from` and `to` as `CarbonImmutable` in UTC, and `seconds()`. A source that
 has no use for a range, a count of everything so far, leaves it unread.
 
+Lumberjack decides how fine a series is. `bucket` is the seconds one point covers, `timezone`
+where a day begins (set on the connection in Lumberjack), and `buckets()` gives each bucket's
+`from` and `to` in UTC. `from` is inclusive, `to` exclusive. A bucket that began before the range
+is left out, and the last one ends with the range:
+
+```php
+use ExeQue\Lumberjack\DataSources\DataRange;
+use ExeQue\Lumberjack\DataSources\Results\SeriesPoint;
+use ExeQue\Lumberjack\DataSources\Results\SeriesResult;
+
+public function resolve(DataRange $range): SeriesResult
+{
+    return new SeriesResult(...array_map(
+        fn (array $bucket): SeriesPoint => new SeriesPoint(
+            $bucket['from'],
+            Order::where('created_at', '>=', $bucket['from'])->where('created_at', '<', $bucket['to'])->count(),
+        ),
+        $range->buckets(),
+    ));
+}
+```
+
+The times are UTC, as a `created_at` column usually is; convert them if yours is not.
+In a test, `->inBuckets(86400, 'Europe/Copenhagen')` after `forLast()` asks the same way.
+The default is one hour per point, so a test over more than 41 days needs a coarser `inBuckets()`.
+`isEvery()` and `coversRange()` measure real seconds, so test a series with day-long buckets away from a daylight saving change.
+
 ## Registering
 
 `add()` takes instances and classes, as many as you like:
@@ -172,6 +199,8 @@ GET https://app.example.com/lumberjack/datasources?from=1762610000&only=total-me
 |---|---|
 | `only` | The key to resolve, one per call so a slow source costs no other. Without it nothing is resolved |
 | `from`, `to` | The range, as Unix times |
+| `bucket` | Seconds one point of a series covers: 60 to 86400, dividing a day evenly (default 3600) |
+| `timezone` | Where a day begins, such as `Europe/Copenhagen` (default `UTC`) |
 
 ```json
 {

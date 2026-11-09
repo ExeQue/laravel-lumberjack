@@ -91,7 +91,7 @@ final readonly class DataSourceResolver
         }
 
         // Wrapped, as a cache cannot tell a stored null from nothing stored.
-        $key = 'lumberjack:data-source:'.$source->key().':'.Shape::of($source)->value.':'.$range->from->getTimestamp().':'.$range->to->getTimestamp();
+        $key = 'lumberjack:data-source:'.$source->key().':'.Shape::of($source)->value.':'.$range->from->getTimestamp().':'.$range->to->getTimestamp().':'.$range->bucket.':'.$range->timezone;
 
         return $this->cache->store()->remember($key, $seconds, fn (): array => ['data' => $resolve()])['data'];
     }

@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `DataRange` has `bucket`, `timezone` and `buckets()`: Lumberjack says how a series is to be grouped. `inBuckets()` asks the same way in a test.
+
 ## [0.2.0] - 2026-11-09
 
 ### Added
