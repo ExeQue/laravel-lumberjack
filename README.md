@@ -36,6 +36,7 @@ Lumberjack::onException(PaymentGatewayException::class, [Status::New, Status::Es
 - [Logs](https://exeque.github.io/laravel-lumberjack/docs/logs)
 - [Browser errors](https://exeque.github.io/laravel-lumberjack/docs/browser)
 - [Health checks](https://exeque.github.io/laravel-lumberjack/docs/health-checks)
+- [Custom alerts](https://exeque.github.io/laravel-lumberjack/docs/alerts)
 - [Reacting to alerts](https://exeque.github.io/laravel-lumberjack/docs/webhooks)
 - [Testing your app](https://exeque.github.io/laravel-lumberjack/docs/testing)
 - [Artisan commands](https://exeque.github.io/laravel-lumberjack/docs/commands)

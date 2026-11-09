@@ -9,6 +9,7 @@ description: "Use when setting up or changing Lumberjack monitoring in a Laravel
 
 - Installing Lumberjack in an app, or changing its `.env` keys or `config/lumberjack.php`.
 - Adding, changing or testing health checks, or reading their state to adapt the app.
+- Sending custom alerts from the app.
 - Reacting to Lumberjack alerts in the app (webhooks).
 - Leaving things out of what is recorded, or recording more (spans, logs).
 - Running the agent in production (Supervisor, systemd, Docker, Kubernetes) or after a deploy.
@@ -231,6 +232,18 @@ use ExeQue\Lumberjack\Release\GitReleaseResolver;
 ```
 
 A custom resolver implements `ExeQue\Lumberjack\Contracts\ReleaseResolver` (`resolve(): ?string`); the container makes it with the entry's parameters and passes the app's root as `path` when the constructor takes one.
+
+## Custom alerts
+
+The code names a topic; the channels are picked on Lumberjack's Alerts page. Nothing leaves until `send()`.
+
+```php
+Lumberjack::alert('Import done')->to('imports')->message("{$rows} rows")->success()->warning($failed > 0)->critical($failed > 100)->send();
+
+Lumberjack::alert('Paid')->field('Amount', '499 kr', inline: true)->table(['Item', 'Qty'], $rows, title: 'Items')->link('Open', $url, primary: true)->dedupe('order-'.$id, minutes: 10)->send();
+```
+
+The levels are `info`, `success`, `warning` and `critical`; each method takes a condition and the last true one wins. `level($value)` sets it from a value, `url($url)` links the title, and `Conditionable` works on the builder.
 
 ## Reacting to alerts (webhooks)
 

@@ -8,6 +8,8 @@ use ExeQue\Lumberjack\Health\HealthCheckHandle;
 use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Health\HealthStateSnapshot;
+use ExeQue\Lumberjack\PendingAlert;
+use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use Illuminate\Support\Facades\Facade;
 
@@ -45,6 +47,14 @@ class Lumberjack extends Facade
     public static function healthStates(): array
     {
         return app(HealthStates::class)->all();
+    }
+
+    /**
+     * A custom alert with this title, sent to the channels of its topic by send().
+     */
+    public static function alert(string $title): PendingAlert
+    {
+        return new PendingAlert(app(Recorder::class), $title);
     }
 
     protected static function getFacadeAccessor(): string
