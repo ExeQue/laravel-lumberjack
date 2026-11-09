@@ -11,15 +11,18 @@ use ExeQue\Lumberjack\Health\CheckResult;
 use ExeQue\Lumberjack\Health\Checks\CacheHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DatabaseHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DebugModeHealthCheck;
+use ExeQue\Lumberjack\Health\Checks\DirectorySizeHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DiskHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\FailedJobsHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\FreshFileHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\HorizonHealthCheck;
+use ExeQue\Lumberjack\Health\Checks\HorizonQueuesHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\HttpHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\MailHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\MigrationsHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\QueueHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\RedisHealthCheck;
+use ExeQue\Lumberjack\Health\Checks\TcpHealthCheck;
 use ExeQue\Lumberjack\Health\CheckStatus;
 use ExeQue\Lumberjack\Health\Concerns\ConfiguresHealthCheck;
 use ExeQue\Lumberjack\Health\HealthRegistry;
@@ -163,6 +166,9 @@ describe('registry', function () {
             ->failedJobs(withinMinutes: 30)
             ->freshFile('backups', 'db/daily', maxAgeMinutes: 1440)
             ->mail()
+            ->tcp('redis.internal', 6379)
+            ->directorySize('local')
+            ->horizonQueues()
             ->check('stripe', fn () => true, 3, 4, 6)
             ->checks();
 
@@ -180,6 +186,9 @@ describe('registry', function () {
             'failed-jobs' => FailedJobsHealthCheck::class,
             'fresh:backups:db-daily' => FreshFileHealthCheck::class,
             'mail:'.config('mail.default') => MailHealthCheck::class,
+            'tcp:redis.internal:6379' => TcpHealthCheck::class,
+            'directory-size:local' => DirectorySizeHealthCheck::class,
+            'horizon-queues' => HorizonQueuesHealthCheck::class,
             'stripe' => ExeQue\Lumberjack\Health\ClosureHealthCheck::class,
         ])
             ->and([$checks['disk:s3']->degradeAfter(), $checks['disk:s3']->recoverAfter(), $checks['disk:s3']->downAfter()])->toBe([3, 5, 6])
@@ -674,5 +683,101 @@ describe('running a check inside a queue worker', function () {
         $remaining = pcntl_alarm(0);
 
         expect($remaining)->toBeGreaterThanOrEqual(118)->toBeLessThanOrEqual(120);
+    });
+});
+
+describe('the tcp check', function () {
+    it('is ok when something answers, and failed when nothing does', function () {
+        $server = stream_socket_server('tcp://127.0.0.1:0');
+        $port = (int) substr((string) strrchr((string) stream_socket_get_name($server, false), ':'), 1);
+
+        expect((new TcpHealthCheck('127.0.0.1', $port, timeout: 1))->run())->status->toBe(CheckStatus::Ok);
+
+        fclose($server);
+
+        expect((new TcpHealthCheck('127.0.0.1', $port, timeout: 1))->run())
+            ->status->toBe(CheckStatus::Failed)
+            ->message->toBe("Nothing answers on 127.0.0.1:{$port}.");
+    });
+
+    it('has nothing to check without a host', function () {
+        expect((new TcpHealthCheck(null, 9222))->run()->status)->toBe(CheckStatus::Ok);
+    });
+});
+
+describe('the directory size check', function () {
+    beforeEach(function () {
+        Storage::fake('work');
+        config()->set('filesystems.disks.work.driver', 'local');
+        Storage::disk('work')->put('jobs/a.bin', str_repeat('x', 5000));
+    });
+
+    it('reports what the folder holds and applies the thresholds', function () {
+        expect((new DirectorySizeHealthCheck('work', failAtBytes: 1))->run())->status->toBe(CheckStatus::Failed)
+            ->and((new DirectorySizeHealthCheck('work', warnAtBytes: 1))->run())->status->toBe(CheckStatus::Warning)
+            ->and((new DirectorySizeHealthCheck('work', failAtBytes: 10 ** 9))->run())->status->toBe(CheckStatus::Ok)
+            ->and((new DirectorySizeHealthCheck('work'))->run()->metrics['bytes'])->toBeGreaterThanOrEqual(5000);
+    });
+
+    it('holds nothing when the folder does not exist', function () {
+        expect((new DirectorySizeHealthCheck('work', path: 'gone'))->run()->metrics['bytes'])->toBe(0);
+    });
+
+    it('fails for a disk that is not local', function () {
+        config()->set('filesystems.disks.work.driver', 's3');
+
+        expect((new DirectorySizeHealthCheck('work'))->run()->status)->toBe(CheckStatus::Failed);
+    });
+});
+
+describe('directory sizes on the disk and cache checks', function () {
+    it('reports what a local disk holds, under its own metric', function () {
+        $root = sys_get_temp_dir().'/lumberjack-disk-'.bin2hex(random_bytes(4));
+        mkdir($root);
+        file_put_contents($root.'/a.bin', str_repeat('x', 5000));
+        config()->set('filesystems.disks.work', ['driver' => 'local', 'root' => $root]);
+
+        expect((new DiskHealthCheck('work'))->run()->metrics)->toHaveKey('directory_bytes')->not->toHaveKey('size_bytes')
+            ->and((new DiskHealthCheck('work'))->run()->metrics['directory_bytes'])->toBeGreaterThanOrEqual(5000);
+
+        unlink($root.'/a.bin');
+        rmdir($root);
+    });
+
+    it('reports what a file cache store holds', function () {
+        $path = sys_get_temp_dir().'/lumberjack-cache-'.bin2hex(random_bytes(4));
+        mkdir($path);
+        file_put_contents($path.'/a.bin', str_repeat('x', 5000));
+        config()->set('cache.stores.on-disk', ['driver' => 'file', 'path' => $path]);
+
+        expect((new CacheHealthCheck('on-disk'))->run()->metrics['directory_bytes'])->toBeGreaterThanOrEqual(5000);
+
+        unlink($path.'/a.bin');
+        array_map(fn (string $dir) => @rmdir($dir), glob($path.'/*') ?: []);
+    });
+
+    it('reports no size for a store that is not on files', function () {
+        expect((new CacheHealthCheck('array'))->run()->metrics)->not->toHaveKey('directory_bytes');
+    });
+});
+
+describe('the Horizon queues check', function () {
+    it('counts each queue configured for this environment once', function () {
+        config()->set('horizon.defaults', []);
+        config()->set('horizon.environments', [
+            'testing' => [
+                'one' => ['connection' => 'redis', 'queue' => ['default', 'mail']],
+                'two' => ['connection' => 'redis', 'queue' => ['mail']],
+            ],
+            '*' => ['other' => ['connection' => 'redis', 'queue' => ['ignored']]],
+        ]);
+        $connection = Mockery::mock();
+        $connection->shouldReceive('size')->once()->with('default')->andReturn(3);
+        $connection->shouldReceive('size')->once()->with('mail')->andReturn(3);
+        Queue::shouldReceive('connection')->with('redis')->andReturn($connection);
+
+        expect((new HorizonQueuesHealthCheck(warnAt: 6))->run())
+            ->status->toBe(CheckStatus::Warning)
+            ->metrics->toBe(['size' => 6, 'queues' => 2]);
     });
 });

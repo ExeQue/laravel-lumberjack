@@ -12,15 +12,18 @@ use ExeQue\Lumberjack\Exceptions\InvalidHealthCheckIntervalException;
 use ExeQue\Lumberjack\Health\Checks\CacheHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DatabaseHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DebugModeHealthCheck;
+use ExeQue\Lumberjack\Health\Checks\DirectorySizeHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\DiskHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\FailedJobsHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\FreshFileHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\HorizonHealthCheck;
+use ExeQue\Lumberjack\Health\Checks\HorizonQueuesHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\HttpHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\MailHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\MigrationsHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\QueueHealthCheck;
 use ExeQue\Lumberjack\Health\Checks\RedisHealthCheck;
+use ExeQue\Lumberjack\Health\Checks\TcpHealthCheck;
 use ExeQue\Lumberjack\Support\ContainerEntry;
 use ExeQue\Lumberjack\Support\Safely;
 use Illuminate\Contracts\Container\Container;
@@ -387,6 +390,44 @@ final class HealthRegistry
             timeout: $timeout,
             slug: $slug,
         ));
+    }
+
+    public function tcp(
+        ?string $host,
+        int $port,
+        int $degradeAfter = 2,
+        int $recoverAfter = 5,
+        int $downAfter = 5,
+        int $timeout = 10,
+        ?string $slug = null,
+    ): self {
+        return $this->add(new TcpHealthCheck($host, $port, $degradeAfter, $recoverAfter, $downAfter, $timeout, $slug));
+    }
+
+    public function directorySize(
+        string $disk,
+        int $degradeAfter = 2,
+        int $recoverAfter = 5,
+        int $downAfter = 5,
+        string $path = '',
+        ?int $warnAtBytes = null,
+        ?int $failAtBytes = null,
+        int $timeout = 10,
+        ?string $slug = null,
+    ): self {
+        return $this->add(new DirectorySizeHealthCheck($disk, $degradeAfter, $recoverAfter, $downAfter, $path, $warnAtBytes, $failAtBytes, $timeout, $slug));
+    }
+
+    public function horizonQueues(
+        int $degradeAfter = 2,
+        int $recoverAfter = 5,
+        int $downAfter = 5,
+        ?int $warnAt = null,
+        ?int $failAt = null,
+        int $timeout = 10,
+        ?string $slug = null,
+    ): self {
+        return $this->add(new HorizonQueuesHealthCheck($degradeAfter, $recoverAfter, $downAfter, $warnAt, $failAt, $timeout, $slug));
     }
 
     public function mail(

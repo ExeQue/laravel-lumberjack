@@ -93,6 +93,9 @@ Every method takes its required parameters first, then `degradeAfter` (2), `reco
 | `failedJobs(..., int $withinMinutes = 60, int $warnAt = 1, ?int $failAt, ...)` | `failed-jobs` | failed jobs within the window |
 | `freshFile(string $disk, string $path, int $maxAgeMinutes, ..., bool $recursive = false, ...)` | `fresh:<disk>:<path>` | newest file younger than maxAgeMinutes (backups) |
 | `mail(?string $mailer, ...)` | `mail:<mailer>` | SMTP connects and logs in; other transports are ok, unchecked |
+| `tcp(?string $host, int $port, ...)` | `tcp:<host>:<port>` | something answers on the port; a null host is ok |
+| `directorySize(string $disk, ..., string $path = '', ?int $warnAtBytes, ?int $failAtBytes, ...)` | `directory-size:<disk>` | what a folder on a local disk holds |
+| `horizonQueues(..., ?int $warnAt, ?int $failAt, ...)` | `horizon-queues` | jobs waiting across every queue Horizon works |
 
 `...` stands for `degradeAfter, recoverAfter, downAfter` before the options and `timeout, slug` after them. The same checks go in `config('lumberjack.health.checks')` as a class or `[Class::class, 'parameter' => value]`. `add()` is variadic: one check per argument (an instance, a class, or such an array), so spread a list with `->add(...$checks)`. A later check with the same slug replaces an earlier one.
 

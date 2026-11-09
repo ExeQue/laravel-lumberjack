@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack\Health\Checks;
 use ExeQue\Lumberjack\Contracts\HealthCheck;
 use ExeQue\Lumberjack\Health\CheckResult;
 use ExeQue\Lumberjack\Health\Concerns\ConfiguresHealthCheck;
+use ExeQue\Lumberjack\Support\DirectorySize;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -62,6 +63,8 @@ final class DiskHealthCheck implements HealthCheck
         }
 
         $root = $filesystem->path('');
+        // Never at the cost of the check: half its time, and without a number if that runs out.
+        $metrics += array_filter(['directory_bytes' => DirectorySize::of($root, max(1, intdiv($this->timeout, 2)))], fn (?int $bytes): bool => $bytes !== null);
         $total = @disk_total_space($root);
         $free = @disk_free_space($root);
 

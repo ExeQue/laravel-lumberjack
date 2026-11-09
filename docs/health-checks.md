@@ -4,11 +4,11 @@
 
 ## Three facade methods
 
-| Method | Does | |
-|---|---|---|
-| `Lumberjack::healthChecks()` | Returns the registry: fluent built-ins, `->check()`, `->add()` | The only way to register a check |
+| Method                          | Does                                                                                                      |                                                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Lumberjack::healthChecks()`    | Returns the registry: fluent built-ins, `->check()`, `->add()`                                            | The only way to register a check                                                                                                                        |
 | `Lumberjack::health('disk:s3')` | Returns a handle for one registered check: `->run()`, `->report()`, `->ok()`, `->warning()`, `->failed()` | Only fires a check; it never registers one. Its `->state()`, `->isHealthy()`, `->since()` and `->message()` read where Lumberjack says any check stands |
-| `Lumberjack::healthStates()` | Returns every check Lumberjack knows for the app, by slug | Read only; see [Reading states](#reading-states) |
+| `Lumberjack::healthStates()`    | Returns every check Lumberjack knows for the app, by slug                                                 | Read only; see [Reading states](#reading-states)                                                                                                        |
 
 Registering and firing are separate so a call that means "fire this check" can never quietly register something, and registration stays in one place, a service provider. See [Firing a check from your code](#firing-a-check-from-your-code) and [Reading states](#reading-states) for the handle.
 
@@ -45,13 +45,13 @@ Registering costs a request nothing: the checks are only made and run when `lumb
 
 Every method takes the check's required parameters first, then `degradeAfter`, `recoverAfter`, `downAfter`, the check's own options, `timeout` and last `slug`. Named arguments read best; positional ones are a shorthand, so `->disk('s3', 3, 5)` is disk `s3` with `degradeAfter: 3` and `recoverAfter: 5`, and `->disk('s3', 3, 5, 10)` adds `downAfter: 10`.
 
-| Parameter | Default | |
-|---|---|---|
-| `degradeAfter` | `2` | Bad runs in a row (warnings or failures) before Lumberjack marks the check degraded |
-| `recoverAfter` | `5` | Good runs in a row before a degraded or down check is ok again; until then it shows as recovering |
-| `downAfter` | `5` | Failed runs in a row before it is down; a warning starts the count again, so warnings alone never take a check down |
-| `timeout` | `10` | Seconds the check may take; past it the check failed. See [Timeouts](#timeouts) |
-| `slug` | per check | The check's identity in Lumberjack. See [Slugs](#slugs) |
+| Parameter      | Default   |                                                                                                                     |
+| -------------- | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| `degradeAfter` | `2`       | Bad runs in a row (warnings or failures) before Lumberjack marks the check degraded                                 |
+| `recoverAfter` | `5`       | Good runs in a row before a degraded or down check is ok again; until then it shows as recovering                   |
+| `downAfter`    | `5`       | Failed runs in a row before it is down; a warning starts the count again, so warnings alone never take a check down |
+| `timeout`      | `10`      | Seconds the check may take; past it the check failed. See [Timeouts](#timeouts)                                     |
+| `slug`         | per check | The check's identity in Lumberjack. See [Slugs](#slugs)                                                             |
 
 `downAfter` is never below `degradeAfter`: Lumberjack uses the larger of the two. So a check that only ever fails (a closure returning `false`) goes degraded after 2 failures and down after 5, instead of straight to down. Set `downAfter` to the same value as `degradeAfter` to go straight to down, as before `downAfter` existed:
 
@@ -202,42 +202,49 @@ The defaults are listed with each check below. Names that come from config (a co
 
 All in `ExeQue\Lumberjack\Health\Checks`, each with a method of the same name on `Lumberjack::healthChecks()`. Besides the common parameters above:
 
-| Method | Class | Parameters | Default slug |
-|---|---|---|---|
-| `disk()` | `DiskHealthCheck` | `disk`, `warnAt`, `failAt` | `disk:<disk>` |
-| `database()` | `DatabaseHealthCheck` | `connection`, `maxLatencyMs`, `warnAtConnections` | `database:<connection>` |
-| `cache()` | `CacheHealthCheck` | `store` | `cache:<store>` |
-| `redis()` | `RedisHealthCheck` | `connection` | `redis:<connection>` |
-| `queue()` | `QueueHealthCheck` | `connection`, `queue`, `warnAt`, `failAt` | `queue:<connection>:<queue>` |
-| `horizon()` | `HorizonHealthCheck` | | `horizon` |
-| `http()` | `HttpHealthCheck` | `url`, `status` (200), `maxLatencyMs`, `method` (`GET`), `headers` | `http:<host><path>` |
-| `debugMode()` | `DebugModeHealthCheck` | `environments` (`['production']`) | `debug-mode` |
-| `migrations()` | `MigrationsHealthCheck` | `connection` | `migrations:<connection>` |
-| `failedJobs()` | `FailedJobsHealthCheck` | `withinMinutes` (60), `warnAt` (1), `failAt` | `failed-jobs` |
-| `freshFile()` | `FreshFileHealthCheck` | `disk`, `path`, `maxAgeMinutes`, `recursive` (false) | `fresh:<disk>:<path>` |
-| `mail()` | `MailHealthCheck` | `mailer` | `mail:<mailer>` |
+| Method            | Class                      | Parameters                                                         | Default slug                 |
+| ----------------- | -------------------------- | ------------------------------------------------------------------ | ---------------------------- |
+| `disk()`          | `DiskHealthCheck`          | `disk`, `warnAt`, `failAt`                                         | `disk:<disk>`                |
+| `database()`      | `DatabaseHealthCheck`      | `connection`, `maxLatencyMs`, `warnAtConnections`                  | `database:<connection>`      |
+| `cache()`         | `CacheHealthCheck`         | `store`                                                            | `cache:<store>`              |
+| `redis()`         | `RedisHealthCheck`         | `connection`                                                       | `redis:<connection>`         |
+| `queue()`         | `QueueHealthCheck`         | `connection`, `queue`, `warnAt`, `failAt`                          | `queue:<connection>:<queue>` |
+| `horizon()`       | `HorizonHealthCheck`       |                                                                    | `horizon`                    |
+| `http()`          | `HttpHealthCheck`          | `url`, `status` (200), `maxLatencyMs`, `method` (`GET`), `headers` | `http:<host><path>`          |
+| `debugMode()`     | `DebugModeHealthCheck`     | `environments` (`['production']`)                                  | `debug-mode`                 |
+| `migrations()`    | `MigrationsHealthCheck`    | `connection`                                                       | `migrations:<connection>`    |
+| `failedJobs()`    | `FailedJobsHealthCheck`    | `withinMinutes` (60), `warnAt` (1), `failAt`                       | `failed-jobs`                |
+| `freshFile()`     | `FreshFileHealthCheck`     | `disk`, `path`, `maxAgeMinutes`, `recursive` (false)               | `fresh:<disk>:<path>`        |
+| `mail()`          | `MailHealthCheck`          | `mailer`                                                           | `mail:<mailer>`              |
+| `tcp()`           | `TcpHealthCheck`           | `host`, `port`                                                     | `tcp:<host>:<port>`          |
+| `directorySize()` | `DirectorySizeHealthCheck` | `disk`, `path`, `warnAtBytes`, `failAtBytes`                       | `directory-size:<disk>`      |
+| `horizonQueues()` | `HorizonQueuesHealthCheck` | `warnAt`, `failAt`                                                 | `horizon-queues`             |
 
 A null connection, store or mailer is the app's default. `warnAt` and `failAt` are inclusive and off when null.
 
-- **disk**: writes a `.lumberjack-health-<random>` file, reads it back and deletes it; metric `latency_ms`. For a `local` disk also `used_percent` of the disk its root is on, a warning at `warnAt` and failed at `failAt`. Failed when the disk is not configured or a step fails.
+- **disk**: writes a `.lumberjack-health-<random>` file, reads it back and deletes it; metric `latency_ms`. For a `local` disk also `used_percent` of the disk its root is on, a warning at `warnAt` and failed at `failAt`, and `directory_bytes`, what the disk's own folder holds. If a big folder cannot be measured within half the check's timeout, the number is left out and the check is unaffected. Failed when the disk is not configured or a step fails.
 - **database**: `select 1`; metric `latency_ms`, a warning above `maxLatencyMs`. It also reports what the server says about itself: `connections` (the server's open client connections, every database, as the limit is the server's), `max_connections` and `size_bytes` (this connection's database only) on PostgreSQL, MySQL and MariaDB, and the file's `size_bytes` on SQLite. A user without the rights to ask gives fewer figures; they never fail the check. `warnAtConnections` (a share, `0.8` is 80 %) warns when open connections reach that share of the limit.
-- **cache**: puts, reads and forgets a random key; metric `latency_ms`.
+- **cache**: puts, reads and forgets a random key; metric `latency_ms`. For a `file` store also `directory_bytes`, what its folder holds, measured the same way as for a disk.
 - **redis**: `PING`; metric `latency_ms`.
 - **queue**: the queue's size (metric `size`), a warning at `warnAt` and failed at `failAt`. Where workers run on it, also how many (metric `workers`, from their [signs of life](agent.md#queue-workers)), and failed whenever jobs wait with no worker: "12 waiting · 0 workers".
 - **horizon**: failed when Horizon is not installed, no master supervisor runs or it is paused, as `horizon:status` sees it.
 - **http**: a request with the check's timeout; failed on a connection error or another status than `status`, a warning above `maxLatencyMs`; metric `latency_ms`. `headers` are sent with it, for an endpoint behind a token or a virtual host:
 
-  ```php
-  Lumberjack::healthChecks()->http('https://api.internal/health', headers: [
-      'Authorization' => 'Bearer '.config('services.api.health_token'),
-  ]);
-  ```
+    ```php
+    Lumberjack::healthChecks()->http('https://api.internal/health', headers: [
+        'Authorization' => 'Bearer '.config('services.api.health_token'),
+    ]);
+    ```
 
-  They stay in the app; neither names nor values are reported to Lumberjack.
+    They stay in the app; neither names nor values are reported to Lumberjack.
+
 - **debugMode**: failed when `app.debug` is on in one of `environments`.
 - **migrations**: failed while migrations are pending (the migration files against the ones that ran, like `migrate:status`), or when the migrations table does not exist; metric `pending`.
 - **failedJobs**: jobs that failed within the last `withinMinutes`, through the app's failed job provider (`queue.failed`); metric `count`. Ok when failed jobs are not stored (driver `null`). The database providers are counted with a query; the others list every failed job.
 - **freshFile**: the newest file directly under `path` (or anywhere below it with `recursive: true`) is younger than `maxAgeMinutes`, e.g. the last backup; metric `age_minutes`. Failed when there is none.
+- **tcp**: something answers on the port, within the check's timeout; metric `latency_ms`. For a service with no port of its own, like a WebSocket server or a headless browser. A null `host` is ok with nothing to check, for a service that does not run separately in this environment.
+- **directorySize**: how much a folder on a `local` disk holds, where **disk** says how full the volume is; metric `bytes`. Failed for a disk that is not local, or when the folder cannot be measured within the check's timeout. A folder that does not exist holds 0 bytes. It can be slow on a big folder, so run it less often with `->every(5)`.
+- **horizonQueues**: the jobs waiting across every queue Horizon is configured to work in this environment, from its configuration, so it stays right while Horizon is down; metrics `size` and `queues`. Failed when Horizon is not installed.
 - **mail**: for an SMTP mailer, connects and logs in (EHLO, AUTH) and disconnects. Nothing is sent. Metric `latency_ms`. Other mailers (log, array, SES, Postmark, ...) are ok with a message saying they are not checked.
 
 ## Running
@@ -253,11 +260,11 @@ php artisan migrate --force
 php artisan lumberjack:health || exit 1
 ```
 
-| Option | |
-|---|---|
-| `--check=<slug>` | Run only this check, due or not |
-| `--all` | Run every check, also those with their own interval that are not due yet |
-| `--no-fail` | Exit with `0` even when a check failed |
+| Option           |                                                                          |
+| ---------------- | ------------------------------------------------------------------------ |
+| `--check=<slug>` | Run only this check, due or not                                          |
+| `--all`          | Run every check, also those with their own interval that are not due yet |
+| `--no-fail`      | Exit with `0` even when a check failed                                   |
 
 ## Firing a check from your code
 
@@ -290,13 +297,13 @@ use ExeQue\Lumberjack\Health\CheckResult;
 Lumberjack::health('disk:s3')->report(CheckResult::failed('Bucket gone'));
 ```
 
-| Method | Returns | |
-|---|---|---|
-| `run()` | `?CheckResult` | Runs the check and sends its result; `null` within the cooldown |
-| `report(CheckResult $result)` | `bool` | Sends a result without running the check; `false` within the cooldown |
-| `ok($message, $metrics)` | `bool` | `report(CheckResult::ok(...))` |
-| `warning($message, $metrics)` | `bool` | `report(CheckResult::warning(...))` |
-| `failed($message, $metrics)` | `bool` | `report(CheckResult::failed(...))` |
+| Method                        | Returns        |                                                                       |
+| ----------------------------- | -------------- | --------------------------------------------------------------------- |
+| `run()`                       | `?CheckResult` | Runs the check and sends its result; `null` within the cooldown       |
+| `report(CheckResult $result)` | `bool`         | Sends a result without running the check; `false` within the cooldown |
+| `ok($message, $metrics)`      | `bool`         | `report(CheckResult::ok(...))`                                        |
+| `warning($message, $metrics)` | `bool`         | `report(CheckResult::warning(...))`                                   |
+| `failed($message, $metrics)`  | `bool`         | `report(CheckResult::failed(...))`                                    |
 
 Every result goes out straight away, with the check's `degradeAfter`, `recoverAfter`
 and `downAfter`, and counts toward them like a scheduled one: one failure does not
@@ -327,12 +334,12 @@ if (! Lumberjack::health('disk:s3')->isHealthy()) {
 Lumberjack::health('payments-api')->state() === HealthState::Down;
 ```
 
-| Method | Returns | |
-|---|---|---|
-| `state()` | `HealthState` | `Ok`, `Degraded`, `Down`, `Recovering`, `Stale`, `Pending`, or `Unknown` for a slug Lumberjack does not list (or no answer from it) |
-| `isHealthy()` | `bool` | `true` for `Ok` only; a recovering check is still part of its outage |
-| `since()` | `?CarbonImmutable` | When the check entered its state; for a stale one, its last result |
-| `message()` | `?string` | The message of its latest result |
+| Method        | Returns            |                                                                                                                                     |
+| ------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `state()`     | `HealthState`      | `Ok`, `Degraded`, `Down`, `Recovering`, `Stale`, `Pending`, or `Unknown` for a slug Lumberjack does not list (or no answer from it) |
+| `isHealthy()` | `bool`             | `true` for `Ok` only; a recovering check is still part of its outage                                                                |
+| `since()`     | `?CarbonImmutable` | When the check entered its state; for a stale one, its last result                                                                  |
+| `message()`   | `?string`          | The message of its latest result                                                                                                    |
 
 `HealthState` also has `isBad()`, true for `Degraded` and `Down`.
 `Lumberjack::healthStates()` returns every check at once, keyed by slug, as
@@ -360,12 +367,12 @@ The states are kept in the app's cache, and filled two ways:
   down is not asked on every request. Set `LUMBERJACK_HEALTH_STATES_PULL=false` to rely
   on the agent alone.
 
-| Key | Env | Default | |
-|---|---|---|---|
-| `health.states.store` | `LUMBERJACK_HEALTH_STATES_STORE` | `null` | Cache store; the default store when null |
-| `health.states.ttl` | `LUMBERJACK_HEALTH_STATES_TTL` | `30` | Seconds the stored states count as fresh |
-| `health.states.pull` | `LUMBERJACK_HEALTH_STATES_PULL` | `true` | Fetch from Lumberjack when they are older |
-| `health.states.memo` | `LUMBERJACK_HEALTH_STATES_MEMO` | `5` | Seconds a process keeps what it read, so many `state()` calls cost one cache read; `0` reads every time |
+| Key                   | Env                              | Default |                                                                                                         |
+| --------------------- | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------- |
+| `health.states.store` | `LUMBERJACK_HEALTH_STATES_STORE` | `null`  | Cache store; the default store when null                                                                |
+| `health.states.ttl`   | `LUMBERJACK_HEALTH_STATES_TTL`   | `30`    | Seconds the stored states count as fresh                                                                |
+| `health.states.pull`  | `LUMBERJACK_HEALTH_STATES_PULL`  | `true`  | Fetch from Lumberjack when they are older                                                               |
+| `health.states.memo`  | `LUMBERJACK_HEALTH_STATES_MEMO`  | `5`     | Seconds a process keeps what it read, so many `state()` calls cost one cache read; `0` reads every time |
 
 Asking is cheap. Lumberjack is asked at most once per ttl for everything that shares
 the cache, whether it answered or not, and within one process the states are kept for
@@ -404,12 +411,12 @@ agent never reach Lumberjack, and a slow listener holds the agent up.
 
 With at least one check registered, the package adds `lumberjack:health` to your app's scheduler. It runs in the background, without overlapping, and on one server only. Its overlap lock expires after 5 minutes rather than Laravel's default day, so a run killed mid-way (a deploy, the OOM killer) holds up checks for minutes, not a day. The scheduler itself must run (`schedule:run` from cron, or `schedule:work`).
 
-| Key | Env | Default | |
-|---|---|---|---|
-| `health.schedule` | `LUMBERJACK_HEALTH_SCHEDULE` | `* * * * *` | A cron expression; null or empty to schedule the command yourself |
-| `health.one_server` | `LUMBERJACK_HEALTH_ONE_SERVER` | `true` | Run on one server only; needs a cache store with locks shared between servers (redis, database, memcached, dynamodb) |
-| `health.checks` | | `[]` | Checks; see [In config](#in-config) |
-| `health.cooldown` | `LUMBERJACK_HEALTH_COOLDOWN` | `30` | Seconds a check fired from your code waits before it may fire again; `0` turns it off. See [Firing a check from your code](#firing-a-check-from-your-code) |
+| Key                 | Env                            | Default     |                                                                                                                                                            |
+| ------------------- | ------------------------------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `health.schedule`   | `LUMBERJACK_HEALTH_SCHEDULE`   | `* * * * *` | A cron expression; null or empty to schedule the command yourself                                                                                          |
+| `health.one_server` | `LUMBERJACK_HEALTH_ONE_SERVER` | `true`      | Run on one server only; needs a cache store with locks shared between servers (redis, database, memcached, dynamodb)                                       |
+| `health.checks`     |                                | `[]`        | Checks; see [In config](#in-config)                                                                                                                        |
+| `health.cooldown`   | `LUMBERJACK_HEALTH_COOLDOWN`   | `30`        | Seconds a check fired from your code waits before it may fire again; `0` turns it off. See [Firing a check from your code](#firing-a-check-from-your-code) |
 
 The run is recorded as an ordinary [scheduled task](recording.md), so Lumberjack also notices when the scheduler stops running it.
 

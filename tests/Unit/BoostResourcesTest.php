@@ -80,7 +80,7 @@ describe('the Boost resources', function () {
             ['__construct', 'add', 'check', 'isEmpty', 'checks', 'find', 'every', 'everyMinutes'],
         ));
 
-        expect($builtIns)->toHaveCount(12)
+        expect($builtIns)->toHaveCount(15)
             ->and($listed)->toEqualCanonicalizing($builtIns);
     });
 });

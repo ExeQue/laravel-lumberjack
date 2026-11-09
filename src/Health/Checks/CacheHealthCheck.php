@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack\Health\Checks;
 use ExeQue\Lumberjack\Contracts\HealthCheck;
 use ExeQue\Lumberjack\Health\CheckResult;
 use ExeQue\Lumberjack\Health\Concerns\ConfiguresHealthCheck;
+use ExeQue\Lumberjack\Support\DirectorySize;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
@@ -41,7 +42,26 @@ final class CacheHealthCheck implements HealthCheck
             $cache->forget($key);
         }
 
-        return CheckResult::ok(metrics: ['latency_ms' => self::since($start)]);
+        return CheckResult::ok(metrics: ['latency_ms' => self::since($start), ...$this->directoryMetrics()]);
+    }
+
+    /**
+     * What a file store holds. Never at the cost of the check: half its time, and without
+     * a number if that runs out.
+     *
+     * @return array{directory_bytes?: int}
+     */
+    private function directoryMetrics(): array
+    {
+        $store = (array) config('cache.stores.'.($this->store ?? config('cache.default')));
+
+        if (($store['driver'] ?? null) !== 'file' || ! is_string($store['path'] ?? null)) {
+            return [];
+        }
+
+        $bytes = DirectorySize::of($store['path'], max(1, intdiv($this->timeout, 2)));
+
+        return $bytes === null ? [] : ['directory_bytes' => $bytes];
     }
 
     protected function defaultSlug(): string

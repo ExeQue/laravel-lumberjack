@@ -4,6 +4,11 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- Health checks `tcp()`, `directorySize()` and `horizonQueues()`.
+- The disk check on a local disk and the cache check on a file store report the size of their folder as `directory_bytes`.
+
 ## [0.1.5] - 2026-11-09
 
 ### Added
