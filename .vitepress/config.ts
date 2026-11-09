@@ -63,6 +63,7 @@ export default defineConfig({
         text: 'Around it',
         items: [
           { text: 'Health checks', link: '/docs/health-checks' },
+          { text: 'Data sources', link: '/docs/data-sources' },
           { text: 'Custom alerts', link: '/docs/alerts' },
           { text: 'Reacting to alerts', link: '/docs/webhooks' },
           { text: 'Testing your app', link: '/docs/testing' },
