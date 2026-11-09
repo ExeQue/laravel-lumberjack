@@ -96,26 +96,48 @@ has no use for a range, a count of everything so far, leaves it unread.
 Lumberjack decides how fine a series is. `bucket` is the seconds one point covers, `timezone`
 where a day begins (set on the connection in Lumberjack), and `buckets()` gives each bucket's
 `from` and `to` in UTC. `from` is inclusive, `to` exclusive. A bucket that began before the range
-is left out, and the last one ends with the range:
+is left out, and the last one ends with the range.
+
+`SeriesResult::count()` and `SeriesResult::sum()` do the grouping for a query, with empty buckets as 0:
 
 ```php
 use ExeQue\Lumberjack\DataSources\DataRange;
-use ExeQue\Lumberjack\DataSources\Results\SeriesPoint;
 use ExeQue\Lumberjack\DataSources\Results\SeriesResult;
 
 public function resolve(DataRange $range): SeriesResult
 {
-    return new SeriesResult(...array_map(
-        fn (array $bucket): SeriesPoint => new SeriesPoint(
-            $bucket['from'],
-            Order::where('created_at', '>=', $bucket['from'])->where('created_at', '<', $bucket['to'])->count(),
-        ),
-        $range->buckets(),
-    ));
+    return SeriesResult::count(Order::query()->where('paid', true), $range);
 }
+
+// By another time column than created_at:
+SeriesResult::count(Order::query(), $range, column: 'paid_at');
+
+// Added up, here an amount stored in cents:
+SeriesResult::sum(Order::query(), $range, 'amount_cents', column: 'paid_at', divideBy: 100);
 ```
 
-The times are UTC, as a `created_at` column usually is; convert them if yours is not.
+The query has to be a plain one: with `distinct`, `groupBy`, `having`, `limit`, `offset` or a union they throw.
+`column` has to be a datetime column holding `app.timezone`, as `created_at` does, not a Unix time or a
+`timestampTz`; on a join, qualify it, such as `orders.created_at`. `sum` takes a column name, and floats add up
+with a float's precision, so keep money in cents. Every matching row is read, so the database driver may hold
+them all in memory for a long period.
+
+For anything else, build the points yourself from `$range->buckets()`:
+
+```php
+use ExeQue\Lumberjack\DataSources\Results\SeriesPoint;
+
+$points = [];
+
+foreach ($range->buckets() as $bucket) {
+    $average = Order::where('created_at', '>=', $bucket['from'])->where('created_at', '<', $bucket['to'])->avg('total');
+    $points[] = new SeriesPoint($bucket['from'], $average === null ? null : (float) $average);
+}
+
+return new SeriesResult(...$points);
+```
+
+The times in a bucket are UTC, which matches a column stored in UTC; convert them if `app.timezone` is another.
 In a test, `->inBuckets(86400, 'Europe/Copenhagen')` after `forLast()` asks the same way.
 The default is one hour per point, so a test over more than 41 days needs a coarser `inBuckets()`.
 `isEvery()` and `coversRange()` measure real seconds, so test a series with day-long buckets away from a daylight saving change.
@@ -169,7 +191,7 @@ the fields below, so anything else a query happened to select never leaves the a
 | Shape | `resolve()` gives | Widgets | Limit |
 |---|---|---|---|
 | `NumberResult` | `new NumberResult(42)`, or `null` for none | Stat, gauge | |
-| `SeriesResult` | `new SeriesResult(new SeriesPoint($date, 3), ...)` | Chart | 1000 points |
+| `SeriesResult` | `new SeriesResult(new SeriesPoint($date, 3), ...)`, or `SeriesResult::count()` and `::sum()` for a query | Chart | 1000 points |
 | `ListResult` | `new ListResult(new ListRow('Oslo', 3), ...)` | List | 100 rows |
 | `TableResult` | `new TableResult(['City', 'Orders'], [['Oslo', 3], ...])` | List: the first column is the label, the second the value | 100 rows, 20 columns |
 

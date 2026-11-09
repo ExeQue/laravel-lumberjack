@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `SeriesResult::count()` and `SeriesResult::sum()` group a query into the buckets Lumberjack asks for, by `created_at` or another column.
+
 ## [0.3.0] - 2026-11-09
 
 ### Added
