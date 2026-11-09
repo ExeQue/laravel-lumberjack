@@ -48,11 +48,49 @@ final readonly class SeriesResult implements DataSourceResult
      */
     public static function sum(EloquentBuilder|QueryBuilder $query, DataRange $range, string $sum, string $column = 'created_at', int|float $divideBy = 1): self
     {
+        self::assertDivisor($divideBy);
+
+        return self::tally($query, $range, $column, $sum, $divideBy);
+    }
+
+    /**
+     * How many rows there are by the end of each bucket, those before the range included.
+     * It sees only the rows that exist now, so a deleted one is gone from the whole curve.
+     *
+     * @param  EloquentBuilder<*>|QueryBuilder  $query
+     * @param  string  $column  a datetime column in the app's time zone, qualified on a join
+     */
+    public static function runningCount(EloquentBuilder|QueryBuilder $query, DataRange $range, string $column = 'created_at'): self
+    {
+        return self::tally($query, $range, $column, null, 1, running: true);
+    }
+
+    /**
+     * A column's total by the end of each bucket, rows before the range included. It sees
+     * only the rows that exist now, so a deleted one is gone from the whole curve.
+     *
+     * @param  EloquentBuilder<*>|QueryBuilder  $query
+     * @param  string  $sum  a column name; a null counts as nothing
+     * @param  string  $column  a datetime column in the app's time zone, qualified on a join
+     * @param  int|float  $divideBy  for an amount stored in cents, 100
+     */
+    public static function runningSum(EloquentBuilder|QueryBuilder $query, DataRange $range, string $sum, string $column = 'created_at', int|float $divideBy = 1): self
+    {
+        self::assertDivisor($divideBy);
+
+        return self::tally($query, $range, $column, $sum, $divideBy, running: true);
+    }
+
+    private static function number(mixed $value): int|float
+    {
+        return is_numeric($value) ? $value + 0 : throw new InvalidDataSourceResultException('Expected the summed column to hold numbers.');
+    }
+
+    private static function assertDivisor(int|float $divideBy): void
+    {
         if (! is_finite($divideBy) || $divideBy <= 0) {
             throw new InvalidDataSourceResultException('Expected a divisor above 0.');
         }
-
-        return self::tally($query, $range, $column, $sum, $divideBy);
     }
 
     /**
@@ -61,7 +99,7 @@ final readonly class SeriesResult implements DataSourceResult
      *
      * @param  EloquentBuilder<*>|QueryBuilder  $query
      */
-    private static function tally(EloquentBuilder|QueryBuilder $query, DataRange $range, string $column, ?string $sum, int|float $divideBy): self
+    private static function tally(EloquentBuilder|QueryBuilder $query, DataRange $range, string $column, ?string $sum, int|float $divideBy, bool $running = false): self
     {
         $buckets = $range->buckets();
 
@@ -73,26 +111,18 @@ final readonly class SeriesResult implements DataSourceResult
             throw new InvalidDataSourceResultException('Expected at most '.Shape::MAX_POINTS.' points.');
         }
 
-        $base = $query instanceof EloquentBuilder ? (clone $query)->toBase() : clone $query;
-
-        if ($base->distinct !== false || $base->groups !== null || $base->havings !== null || $base->limit !== null || $base->offset !== null || $base->unions !== null) {
-            throw new InvalidDataSourceResultException('A series reads every row of a plain query: leave out distinct, group by, having, limit, offset and union.');
-        }
-
-        // Its own conditions as one, so that an orWhere cannot escape the range.
-        $conditions = $base->forNestedWhere();
-        $conditions->wheres = $base->wheres;
-        $conditions->bindings['where'] = $base->bindings['where'];
-        $base->wheres = [];
-        $base->bindings['where'] = [];
-
-        if ($conditions->wheres !== []) {
-            $base->addNestedWhereQuery($conditions);
-        }
-
+        $base = self::plain($query);
         $first = $buckets[0]['from'];
         $last = $buckets[array_key_last($buckets)]['to'];
         $storedIn = (string) config('app.timezone');
+        $before = 0;
+
+        if ($running) {
+            $earlier = (clone $base)->where($column, '<', $first->setTimezone($storedIn))->reorder();
+            $earlier->lock = null;
+            $before = self::number($sum === null ? $earlier->count() : $earlier->sum($sum));
+        }
+
         $rows = $base
             ->where($column, '>=', $first->setTimezone($storedIn))
             ->where($column, '<', $last->setTimezone($storedIn))
@@ -115,20 +145,44 @@ final readonly class SeriesResult implements DataSourceResult
                 $bucket++;
             }
 
-            $value = $sum === null ? 1 : ($row->lumberjack_sum ?? 0);
-
-            if (! is_numeric($value)) {
-                throw new InvalidDataSourceResultException('Expected the summed column to hold numbers.');
-            }
-
-            $totals[$bucket] += $value + 0;
+            $totals[$bucket] += self::number($sum === null ? 1 : ($row->lumberjack_sum ?? 0));
         }
 
-        return new self(...array_map(
-            fn (array $bucket, int|float $total): SeriesPoint => new SeriesPoint($bucket['from'], $divideBy === 1 ? $total : $total / $divideBy),
-            $buckets,
-            $totals,
-        ));
+        $points = [];
+
+        foreach ($buckets as $index => $current) {
+            $total = $running ? $before += $totals[$index] : $totals[$index];
+            $points[] = new SeriesPoint($current['from'], $divideBy === 1 ? $total : $total / $divideBy);
+        }
+
+        return new self(...$points);
+    }
+
+    /**
+     * A copy of the query to add to, its own conditions as one so an orWhere cannot escape.
+     *
+     * @param  EloquentBuilder<*>|QueryBuilder  $query
+     */
+    private static function plain(EloquentBuilder|QueryBuilder $query): QueryBuilder
+    {
+        $base = $query instanceof EloquentBuilder ? (clone $query)->toBase() : clone $query;
+
+        if ($base->distinct !== false || $base->groups !== null || $base->havings !== null || $base->limit !== null || $base->offset !== null || $base->unions !== null) {
+            throw new InvalidDataSourceResultException('A series reads every row of a plain query: leave out distinct, group by, having, limit, offset and union.');
+        }
+
+        // Its own conditions as one, so that an orWhere cannot escape the range.
+        $conditions = $base->forNestedWhere();
+        $conditions->wheres = $base->wheres;
+        $conditions->bindings['where'] = $base->bindings['where'];
+        $base->wheres = [];
+        $base->bindings['where'] = [];
+
+        if ($conditions->wheres !== []) {
+            $base->addNestedWhereQuery($conditions);
+        }
+
+        return $base;
     }
 
     public static function shape(): Shape

@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `SeriesResult::runningCount()` and `SeriesResult::runningSum()` give a running total per bucket, starting from everything before the range.
+
 ## [0.4.0] - 2026-11-09
 
 ### Added

@@ -258,7 +258,7 @@ class TotalMediaDataSource implements DataSource
 
 // A series groups its points by $range->bucket (seconds) in $range->timezone; Lumberjack decides both.
 // $range->buckets() gives each one's from (inclusive) and to (exclusive), in UTC.
-// SeriesResult::count($query, $range, column: 'paid_at') and ::sum($query, $range, 'amount_cents', divideBy: 100) do it for a query; column defaults to created_at.
+// SeriesResult::count($query, $range, column: 'paid_at') and ::sum($query, $range, 'amount_cents', divideBy: 100) do it for a query; column defaults to created_at. ::runningCount() and ::runningSum() take the same and start from everything before the range.
 
 // In a service provider's boot(). A class is made by the container when it is needed.
 Lumberjack::dataSources()->add(TotalMediaDataSource::class);

@@ -114,12 +114,19 @@ SeriesResult::count(Order::query(), $range, column: 'paid_at');
 
 // Added up, here an amount stored in cents:
 SeriesResult::sum(Order::query(), $range, 'amount_cents', column: 'paid_at', divideBy: 100);
+
+// A running total, starting from everything before the range:
+SeriesResult::runningCount(User::query(), $range);
+SeriesResult::runningSum(Media::query(), $range, 'size_bytes', column: 'uploaded_at');
 ```
+
+A running total sees only the rows that exist now, so a deleted row is gone from the whole curve, also back in time.
+An empty bucket carries the total before it. The rows before the range are added up by the database, so `runningSum()` needs a real numeric column: text there may fail, or count as 0, without a row being read.
 
 The query has to be a plain one: with `distinct`, `groupBy`, `having`, `limit`, `offset` or a union they throw.
 `column` has to be a datetime column holding `app.timezone`, as `created_at` does, not a Unix time or a
 `timestampTz`; on a join, qualify it, such as `orders.created_at`. `sum` takes a column name, and floats add up
-with a float's precision, so keep money in cents. Every matching row is read, so the database driver may hold
+with a float's precision, so keep money in cents. Every matching row in the range is read, so the database driver may hold
 them all in memory for a long period.
 
 For anything else, build the points yourself from `$range->buckets()`:
@@ -191,7 +198,7 @@ the fields below, so anything else a query happened to select never leaves the a
 | Shape | `resolve()` gives | Widgets | Limit |
 |---|---|---|---|
 | `NumberResult` | `new NumberResult(42)`, or `null` for none | Stat, gauge | |
-| `SeriesResult` | `new SeriesResult(new SeriesPoint($date, 3), ...)`, or `SeriesResult::count()` and `::sum()` for a query | Chart | 1000 points |
+| `SeriesResult` | `new SeriesResult(new SeriesPoint($date, 3), ...)`, or `SeriesResult::count()`, `::sum()`, `::runningCount()` and `::runningSum()` for a query | Chart | 1000 points |
 | `ListResult` | `new ListResult(new ListRow('Oslo', 3), ...)` | List | 100 rows |
 | `TableResult` | `new TableResult(['City', 'Orders'], [['Oslo', 3], ...])` | List: the first column is the label, the second the value | 100 rows, 20 columns |
 

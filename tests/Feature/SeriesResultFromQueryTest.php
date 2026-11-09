@@ -90,6 +90,51 @@ it('refuses a summed column without numbers', function () {
     expect(fn () => SeriesResult::sum(DB::table('series_rows'), $this->range, 'cents'))->toThrow(InvalidDataSourceResultException::class);
 });
 
+describe('running totals', function () {
+    beforeEach(function () {
+        DB::table('series_rows')->insert([
+            ['cents' => 1000, 'created_at' => '2025-06-01 00:00:00', 'paid_at' => '2026-01-01 01:00:00'],
+            ['cents' => 7, 'created_at' => '2027-01-01 00:00:00', 'paid_at' => null],
+        ]);
+    });
+
+    it('counts from everything before the range, leaving out what comes after', function () {
+        expect(($this->values)(SeriesResult::runningCount(DB::table('series_rows'), $this->range)))->toBe([3, 3, 5]);
+    });
+
+    it('goes by another column', function () {
+        expect(($this->values)(SeriesResult::runningCount(DB::table('series_rows'), $this->range, column: 'paid_at')))->toBe([1, 2, 4]);
+    });
+
+    it('adds up a column, divided only at the end', function () {
+        expect(($this->values)(SeriesResult::runningSum(DB::table('series_rows'), $this->range, 'cents')))->toBe([1400, 1400, 1800])
+            ->and(($this->values)(SeriesResult::runningSum(DB::table('series_rows'), $this->range, 'cents', divideBy: 100)))->toBe([14, 14, 18]);
+    });
+
+    it('keeps an orWhere inside what comes before the range, and ignores an order', function () {
+        $query = DB::table('series_rows')->where('cents', 1000)->orWhere('cents', 7)->orderByDesc('id');
+
+        expect(($this->values)(SeriesResult::runningCount($query, $this->range)))->toBe([1, 1, 1]);
+    });
+
+    it('refuses a query it cannot read row by row before asking anything', function () {
+        DB::enableQueryLog();
+
+        expect(fn () => SeriesResult::runningCount(DB::table('series_rows')->limit(1), $this->range))->toThrow(InvalidDataSourceResultException::class)
+            ->and(DB::getQueryLog())->toBe([]);
+    });
+
+    it('has no points when no bucket begins in the range', function () {
+        $range = new DataRange(CarbonImmutable::parse('2026-01-01 00:10', 'UTC'), CarbonImmutable::parse('2026-01-01 00:50', 'UTC'), 3600);
+
+        expect(SeriesResult::runningCount(DB::table('series_rows'), $range)->points)->toBe([]);
+    });
+
+    it('refuses a divisor that is no divisor', function () {
+        expect(fn () => SeriesResult::runningSum(DB::table('series_rows'), $this->range, 'cents', divideBy: -1))->toThrow(InvalidDataSourceResultException::class);
+    });
+});
+
 it('reads stored times in the time zone of the app', function () {
     config(['app.timezone' => 'Europe/Copenhagen']);
     DB::table('series_rows')->delete();
