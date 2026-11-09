@@ -4,6 +4,12 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-09
+
+### Fixed
+
+- **Data sources** is linked in the documentation sidebar and the README.
+
 ## [0.6.0] - 2026-11-09
 
 ### Added
@@ -78,7 +84,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.3.0...v0.4.0
