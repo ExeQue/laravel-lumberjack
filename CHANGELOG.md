@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `#[Group('Events', 'Storage')]` files a data source under a nested path in Lumberjack's data source picker. The catalog carries it as `group`, and older servers ignore it.
+
 ## [0.5.0] - 2026-11-09
 
 ### Added

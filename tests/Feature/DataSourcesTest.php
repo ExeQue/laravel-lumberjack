@@ -10,6 +10,7 @@ use ExeQue\Lumberjack\DataSources\DataRange;
 use ExeQue\Lumberjack\DataSources\DataSourceEndpoint;
 use ExeQue\Lumberjack\DataSources\DataSourceRegistry;
 use ExeQue\Lumberjack\DataSources\DataSourceResolver;
+use ExeQue\Lumberjack\DataSources\Group;
 use ExeQue\Lumberjack\DataSources\PullSignature;
 use ExeQue\Lumberjack\DataSources\Results\ListResult;
 use ExeQue\Lumberjack\DataSources\Results\ListRow;
@@ -59,6 +60,24 @@ class CachedSource extends ContainerMadeSource
     public function key(): string
     {
         return 'cached';
+    }
+}
+
+#[Group('A'), Group('B')]
+class BrokenGroupSource extends ContainerMadeSource
+{
+    public function key(): string
+    {
+        return 'broken_group';
+    }
+}
+
+#[Group('Events', 'Storage')]
+class GroupedSource extends ContainerMadeSource
+{
+    public function key(): string
+    {
+        return 'grouped';
     }
 }
 
@@ -241,10 +260,10 @@ describe('what the endpoint answers', function () {
 
     it('says what there is without only, resolving nothing', function () {
         ($this->pull)([])->assertExactJson(['version' => 1, 'complete' => true, 'sources' => [
-            ['key' => 'made', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => null],
-            ['key' => 'cached', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => 300],
-            ['key' => 'rows', 'label' => 'Rows', 'shape' => 'list', 'cache' => null],
-            ['key' => 'broken', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => null],
+            ['key' => 'made', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => null, 'group' => []],
+            ['key' => 'cached', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => 300, 'group' => []],
+            ['key' => 'rows', 'label' => 'Rows', 'shape' => 'list', 'cache' => null, 'group' => []],
+            ['key' => 'broken', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => null, 'group' => []],
         ]]);
 
         expect(app(CountingDependency::class)->calls)->toBe(0);
@@ -446,6 +465,32 @@ describe('what the review found', function () {
         $child = new class (new CountingDependency()) extends CachedSource {};
 
         expect(DataSourceResolver::cacheSeconds($child))->toBe(300);
+    });
+
+    it('reads a Group as one nested path, from a parent class too', function () {
+        $child = new class (new CountingDependency()) extends GroupedSource {};
+
+        expect(DataSourceResolver::group($child))->toBe(['Events', 'Storage']);
+    });
+
+    it('lists the group in the catalog', function () {
+        app(DataSourceRegistry::class)->add(GroupedSource::class);
+
+        expect(app(DataSourceResolver::class)->index()['sources'])->toContain(['key' => 'grouped', 'label' => 'Made by the container', 'shape' => 'number', 'cache' => null, 'group' => ['Events', 'Storage']]);
+    });
+
+    it('cleans a group name that is not valid text', function () {
+        $source = new #[Group("P\xE5 disk")] class (new CountingDependency()) extends ContainerMadeSource {};
+
+        expect(json_encode(DataSourceResolver::group($source)))->not->toBeFalse();
+    });
+
+    it('keeps a source whose Group is broken', function () {
+        app(DataSourceRegistry::class)->add(BrokenGroupSource::class);
+
+        $sources = array_column(app(DataSourceResolver::class)->index()['sources'], 'group', 'key');
+
+        expect($sources)->toHaveKey('broken_group', []);
     });
 
     it('refuses a key with a trailing newline', function () {

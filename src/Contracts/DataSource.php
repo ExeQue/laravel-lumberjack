@@ -9,7 +9,8 @@ use ExeQue\Lumberjack\DataSources\DataRange;
 /**
  * A figure, series, list or table the app offers Lumberjack's status screens.
  *
- * Add #[CacheFor(seconds: 300)] to the class to keep what resolve() gives for each range.
+ * Add #[CacheFor(seconds: 300)] to the class to keep what resolve() gives for each range,
+ * and #[Group('Events', 'Storage')] to file it under Events > Storage in Lumberjack's picker.
  */
 interface DataSource
 {

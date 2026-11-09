@@ -32,7 +32,7 @@ final readonly class DataSourceResolver
      * What the app offers. complete is false when a source could not be made or described:
      * then what is missing from the list says nothing, and Lumberjack archives none of it.
      *
-     * @return array{sources: list<array{key: string, label: string, shape: string, cache: int|null}>, complete: bool}
+     * @return array{sources: list<array{key: string, label: string, shape: string, cache: int|null, group: list<string>}>, complete: bool}
      */
     public function index(): array
     {
@@ -41,7 +41,7 @@ final readonly class DataSourceResolver
 
         foreach ($this->registry->all() as $source) {
             try {
-                $sources[] = ['key' => $source->key(), 'label' => Cell::text($source->label()), 'shape' => Shape::of($source)->value, 'cache' => self::cacheSeconds($source)];
+                $sources[] = ['key' => $source->key(), 'label' => Cell::text($source->label()), 'shape' => Shape::of($source)->value, 'cache' => self::cacheSeconds($source), 'group' => $this->safeGroup($source)];
             } catch (Throwable $e) {
                 $complete = false;
                 $this->exceptions->report($e);
@@ -103,11 +103,48 @@ final readonly class DataSourceResolver
             return $source->cacheSeconds;
         }
 
+        return self::attribute($source, CacheFor::class)?->seconds;
+    }
+
+    /**
+     * A group only tidies the picker: a broken #[Group] must not lose the source.
+     *
+     * @return list<string>
+     */
+    private function safeGroup(DataSource $source): array
+    {
+        try {
+            return self::group($source);
+        } catch (Throwable $e) {
+            $this->exceptions->report($e);
+
+            return [];
+        }
+    }
+
+    /**
+     * The path of the source's #[Group], on it or a class it extends; empty without one.
+     *
+     * @return list<string>
+     */
+    public static function group(DataSource $source): array
+    {
+        return array_map(Cell::text(...), self::attribute($source, Group::class)->path ?? []);
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param  class-string<T>  $name
+     * @return T|null
+     */
+    private static function attribute(DataSource $source, string $name): ?object
+    {
         for ($class = new ReflectionClass($source); $class !== false; $class = $class->getParentClass()) {
-            $attribute = $class->getAttributes(CacheFor::class)[0] ?? null;
+            $attribute = $class->getAttributes($name)[0] ?? null;
 
             if ($attribute !== null) {
-                return $attribute->newInstance()->seconds;
+                return $attribute->newInstance();
             }
         }
 

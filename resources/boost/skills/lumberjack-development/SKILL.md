@@ -242,10 +242,11 @@ Offer figures to Lumberjack's status screens from the app. Connect the app once 
 
 ```php
 use ExeQue\Lumberjack\Contracts\DataSource;
-use ExeQue\Lumberjack\DataSources\{CacheFor, DataRange};
+use ExeQue\Lumberjack\DataSources\{CacheFor, DataRange, Group};
 use ExeQue\Lumberjack\DataSources\Results\NumberResult;
 
 #[CacheFor(seconds: 300)]
+#[Group('Media', 'Uploads')] // Optional: a nested path in Lumberjack's picker, Media > Uploads.
 class TotalMediaDataSource implements DataSource
 {
     public function key(): string { return 'total-media'; }

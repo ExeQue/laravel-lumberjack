@@ -218,6 +218,23 @@ Add `#[CacheFor(seconds: 300)]` to a source that is expensive to resolve. The an
 in the app's default cache, for each range. It is up to you how long. Without the attribute
 every pull runs `resolve()`. A failure is never cached.
 
+## Groups
+
+Add `#[Group]` to file a source in Lumberjack's data source picker. Each name is a level of one path, so a source has one place:
+
+```php
+use ExeQue\Lumberjack\Contracts\DataSource;
+use ExeQue\Lumberjack\DataSources\Group;
+
+#[Group('Events', 'Storage')]
+class StorageUsedDataSource implements DataSource
+{
+    // key(), label() and resolve() as usual.
+}
+```
+
+The picker shows it under **Your project > Events > Storage**. Lumberjack keeps up to 3 levels of 40 characters. Without the attribute a source is listed under its project alone. A child class inherits it, like `#[CacheFor]`. Older Lumberjack servers ignore it. A source from `define()` has no class to carry it, so it stays ungrouped.
+
 ## The endpoint
 
 ```
