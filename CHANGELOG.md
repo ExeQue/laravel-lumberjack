@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-09
+
 ### Added
 
 - `Lumberjack::assertRecorded()`, `assertAlerted()` and `assertReported()` take a closure typed `AssertableEvent`, `AssertableAlert` or `AssertableReport`, with assertions and a failure that shows the closest record.
@@ -52,7 +54,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.3...v0.1.4
