@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 use ExeQue\Lumberjack\Facades\Lumberjack;
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableAlert;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableEvent;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableReport;
 use ExeQue\Lumberjack\Testing\EventType;
 use ExeQue\Lumberjack\Testing\FakeAgentClient;
 use ExeQue\Lumberjack\Testing\LumberjackFake;
@@ -126,5 +129,66 @@ describe('custom alerts', function () {
             ->toThrow(AssertionFailedError::class, '"Other" (topic: ops, level: warning)')
             ->and(fn () => Lumberjack::assertNothingAlerted())->toThrow(AssertionFailedError::class)
             ->and(fn () => Lumberjack::assertNotAlerted('Other'))->toThrow(AssertionFailedError::class);
+    });
+});
+
+describe('assertions in a closure', function () {
+    beforeEach(function () {
+        Lumberjack::fake();
+        app(Recorder::class)->record(['type' => 'log', 'level' => 'error', 'message' => 'two', 'context' => ['order' => 7]]);
+    });
+
+    it('passes when a record meets them all, and counts those', function () {
+        Lumberjack::assertRecorded(EventType::Log, fn (AssertableEvent $event) => $event->has('level', 'error')->has('context.order', 7)->missing('nope')->where('message', fn (string $m): bool => $m === 'two'), times: 1);
+    });
+
+    it('fails showing the closest record with the difference marked', function () {
+        expect(fn () => Lumberjack::assertRecorded(EventType::Log, fn (AssertableEvent $event) => $event->has('level', 'error')->has('message', 'three')))
+            ->toThrow(AssertionFailedError::class, '> message  "two" (expected "three")');
+    });
+
+    it('fails on a key that is not there', function () {
+        expect(fn () => Lumberjack::assertRecorded(EventType::Log, fn (AssertableEvent $event) => $event->has('nope')))->toThrow(AssertionFailedError::class, 'nope');
+    });
+
+    it('works for the negative too', function () {
+        Lumberjack::assertNotRecorded(EventType::Log, fn (AssertableEvent $event) => $event->has('message', 'three'));
+
+        expect(fn () => Lumberjack::assertNotRecorded(EventType::Log, fn (AssertableEvent $event) => $event->has('message', 'two')))->toThrow(AssertionFailedError::class);
+    });
+
+    it('does not hand a missing key to a typed check', function () {
+        app(Recorder::class)->record(['type' => 'log', 'level' => 'error', 'message' => 'x', 'ms' => 3]);
+
+        Lumberjack::assertRecorded(EventType::Log, fn (AssertableEvent $event) => $event->where('ms', fn (int $ms): bool => $ms < 5), times: 1);
+    });
+
+    it('counts a closure that answers false as failing', function () {
+        expect(fn () => Lumberjack::assertRecorded(EventType::Log, fn (AssertableEvent $event): bool => false))->toThrow(AssertionFailedError::class);
+    });
+
+    it('leaves an untyped closure answering for itself', function () {
+        Lumberjack::assertRecorded(EventType::Log, fn (array $event): bool => $event['message'] === 'two');
+    });
+});
+
+describe('assertions on alerts and reports', function () {
+    it('checks an alert', function () {
+        Lumberjack::fake();
+        Lumberjack::alert('Import done')->to('imports')->critical()->link('Open', 'https://example.com')->send();
+
+        Lumberjack::assertAlerted(fn (AssertableAlert $alert) => $alert->hasTitle('Import done')->toTopic('imports')->isCritical()->hasLink('Open', 'https://example.com'), times: 1);
+
+        expect(fn () => Lumberjack::assertAlerted(fn (AssertableAlert $alert) => $alert->isWarning()))->toThrow(AssertionFailedError::class, 'expected "warning"');
+    });
+
+    it('checks a report', function () {
+        Lumberjack::fake();
+        report(new RuntimeException('Boom'));
+
+        Lumberjack::assertReported(RuntimeException::class, fn (AssertableReport $report) => $report->hasMessage('Boom'));
+        Lumberjack::assertNotReported(RuntimeException::class, fn (AssertableReport $report) => $report->hasMessage('Other'));
+
+        expect(fn () => Lumberjack::assertReported(RuntimeException::class, fn (AssertableReport $report) => $report->hasMessage('Other')))->toThrow(AssertionFailedError::class, 'expected "Other"');
     });
 });

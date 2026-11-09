@@ -179,6 +179,18 @@ See [Health checks](health-checks.md).
 | `health.states.pull` | `LUMBERJACK_HEALTH_STATES_PULL` | `true` | Fetch states from Lumberjack when they are older than the ttl; `false` leaves them to the agent |
 | `health.states.memo` | `LUMBERJACK_HEALTH_STATES_MEMO` | `5` | Seconds a process keeps the states it read before reading the cache again; `0` reads every time |
 
+## Data sources
+
+See [Data sources](data-sources.md).
+
+| Key | Env | Default | |
+|---|---|---|---|
+| `data_sources.enabled` | `LUMBERJACK_DATA_SOURCES_ENABLED` | `false` | Turns the endpoint on; off means no route |
+| `data_sources.pull_token` | `LUMBERJACK_PULL_TOKEN` | | From the Data sources page in Lumberjack. Without it the endpoint answers 404 to everything |
+| `data_sources.path` | `LUMBERJACK_DATA_SOURCES_PATH` | `lumberjack/datasources` | Where the endpoint answers |
+| `data_sources.middleware` | | `[]` | More middleware, after the signature check |
+| `data_sources.sources` | | `[]` | Classes, as an instance cannot go through `config:cache` |
+
 ## Webhook
 
 See [Reacting to alerts](webhooks.md).

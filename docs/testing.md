@@ -68,6 +68,43 @@ A `RecordedAlert` has `title`, `topic`, `level`, `message`, `url`, `fields`, `ta
 `links`, `dedupeKey` and `dedupeMinutes`. Without a topic or a level, they are `default`
 and `info`, as on the server. `Lumberjack::alerts()` returns them.
 
+### Assertions in a closure
+
+Type a closure with an assertable class and it makes assertions rather than answering true or
+false. `times` counts the records that pass them all, and a failure shows the closest one:
+
+```php
+use ExeQue\Lumberjack\Testing\Assertable\{AssertableAlert, AssertableEvent, AssertableReport};
+
+Lumberjack::assertRecorded(EventType::Job, fn (AssertableEvent $event) => $event
+    ->has('queue', 'default')
+    ->has('name')
+    ->missing('exception')
+    ->where('duration_ms', fn ($ms) => $ms < 500));
+
+Lumberjack::assertAlerted(fn (AssertableAlert $alert) => $alert
+    ->hasTitle('Import done')
+    ->toTopic('imports')
+    ->isCritical()
+    ->hasField('Rows', '1200')
+    ->hasLink('Open'));
+
+Lumberjack::assertReported(PaymentFailed::class, fn (AssertableReport $report) => $report
+    ->hasMessage('Card declined')
+    ->hasContext('order_id', 42));
+```
+
+```
+Expected a [job] event passing the check, but found none.
+Closest of 3:
+  queue  "default"
+> status  "processed" (expected "failed")
+```
+
+`assertNotRecorded()`, `assertNotAlerted()` and `assertNotReported()` take them too. An alert also has
+`hasLevel()`, `isWarning()`, `hasMessage()`, `hasUrl()` and `hasDedupeKey()`. A closure without such
+a type goes on answering true or false.
+
 ## Health checks
 
 Make your own check and assert on its result:
@@ -97,6 +134,68 @@ app(HealthStates::class)->fill(['checks' => [
 ]]);
 
 expect(Lumberjack::health('disk:s3')->isHealthy())->toBeFalse();
+```
+
+## Data sources
+
+A source written as a class can be called directly, with the range you want to test. One from `define()` is tested with `dataSource('key')`, below.
+
+Add `InteractsWithDataSources` to a test case, and `$this->dataSource()` takes a registered key, a class or an instance. It runs `resolve()` itself, once per range and past any cache, so what a source throws reaches the test.
+
+```php
+use ExeQue\Lumberjack\Testing\InteractsWithDataSources;
+
+uses(InteractsWithDataSources::class);
+
+it('counts the orders of the period', function () {
+    Order::factory()->create(['created_at' => now()->subHours(2)]);
+    Order::factory()->create(['created_at' => now()->subDays(3)]);
+
+    $this->dataSource('orders:total')
+        ->forLast(hours: 24)
+        ->assertNumber(1)
+        ->assertCachedFor(300)
+        ->assertRegistered();
+});
+```
+
+The range is the last 24 hours unless `forLast()` or `between($from, $to)` says otherwise. `assertEmpty()`, `assertRowCount()`, `assertNotCached()`, `result()` and `data()` work on every shape. `assertSeries()`, `assertRows()` and `assertTable()` take the whole expected data, or a closure with assertions:
+
+```php
+$from = CarbonImmutable::parse('2026-11-09 08:00', 'UTC');
+$to = $from->addHours(6);
+
+$this->dataSource('orders:per-hour')->between($from, $to)->assertSeries(fn (AssertableSeries $series) => $series
+    ->hasPoints(6)->isChronological()->isWithinRange()->isEvery(hours: 1)->coversRange()
+    ->startsAt($from)->hasValueAt($from->addHours(2), 3)->hasNoValueAt($from->addHours(3))
+    ->sumsTo(12)->maxIs(3)->peaksAt($from->addHours(2))->averages(2.4)
+    ->each(fn (SeriesPoint $point) => $point->value >= 0));
+
+$this->dataSource('orders:per-hour')->assertSeries(['2026-11-09 10:00' => 1, '2026-11-09 11:00' => null]);
+
+$this->dataSource('orders:by-city')->assertRows(fn (AssertableList $rows) => $rows
+    ->hasRows(3)->startsWith('Oslo')->isSortedByValue(descending: true)
+    ->hasRow('Bergen', 7)->missingLabel('Tromsø')->sumsTo(30));
+
+$this->dataSource('orders:by-city')->assertRows(['Oslo' => 20, 'Bergen' => 7]);
+
+$this->dataSource('orders:report')->assertTable(fn (AssertableTable $table) => $table
+    ->hasColumns(['City', 'Orders'])->hasRow(['Oslo', 20])
+    ->hasRowWhere('City', 'Oslo', ['Orders' => 20])
+    ->column('Orders', fn (AssertableColumn $column) => $column->isNumeric()->sumsTo(27)->isSorted(descending: true))
+    ->eachRow(fn (array $row) => $row['Orders'] > 0));
+
+$this->dataSource('orders:report')->assertTable(['City', 'Orders'], [['Oslo', 20]]);
+```
+
+By position, where a negative one counts from the end: `pointIs(0, $at, 3)`, `timeIs()` and `valueIs()` on a series, `rowIs(0, 'Oslo', 20)`, `labelIs()` and `valueIs()` on a list, `rowIs(-1, ['Oslo', 20])` and `cellIs(0, 'Orders', 20)` on a table.
+
+A failure shows the data with the wrong row marked. Times are a date, a Unix time or a string read as UTC, and compared as moments.
+
+`pull()` goes through the real, signed endpoint with the app's middleware, and gives a `TestResponse`. It needs `LUMBERJACK_ENABLED=true` and `LUMBERJACK_DATA_SOURCES_ENABLED=true` in the test environment, as the route is made at boot. A 200 can still carry an `error` for the source, so assert on its data:
+
+```php
+$this->dataSource('orders:total')->pull()->assertOk()->assertJsonPath('sources.orders:total.data', 1);
 ```
 
 ## Webhook handlers

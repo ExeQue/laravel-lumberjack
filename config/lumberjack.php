@@ -277,6 +277,23 @@ return [
     ],
 
     /*
+     * Data the app offers Lumberjack's status screens: register sources with
+     * Lumberjack::dataSources()->add(). Turned on and with a pull token the package answers on this path;
+     * a request that is not signed with the token gets a 404, as if the path did not exist.
+     */
+    'data_sources' => [
+        // Off means no route at all, as with the webhook.
+        'enabled' => (bool) env('LUMBERJACK_DATA_SOURCES_ENABLED', false),
+        // From the Data sources page in Lumberjack. Without it the endpoint answers nobody.
+        'pull_token' => env('LUMBERJACK_PULL_TOKEN'),
+        'path' => env('LUMBERJACK_DATA_SOURCES_PATH', 'lumberjack/datasources'),
+        // On top of the signature check, which always runs first.
+        'middleware' => [],
+        // Classes: an instance cannot go through config:cache.
+        'sources' => [],
+    ],
+
+    /*
      * Where the app's own code lives, for code lines and in-app frames.
      * Leave it null for base_path().
      */

@@ -9,6 +9,7 @@ Sets Lumberjack up in the app: checks the URL and token with Lumberjack, writes 
 | `--url=` | The Lumberjack server's URL; `LUMBERJACK_URL` when left out |
 | `--token=` | The server token; `LUMBERJACK_TOKEN` when left out |
 | `--key=` | The public key, for browser errors; `LUMBERJACK_PUBLIC_KEY` when left out |
+| `--pull-token=` | The project's pull token, for [data sources](data-sources.md); `LUMBERJACK_PULL_TOKEN` |
 | `--checks=` | Health checks, comma separated: `database`, `cache`, `redis`, `disk:<disk>`, `queue`, `horizon`, `failed-jobs`, `debug-mode`, `migrations`, `mail`. `database:<connection>`, `cache:<store>`, `redis:<connection>`, `queue:<connection>`, `queue:<connection>:<queue>`, `migrations:<connection>` and `mail:<mailer>` name one; `disk` always needs its disk. The suggested checks when left out. An unknown name stops the command before it writes anything |
 | `--layout=` | A view to put `@lumberjack` in, relative to the app's root or absolute; repeat it or separate with commas for more. A file that does not exist is skipped with a warning. `auto` uses the only view under `resources/views` with a `</head>` and no `@lumberjack` yet, does nothing when there is none, and stops, writing nothing, when there are several |
 | `--queues=` | `LUMBERJACK_QUEUES`, e.g. `default,redis:emails` |
@@ -29,6 +30,16 @@ Runs [the agent](agent.md): it listens for the app's batches and sends them to L
 | `--memory=128` | Exit past this many MB so a fresh agent starts; 0 is no limit (`LUMBERJACK_AGENT_MEMORY`) |
 
 It needs `LUMBERJACK_URL` and `LUMBERJACK_TOKEN` and exits with 1 without them, or when it cannot listen on its port. With the `pcntl` extension it stops on `SIGTERM`, `SIGINT` or `SIGQUIT` after sending what it has; without it, use `lumberjack:terminate`. The agent records nothing of its own.
+
+## `lumberjack:data-sources:test`
+
+Checks the [data source](data-sources.md) setup the way Lumberjack will meet it: that the token is set, the URL is https, every source resolves, and that the endpoint answers a signed request over the network. It exits with 1 on a problem.
+
+With no sources registered it warns and stops before the signed call.
+
+| Option | |
+|---|---|
+| `--skip-http` | Only resolve the sources, without calling the endpoint |
 
 ## `lumberjack:terminate`
 

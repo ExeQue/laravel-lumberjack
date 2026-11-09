@@ -236,6 +236,38 @@ use ExeQue\Lumberjack\Release\GitReleaseResolver;
 
 A custom resolver implements `ExeQue\Lumberjack\Contracts\ReleaseResolver` (`resolve(): ?string`); the container makes it with the entry's parameters and passes the app's root as `path` when the constructor takes one.
 
+## Data sources
+
+Offer figures to Lumberjack's status screens from the app. Connect the app once on the Data sources page; Lumberjack then pulls which sources there are and their data.
+
+```php
+use ExeQue\Lumberjack\Contracts\DataSource;
+use ExeQue\Lumberjack\DataSources\{CacheFor, DataRange};
+use ExeQue\Lumberjack\DataSources\Results\NumberResult;
+
+#[CacheFor(seconds: 300)]
+class TotalMediaDataSource implements DataSource
+{
+    public function key(): string { return 'total-media'; }
+    public function label(): string { return 'Total media'; }
+    public function resolve(DataRange $range): NumberResult
+    {
+        return new NumberResult(Media::whereBetween('created_at', [$range->from, $range->to])->count());
+    }
+}
+
+// In a service provider's boot(). A class is made by the container when it is needed.
+Lumberjack::dataSources()->add(TotalMediaDataSource::class);
+// or, without a class:
+Lumberjack::dataSources()->define('orders:total', 'Orders', fn (DataRange $range): NumberResult => new NumberResult(Order::count()), cacheFor: 300);
+```
+
+The declared return type of `resolve()` is the shape, so declare the concrete class: `NumberResult(42)`, `SeriesResult(new SeriesPoint($date, 3), ...)` (at most 1000), `ListResult(new ListRow('Oslo', 3), ...)` (at most 100), `TableResult(['City', 'Orders'], [['Oslo', 3]])`. Only those fields leave the app.
+
+In tests, `uses(InteractsWithDataSources::class)` gives `$this->dataSource('key')->forLast(hours: 24)->assertNumber(3)`, `->assertSeries(fn (AssertableSeries $s) => $s->hasPoints(6)->isEvery(hours: 1))`, `->assertRows()`, `->assertTable()`, `->assertCachedFor(300)` and `->pull()`.
+
+Needs `LUMBERJACK_DATA_SOURCES_ENABLED=true` and `LUMBERJACK_PULL_TOKEN` from the Data sources page in Lumberjack, and https. The endpoint answers 404 to anything not signed with it. `php artisan lumberjack:data-sources:test` says what is wrong. `lumberjack.data_sources.path` moves it and `.middleware` adds middleware after the signature check.
+
 ## Custom alerts
 
 The code names a topic; the channels are picked on Lumberjack's Alerts page. Nothing leaves until `send()`.
@@ -249,6 +281,8 @@ Lumberjack::alert('Paid')->field('Amount', '499 kr', inline: true)->table(['Item
 The levels are `info`, `success`, `warning` and `critical`; each method takes a condition and the last true one wins. `level($value)` sets it from a value, `url($url)` links the title, and `Conditionable` works on the builder.
 
 In tests, `Lumberjack::fake()` keeps what would be sent: `Lumberjack::assertAlerted('Import done', topic: 'imports', level: 'success', times: 1)`, `assertNotAlerted()`, `assertNothingAlerted()`, `assertReported(PaymentFailed::class)`, `assertNotReported()`, and for any event `assertRecorded(EventType::Log, ['level' => 'error'])` or with a closure, `assertNotRecorded()`, `assertNothingRecorded()`.
+
+Any closure given to `assertRecorded()`, `assertNotRecorded()`, `assertAlerted()`, `assertNotAlerted()`, `assertReported()` or `assertNotReported()` can make assertions instead of answering true or false, by type-hinting `ExeQue\Lumberjack\Testing\Assertable\AssertableEvent`, `AssertableAlert` or `AssertableReport`: `Lumberjack::assertRecorded(EventType::Job, fn (AssertableEvent $event) => $event->has('queue', 'default')->missing('exception'))`, `Lumberjack::assertAlerted(fn (AssertableAlert $alert) => $alert->hasTitle('Import done')->toTopic('imports')->isCritical())`, `Lumberjack::assertReported(PaymentFailed::class, fn (AssertableReport $report) => $report->hasMessage('Card declined')->hasContext('order_id', 42))`. Prefer this over a boolean closure: a failure shows the closest record and what differed.
 
 ## Reacting to alerts (webhooks)
 

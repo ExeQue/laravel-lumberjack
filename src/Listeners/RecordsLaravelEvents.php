@@ -94,7 +94,8 @@ class RecordsLaravelEvents
             return;
         }
 
-        if ($this->rules->ignoresRoute($event->request->method(), $event->route->uri(), $event->request->path())) {
+        // Lumberjack's own pulls are not the app's traffic, and an unsigned one must look like nothing.
+        if ($event->route->getName() === 'lumberjack.data-sources' || $this->rules->ignoresRoute($event->request->method(), $event->route->uri(), $event->request->path())) {
             $this->recorder->capture(false);
 
             return;

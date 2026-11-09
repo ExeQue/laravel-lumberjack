@@ -78,6 +78,11 @@ class InstallCommand extends Command
             $this->setEnv('LUMBERJACK_PUBLIC_KEY', $connection['key']);
         }
 
+        if (($pullToken = $this->stringOption('pull-token')) !== null) {
+            $this->setEnv('LUMBERJACK_DATA_SOURCES_ENABLED', 'true');
+            $this->setEnv('LUMBERJACK_PULL_TOKEN', $pullToken, secret: true);
+        }
+
         $this->queues($config);
         $this->envExample();
         $this->layouts();
@@ -219,7 +224,7 @@ class InstallCommand extends Command
     private function envExample(): void
     {
         $example = new EnvFile($this->laravel->basePath('.env.example'));
-        $keys = array_filter(['LUMBERJACK_URL', 'LUMBERJACK_TOKEN', 'LUMBERJACK_PUBLIC_KEY', 'LUMBERJACK_QUEUES'], fn (string $key): bool => $this->env->get($key) !== null && $example->get($key) === null);
+        $keys = array_filter(['LUMBERJACK_URL', 'LUMBERJACK_TOKEN', 'LUMBERJACK_PUBLIC_KEY', 'LUMBERJACK_DATA_SOURCES_ENABLED', 'LUMBERJACK_PULL_TOKEN', 'LUMBERJACK_QUEUES'], fn (string $key): bool => $this->env->get($key) !== null && $example->get($key) === null);
 
         if (! $example->exists() || $keys === [] || ($this->input->isInteractive() && ! confirm('Add the keys to .env.example, with empty values?'))) {
             return;
@@ -531,6 +536,7 @@ class InstallCommand extends Command
             new InputOption('url', null, InputOption::VALUE_REQUIRED, 'The Lumberjack server\'s URL'),
             new InputOption('token', null, InputOption::VALUE_REQUIRED, 'The project\'s server token'),
             new InputOption('key', null, InputOption::VALUE_REQUIRED, 'The project\'s public key, for browser errors'),
+            new InputOption('pull-token', null, InputOption::VALUE_REQUIRED, 'The project\'s pull token, for data sources'),
             new InputOption('checks', null, InputOption::VALUE_REQUIRED, 'Health checks, comma separated, e.g. database,cache,disk:s3,queue:redis:emails'),
             new InputOption('layout', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'A layout to put @lumberjack in, relative to the app\'s root, or "auto" for the only layout there is'),
             new InputOption('queues', null, InputOption::VALUE_REQUIRED, 'Queues whose size the agent sends, e.g. default,redis:emails'),

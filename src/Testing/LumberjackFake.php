@@ -6,7 +6,13 @@ namespace ExeQue\Lumberjack\Testing;
 
 use Closure;
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableAlert;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableEvent;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableRecord;
+use ExeQue\Lumberjack\Testing\Assertable\AssertableReport;
 use PHPUnit\Framework\Assert;
+use ReflectionFunction;
+use ReflectionNamedType;
 
 /**
  * Asserts on the events the app would have sent to Lumberjack, as they would have been
@@ -28,7 +34,7 @@ class LumberjackFake
     /**
      * The events recorded so far.
      *
-     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|null  $matching  values by key (dot notation), or a check of each event
+     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|(Closure(AssertableEvent): mixed)|null  $matching  values by key (dot notation), a check of each event, or assertions typed AssertableEvent
      * @return list<array<string, mixed>>
      */
     public function recorded(?EventType $type = null, array|Closure|null $matching = null): array
@@ -41,15 +47,15 @@ class LumberjackFake
     }
 
     /**
-     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|null  $matching  values by key (dot notation), or a check of each event
+     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|(Closure(AssertableEvent): mixed)|null  $matching  values by key (dot notation), a check of each event, or assertions typed AssertableEvent
      */
     public function assertRecorded(EventType $type, array|Closure|null $matching = null, ?int $times = null): void
     {
-        $this->assertFound(count($this->recorded($type, $matching)), $times, $this->describe($type, $matching), $this->listing($this->recorded()));
+        $this->assertFound(count($this->recorded($type, $matching)), $times, $this->describe($type, $matching), self::isAssertable($matching) ? $this->closest($this->recorded($type), $matching) : $this->listing($this->recorded()));
     }
 
     /**
-     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|null  $matching  values by key (dot notation), or a check of each event
+     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|(Closure(AssertableEvent): mixed)|null  $matching  values by key (dot notation), a check of each event, or assertions typed AssertableEvent
      */
     public function assertNotRecorded(EventType $type, array|Closure|null $matching = null): void
     {
@@ -67,16 +73,18 @@ class LumberjackFake
 
     /**
      * @param  class-string  $exception  this class or one extending it
+     * @param  string|(Closure(AssertableReport): mixed)|null  $message  the message, or assertions on the report
      */
-    public function assertReported(string $exception, ?string $message = null, ?int $times = null): void
+    public function assertReported(string $exception, string|Closure|null $message = null, ?int $times = null): void
     {
-        $this->assertFound(count($this->reported($exception, $message)), $times, $this->describeReport($exception, $message), $this->listing($this->recorded(EventType::Exception)));
+        $this->assertFound(count($this->reported($exception, $message)), $times, $this->describeReport($exception, $message), self::isAssertable($message) ? $this->closest($this->reported($exception, null), $message) : $this->listing($this->recorded(EventType::Exception)));
     }
 
     /**
      * @param  class-string  $exception  this class or one extending it
+     * @param  string|(Closure(AssertableReport): mixed)|null  $message  the message, or assertions on the report
      */
-    public function assertNotReported(string $exception, ?string $message = null): void
+    public function assertNotReported(string $exception, string|Closure|null $message = null): void
     {
         $found = $this->reported($exception, $message);
 
@@ -95,7 +103,7 @@ class LumberjackFake
 
         return array_values(array_filter($alerts, fn (RecordedAlert $recorded): bool => match (true) {
             $topic !== null && $recorded->topic !== $topic, $level !== null && $recorded->level !== $level => false,
-            $alert instanceof Closure => $alert($recorded),
+            $alert instanceof Closure => $this->passes($alert, $recorded),
             $alert !== null => $recorded->title === $alert,
             default => true,
         }));
@@ -106,7 +114,7 @@ class LumberjackFake
      */
     public function assertAlerted(string|Closure|null $alert = null, ?string $topic = null, ?string $level = null, ?int $times = null): void
     {
-        $this->assertFound(count($this->alerts($alert, $topic, $level)), $times, $this->describeAlert($alert, $topic, $level), $this->alertListing($this->alerts()));
+        $this->assertFound(count($this->alerts($alert, $topic, $level)), $times, $this->describeAlert($alert, $topic, $level), self::isAssertable($alert) ? $this->closest($this->alerts(null, $topic, $level), $alert) : $this->alertListing($this->alerts()));
     }
 
     /**
@@ -126,12 +134,12 @@ class LumberjackFake
 
     /**
      * @param  array<string, mixed>  $event
-     * @param  array<string, mixed>|(Closure(array<string, mixed>): bool)|null  $matching
+     * @param  array<string, mixed>|Closure|null  $matching
      */
     private function matches(array $event, array|Closure|null $matching): bool
     {
         if ($matching instanceof Closure) {
-            return $matching($event);
+            return $this->passes($matching, $event);
         }
 
         foreach ($matching ?? [] as $key => $value) {
@@ -145,11 +153,78 @@ class LumberjackFake
 
     /**
      * @param  class-string  $exception
+     * @param  string|(Closure(AssertableReport): mixed)|null  $message
      * @return list<array<string, mixed>>
      */
-    private function reported(string $exception, ?string $message): array
+    private function reported(string $exception, string|Closure|null $message): array
     {
-        return $this->recorded(EventType::Exception, fn (array $event): bool => is_a($event['class'], $exception, true) && ($message === null || $event['message'] === $message));
+        return $this->recorded(EventType::Exception, fn (array $event): bool => is_a($event['class'], $exception, true) && match (true) {
+            $message === null => true,
+            $message instanceof Closure => $this->passes($message, $event),
+            default => $event['message'] === $message,
+        });
+    }
+
+    /**
+     * A closure that type-hints an assertable class makes assertions, whose outcome counts.
+     * Any other is a check that answers for itself.
+     */
+    private function passes(Closure $check, mixed $subject): bool
+    {
+        $record = self::assertableFor($check, $subject);
+
+        if ($record === null) {
+            return $check($subject);
+        }
+
+        return $check($record) !== false && $record->passed();
+    }
+
+    private static function isAssertable(mixed $check): bool
+    {
+        return $check instanceof Closure && self::assertableClass($check) !== null;
+    }
+
+    /**
+     * @return class-string<AssertableRecord>|null
+     */
+    private static function assertableClass(Closure $check): ?string
+    {
+        $parameters = (new ReflectionFunction($check))->getParameters();
+        $type = ($parameters[0] ?? null)?->getType();
+        $name = $type instanceof ReflectionNamedType ? $type->getName() : '';
+
+        return in_array($name, [AssertableEvent::class, AssertableAlert::class, AssertableReport::class], true) ? $name : null;
+    }
+
+    private static function assertableFor(Closure $check, mixed $subject): ?AssertableRecord
+    {
+        $class = self::assertableClass($check);
+
+        return $class === null ? null : new $class($subject);
+    }
+
+    /**
+     * The record that came nearest, with what differed marked.
+     *
+     * @param  array<int, mixed>  $subjects
+     */
+    private function closest(array $subjects, mixed $check): string
+    {
+        if ($subjects === [] || ! $check instanceof Closure) {
+            return "\nRecorded: nothing of that kind.";
+        }
+
+        $records = array_map(function (mixed $subject) use ($check): AssertableRecord {
+            $class = self::assertableClass($check) ?? AssertableEvent::class;
+            $record = new $class($subject);
+            $check($record);
+
+            return $record;
+        }, $subjects);
+        usort($records, fn (AssertableRecord $a, AssertableRecord $b): int => $a->mismatches() <=> $b->mismatches());
+
+        return "\nClosest of ".count($records).":\n".$records[0]->describe();
     }
 
     private function assertFound(int $found, ?int $times, string $what, string $listing): void
@@ -175,9 +250,13 @@ class LumberjackFake
         };
     }
 
-    private function describeReport(string $exception, ?string $message): string
+    private function describeReport(string $exception, string|Closure|null $message): string
     {
-        return "a reported [{$exception}]".($message === null ? '' : " with the message \"{$message}\"");
+        return "a reported [{$exception}]".match (true) {
+            $message === null => '',
+            $message instanceof Closure => ' passing the check',
+            default => " with the message \"{$message}\"",
+        };
     }
 
     private function describeAlert(string|Closure|null $alert, ?string $topic, ?string $level): string

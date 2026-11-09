@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Facades;
 
 use Closure;
+use ExeQue\Lumberjack\DataSources\DataSourceRegistry;
 use ExeQue\Lumberjack\Health\HealthCheckHandle;
 use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Health\HealthStates;
@@ -29,6 +30,15 @@ use RuntimeException;
  */
 class Lumberjack extends Facade
 {
+    /**
+     * The data sources this app offers Lumberjack: add() a DataSource, or a class the
+     * container makes when it is needed.
+     */
+    public static function dataSources(): DataSourceRegistry
+    {
+        return app(DataSourceRegistry::class);
+    }
+
     /**
      * The health check registry: the one place checks are registered, through its
      * fluent built-ins, check() and add().
@@ -122,7 +132,7 @@ class Lumberjack extends Facade
     /**
      * @param  class-string  $exception  this class or one extending it
      */
-    public static function assertReported(string $exception, ?string $message = null, ?int $times = null): void
+    public static function assertReported(string $exception, string|Closure|null $message = null, ?int $times = null): void
     {
         self::faked()->assertReported($exception, $message, $times);
     }
@@ -130,7 +140,7 @@ class Lumberjack extends Facade
     /**
      * @param  class-string  $exception  this class or one extending it
      */
-    public static function assertNotReported(string $exception, ?string $message = null): void
+    public static function assertNotReported(string $exception, string|Closure|null $message = null): void
     {
         self::faked()->assertNotReported($exception, $message);
     }

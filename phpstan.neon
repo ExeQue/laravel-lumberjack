@@ -6,3 +6,7 @@ parameters:
     paths:
         - src
     tmpDir: build/phpstan
+    ignoreErrors:
+        # For the test cases of the apps that use the package.
+        - identifier: trait.unused
+          path: src/Testing/InteractsWithDataSources.php

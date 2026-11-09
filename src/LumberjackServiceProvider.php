@@ -6,10 +6,15 @@ namespace ExeQue\Lumberjack;
 
 use Closure;
 use ExeQue\Lumberjack\Console\AgentCommand;
+use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
 use ExeQue\Lumberjack\Console\InstallCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
+use ExeQue\Lumberjack\DataSources\DataSourceEndpoint;
+use ExeQue\Lumberjack\DataSources\DataSourceRegistry;
+use ExeQue\Lumberjack\DataSources\Http\DataSourcesController;
+use ExeQue\Lumberjack\DataSources\Http\VerifyPullSignature;
 use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
@@ -41,6 +46,7 @@ use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Queue\Events\WorkerStopping;
 use Illuminate\Routing\Events\RouteMatched;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Compilers\BladeCompiler;
@@ -106,6 +112,8 @@ class LumberjackServiceProvider extends ServiceProvider
         $this->app->singleton(Handlers::class);
         $this->app->singleton(QueueWorkers::class, fn (Application $app): QueueWorkers => new QueueWorkers($app->make('cache')->store()));
 
+        $this->app->singleton(DataSourceRegistry::class, fn (Application $app): DataSourceRegistry => new DataSourceRegistry($app, (array) config('lumberjack.data_sources.sources', [])));
+
         $this->app->singleton(HealthRegistry::class, fn (Application $app): HealthRegistry => new HealthRegistry($app, (array) config('lumberjack.health.checks', [])));
 
         $this->app->singleton(HealthStates::class, fn (Application $app): HealthStates => new HealthStates(
@@ -140,7 +148,7 @@ class LumberjackServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->publishes([__DIR__.'/../config/lumberjack.php' => config_path('lumberjack.php')], 'lumberjack-config');
             // Also when turned off: they say so and do nothing.
-            $this->commands([AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class]);
+            $this->commands([DataSourcesTestCommand::class, AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class]);
         }
 
         // Also when turned off, so @lumberjack still compiles (to nothing) and a log channel
@@ -163,6 +171,15 @@ class LumberjackServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->scheduleHealthChecks();
+        }
+
+        // Only when turned on. Every standard method, so that only the check answers and a POST cannot
+        // tell the path exists by a 405. The token is read per request. Outside the web group;
+        // the configured middleware runs after the check.
+        if ((bool) config('lumberjack.data_sources.enabled', false)) {
+            Route::match([...Router::$verbs, 'TRACE', 'CONNECT'], $this->string('data_sources.path') ?? DataSourceEndpoint::DEFAULT_PATH, DataSourcesController::class)
+                ->middleware([VerifyPullSignature::class, ...array_values((array) config('lumberjack.data_sources.middleware', []))])
+                ->name('lumberjack.data-sources');
         }
 
         // Only when turned on. Outside the web middleware group, so no session or CSRF;

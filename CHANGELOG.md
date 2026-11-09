@@ -4,6 +4,11 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `Lumberjack::assertRecorded()`, `assertAlerted()` and `assertReported()` take a closure typed `AssertableEvent`, `AssertableAlert` or `AssertableReport`, with assertions and a failure that shows the closest record.
+- Data sources: `Lumberjack::dataSources()->add()` offers figures, series, lists and tables to status screens. Connect the app once in Lumberjack, which then pulls them itself, one source per call, over a signed, https-only endpoint that answers 404 to everything unsigned. `Lumberjack::dataSources()->define()` does the same from a closure, with no class. A source returns a typed result (`NumberResult`, `SeriesResult`, `ListResult`, `TableResult`), and its shape follows from the declared return type. `InteractsWithDataSources` gives tests `$this->dataSource()` with assertions on numbers, series, lists and tables. `#[CacheFor]` keeps an answer per range, and `lumberjack:data-sources:test` checks the setup. Needs `LUMBERJACK_DATA_SOURCES_ENABLED=true` and `LUMBERJACK_PULL_TOKEN`.
+
 ## [0.1.6] - 2026-11-09
 
 ### Added
