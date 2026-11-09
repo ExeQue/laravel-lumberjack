@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-09
+
 ### Added
 
 - `DataRange` has `bucket`, `timezone` and `buckets()`: Lumberjack says how a series is to be grouped. `inBuckets()` asks the same way in a test.
@@ -58,7 +60,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.6...v0.2.0
 [0.1.6]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.4...v0.1.5
