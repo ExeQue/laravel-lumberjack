@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-09
+
 ### Added
 
 - `#[Group('Events', 'Storage')]` files a data source under a nested path in Lumberjack's data source picker. The catalog carries it as `group`, and older servers ignore it.
@@ -76,7 +78,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.2.0...v0.3.0
