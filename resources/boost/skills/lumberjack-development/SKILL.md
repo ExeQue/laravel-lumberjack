@@ -245,6 +245,8 @@ Lumberjack::alert('Paid')->field('Amount', '499 kr', inline: true)->table(['Item
 
 The levels are `info`, `success`, `warning` and `critical`; each method takes a condition and the last true one wins. `level($value)` sets it from a value, `url($url)` links the title, and `Conditionable` works on the builder.
 
+In tests, `Lumberjack::fake()` keeps what would be sent: `Lumberjack::assertAlerted('Import done', topic: 'imports', level: 'success', times: 1)`, `assertNotAlerted()`, `assertNothingAlerted()`, `assertReported(PaymentFailed::class)`, `assertNotReported()`, and for any event `assertRecorded(EventType::Log, ['level' => 'error'])` or with a closure, `assertNotRecorded()`, `assertNothingRecorded()`.
+
 ## Reacting to alerts (webhooks)
 
 Lumberjack posts alerts to the app when a webhook channel points at it. Turn on the route:

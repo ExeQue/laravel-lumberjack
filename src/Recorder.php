@@ -64,7 +64,7 @@ class Recorder
      * @param  array{environment?: ?string, release?: (Closure(): ?string)|string|null, project?: ?string}  $config  release may be worked out at the first flush
      */
     public function __construct(
-        private readonly AgentClient $client,
+        private AgentClient $client,
         private readonly ExceptionPresenter $presenter,
         private readonly ExceptionContext $context,
         private readonly RecordingRules $rules,
@@ -74,6 +74,16 @@ class Recorder
     ) {
         $this->enabled = $enabled;
         $this->reported = new WeakMap();
+    }
+
+    /**
+     * Records for a test, into this client, even when recording is turned off.
+     */
+    public function fake(AgentClient $client): void
+    {
+        $this->client = $client;
+        $this->enabled = true;
+        $this->events = [];
     }
 
     public function enabled(): bool

@@ -53,6 +53,8 @@ class LumberjackServiceProvider extends ServiceProvider
     /** How long a health run may hold the scheduler's overlap lock. */
     public const int HEALTH_LOCK_MINUTES = 5;
 
+    private bool $recording = false;
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/lumberjack.php', 'lumberjack');
@@ -169,6 +171,19 @@ class LumberjackServiceProvider extends ServiceProvider
 
         // Config the app wrote (rules, scrub patterns, release resolvers) is read here; a
         // mistake in it costs the recording, never the app's boot.
+        $this->startRecording();
+    }
+
+    /**
+     * Subscribes the listeners that record, once.
+     */
+    public function startRecording(): void
+    {
+        if ($this->recording) {
+            return;
+        }
+
+        $this->recording = true;
         Safely::run($this->record(...));
     }
 
