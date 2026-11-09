@@ -4,6 +4,12 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-09
+
+### Added
+
+- A scheduled task's event carries its description, from the schedule or else from the artisan command itself.
+
 ## [0.1.4] - 2026-11-09
 
 ### Fixed
@@ -34,7 +40,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.1...v0.1.2

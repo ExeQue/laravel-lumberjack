@@ -62,6 +62,21 @@ describe('job parameters', function () {
 });
 
 describe('scheduled tasks', function () {
+    it('sends the artisan command\'s own description when the schedule gives none', function () {
+        event(new ScheduledTaskSkipped(app(Schedule::class)->command('lumberjack:terminate')->hourly()));
+
+        expect($this->sentEvents('schedule')[0])->toMatchArray([
+            'name' => 'artisan lumberjack:terminate',
+            'description' => 'Ask the local Lumberjack agent to send what it has and exit',
+        ]);
+    });
+
+    it('sends no description for a command it does not know', function () {
+        event(new ScheduledTaskSkipped(app(Schedule::class)->command('gone:command')->hourly()));
+
+        expect($this->sentEvents('schedule')[0])->not->toHaveKey('description');
+    });
+
     it('sends the command beside the description that names the task', function () {
         event(new ScheduledTaskSkipped(app(Schedule::class)->command('reports:send')->description('Send the reports')->hourly()));
 

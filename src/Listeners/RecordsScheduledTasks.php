@@ -14,7 +14,9 @@ use Illuminate\Console\Events\ScheduledTaskSkipped;
 use Illuminate\Console\Events\ScheduledTaskStarting;
 use Illuminate\Console\Scheduling\Event as Task;
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Command\Command as SymfonyCommand;
 use Throwable;
 
 /**
@@ -28,6 +30,9 @@ class RecordsScheduledTasks
 
     /** @var array<int, true> tasks whose run just ended, by task */
     private array $ended = [];
+
+    /** @var array<string, string>|null */
+    private ?array $commandDescriptions = null;
 
     public function __construct(
         private readonly Recorder $recorder,
@@ -68,6 +73,38 @@ class RecordsScheduledTasks
 
         // "'/usr/bin/php8.4' 'artisan' reports:send" reads as "artisan reports:send".
         return trim((string) preg_replace('#^\S*php[^\s\']*\'?\s+\'?artisan\'?\s+#', 'artisan ', $task->command));
+    }
+
+    /**
+     * What the schedule says the task does, else the artisan command's own description.
+     */
+    private function description(Task $task): ?string
+    {
+        if ($task->description !== null && $task->description !== '') {
+            return $task->description;
+        }
+
+        $name = preg_match('#^artisan (\S+)#', (string) self::command($task), $match) === 1 ? $match[1] : null;
+
+        return $name === null ? null : ($this->commandDescriptions()[$name] ?? null);
+    }
+
+    /**
+     * Every command once per process: a scheduler run reports each task several times.
+     *
+     * @return array<string, string>
+     */
+    private function commandDescriptions(): array
+    {
+        if ($this->commandDescriptions !== null) {
+            return $this->commandDescriptions;
+        }
+
+        try {
+            return $this->commandDescriptions = array_map(fn (SymfonyCommand $command): string => $command->getDescription(), Artisan::all());
+        } catch (Throwable) {
+            return $this->commandDescriptions = [];
+        }
     }
 
     private function starting(Task $task): void
@@ -179,6 +216,7 @@ class RecordsScheduledTasks
             'uuid' => $uuid,
             'name' => self::name($task),
             'command' => self::command($task),
+            'description' => $this->description($task),
             'expression' => $task->expression,
             'timezone' => is_string($task->timezone) ? $task->timezone : ($task->timezone?->getName()),
             'next_run_at' => $this->nextRun($task),
