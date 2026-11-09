@@ -50,18 +50,24 @@ class RecordsScheduledTasks
 
     public static function name(Task $task): string
     {
-        $command = $task->command;
-
         if ($task->description !== null && $task->description !== '') {
             return $task->description;
         }
 
-        if (! is_string($command) || $command === '') {
-            return $task->getSummaryForDisplay();
+        return self::command($task) ?? $task->getSummaryForDisplay();
+    }
+
+    /**
+     * The command the task runs, which a closure does not have.
+     */
+    public static function command(Task $task): ?string
+    {
+        if (! is_string($task->command) || $task->command === '') {
+            return null;
         }
 
         // "'/usr/bin/php8.4' 'artisan' reports:send" reads as "artisan reports:send".
-        return trim((string) preg_replace('#^\S*php[^\s\']*\'?\s+\'?artisan\'?\s+#', 'artisan ', $command));
+        return trim((string) preg_replace('#^\S*php[^\s\']*\'?\s+\'?artisan\'?\s+#', 'artisan ', $task->command));
     }
 
     private function starting(Task $task): void
@@ -172,6 +178,7 @@ class RecordsScheduledTasks
             'status' => $status,
             'uuid' => $uuid,
             'name' => self::name($task),
+            'command' => self::command($task),
             'expression' => $task->expression,
             'timezone' => is_string($task->timezone) ? $task->timezone : ($task->timezone?->getName()),
             'next_run_at' => $this->nextRun($task),

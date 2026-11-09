@@ -4,6 +4,12 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-11-09
+
+### Added
+
+- A scheduled task's event carries the command it runs, also when the task has a description.
+
 ## [0.1.2] - 2026-11-09
 
 ### Added
@@ -22,7 +28,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ExeQue/laravel-lumberjack/releases/tag/v0.1.0

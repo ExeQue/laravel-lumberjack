@@ -62,6 +62,12 @@ describe('job parameters', function () {
 });
 
 describe('scheduled tasks', function () {
+    it('sends the command beside the description that names the task', function () {
+        event(new ScheduledTaskSkipped(app(Schedule::class)->command('reports:send')->description('Send the reports')->hourly()));
+
+        expect($this->sentEvents('schedule')[0])->toMatchArray(['name' => 'Send the reports', 'command' => 'artisan reports:send']);
+    });
+
     beforeEach(fn () => $this->task = app(Schedule::class)->command('reports:send')->hourly());
 
     it('reports a run with its own trace, its queries, duration and next run', function () {
