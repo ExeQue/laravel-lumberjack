@@ -16,6 +16,7 @@
 /CONTRIBUTING.md        export-ignore
 /.vitepress            export-ignore
 /docs                  export-ignore
+/public                export-ignore
 /package.json          export-ignore
 /package-lock.json     export-ignore
 /.nvmrc                export-ignore
