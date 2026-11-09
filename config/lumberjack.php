@@ -85,6 +85,11 @@ return [
         'spool_path' => storage_path('lumberjack/spool'),
         'spool_max_bytes' => 100 * 1024 * 1024,
 
+        // Where the app keeps batches while the agent is away, e.g. restarting in a deploy.
+        // They are sent once it is back. null drops them instead.
+        'app_spool_path' => storage_path('lumberjack/app-spool'),
+        'app_spool_max_bytes' => 10 * 1024 * 1024,
+
         // Past this much memory (MB) the agent sends what it has and exits, so
         // Supervisor or systemd starts a fresh one. 0 turns the limit off.
         'memory_limit' => (int) env('LUMBERJACK_AGENT_MEMORY', 128),

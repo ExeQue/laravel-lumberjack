@@ -71,25 +71,25 @@ With Docker Compose, run the agent as its own service from the app's image. A co
 
 ```yaml
 services:
-  app:
-    environment:
-      LUMBERJACK_AGENT_HOST: lumberjack-agent
-  lumberjack-agent:
-    image: your-app-image   # the app's own image
-    command: php artisan lumberjack:agent --host=0.0.0.0
-    restart: unless-stopped
+    app:
+        environment:
+            LUMBERJACK_AGENT_HOST: lumberjack-agent
+    lumberjack-agent:
+        image: your-app-image # the app's own image
+        command: php artisan lumberjack:agent --host=0.0.0.0
+        restart: unless-stopped
 ```
 
 On Kubernetes, run it as a sidecar container in the app's pod. Containers in a pod share its network, so the app reaches it on `127.0.0.1` as usual:
 
 ```yaml
 containers:
-  - name: lumberjack-agent
-    image: your-app-image   # the app's own image
-    command: ["php", "artisan", "lumberjack:agent"]
-    envFrom:
-      - secretRef:
-          name: your-app-env   # the same environment as the app
+    - name: lumberjack-agent
+      image: your-app-image # the app's own image
+      command: ["php", "artisan", "lumberjack:agent"]
+      envFrom:
+          - secretRef:
+                name: your-app-env # the same environment as the app
 ```
 
 A host name in `LUMBERJACK_AGENT_HOST` is looked up once a minute per process (with APCu, once a minute for the whole PHP-FPM pool), not on every batch. PHP-FPM without APCu looks it up once per request, a few milliseconds on Docker's DNS; set an IP to skip the lookup altogether.
@@ -129,11 +129,16 @@ the kernel's buffer and the app carries on.
 ### What the app notices
 
 Nothing. The app never talks to Lumberjack while it records: it hands each batch to
-the local agent over TCP with a 50 ms connect timeout and 1 s for the whole write, and
-drops the batch if the agent is not there. After a failed send a process stops trying
+the local agent over TCP with a 50 ms connect timeout and 1 s for the whole write. If the
+agent is not there, for example while it restarts in a deploy, the batch waits in
+`storage/lumberjack/app-spool` and is sent after the next batch that gets through, a few at
+a time. That also goes for custom alerts. The spool holds at most 10 MB, a batch waits at most an hour, and files are
+readable only by the user that wrote them, so run the app and its queue workers as one user.
+Set `lumberjack.agent.app_spool_path` to `null` to drop batches instead. After a failed
+send a process stops trying
 for 5 seconds, so a queue worker does not pay the timeout on every job while the agent
-is down; the first batch that gets through again carries a warning log line saying how
-many batches were dropped. Lumberjack being slow or down only reaches
+is down; a batch that could not be kept is counted, and the first batch that gets through
+again carries a warning log line saying how many were dropped. Lumberjack being slow or down only reaches
 the agent, which spools. Recording itself is guarded too: a listener, the log
 handler, the browser script or the work done when the app terminates gives up when it
 fails, writes a line to PHP's error log and lets the app's request, job or command carry
@@ -173,12 +178,12 @@ The agent sends what it holds and exits; Supervisor or systemd starts it again. 
 
 Every minute the agent tells Lumberjack it is alive, with its host, its name and what it is:
 
-| Part | Sent as |
-|---|---|
-| SDK | `lumberjack.php.laravel` and the package version |
-| Agent | `lumberjack-agent-php` and the version of `exeque/lumberjack-agent` |
-| Runtime | `php` and the PHP version |
-| Framework | `laravel` and the Laravel version |
+| Part      | Sent as                                                             |
+| --------- | ------------------------------------------------------------------- |
+| SDK       | `lumberjack.php.laravel` and the package version                    |
+| Agent     | `lumberjack-agent-php` and the version of `exeque/lumberjack-agent` |
+| Runtime   | `php` and the PHP version                                           |
+| Framework | `laravel` and the Laravel version                                   |
 
 A project's settings show each agent as online while its heartbeat is recent, with what it runs (e.g. "Laravel 0.1.0 · PHP 8.5.1"). The ids stay the same when packages are renamed; SDKs for other languages follow the same `lumberjack.<language>.<integration>` scheme.
 
@@ -194,12 +199,12 @@ or `LUMBERJACK_QUEUES=default,redis:emails` in `.env`.
 
 For each queue the agent sends:
 
-| Field | |
-|---|---|
-| `connection`, `queue` | Which queue |
-| `size` | Jobs on it, as `Queue::size()` counts them (pending, delayed and reserved on Redis) |
-| `oldest_age_s` | Seconds the oldest pending job has waited, where the driver can tell cheaply (Redis, database); otherwise `null` |
-| `workers` | Workers running on it, from the [workers' signs of life](#queue-workers); left out when no worker has ever run on it here |
+| Field                 |                                                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `connection`, `queue` | Which queue                                                                                                               |
+| `size`                | Jobs on it, as `Queue::size()` counts them (pending, delayed and reserved on Redis)                                       |
+| `oldest_age_s`        | Seconds the oldest pending job has waited, where the driver can tell cheaply (Redis, database); otherwise `null`          |
+| `workers`             | Workers running on it, from the [workers' signs of life](#queue-workers); left out when no worker has ever run on it here |
 
 ### Queue workers
 
@@ -213,12 +218,12 @@ A queue that cannot be measured (Redis is down, a connection that does not exist
 
 The heartbeat also tells how busy the agent's host is, as `metrics`:
 
-| Field | Read from |
-|---|---|
-| `cpu_load_1m` | `sys_getloadavg()` |
-| `cpu_cores` | The container's CPU limit (cgroup v2 `cpu.max`), else the processors in `/proc/cpuinfo` |
+| Field                                     | Read from                                                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `cpu_load_1m`                             | `sys_getloadavg()`                                                                                       |
+| `cpu_cores`                               | The container's CPU limit (cgroup v2 `cpu.max`), else the processors in `/proc/cpuinfo`                  |
 | `memory_used_bytes`, `memory_total_bytes` | The container's memory (cgroup v2 `memory.current` and `memory.max`, or cgroup v1), else `/proc/meminfo` |
-| `disk_used_bytes`, `disk_total_bytes` | The disk the app lives on (`base_path()`) |
-| `php_memory_peak_bytes` | The agent process's own peak memory |
+| `disk_used_bytes`, `disk_total_bytes`     | The disk the app lives on (`base_path()`)                                                                |
+| `php_memory_peak_bytes`                   | The agent process's own peak memory                                                                      |
 
 Inside a container the limits of the container count, not those of the machine; a container without a memory limit reports the machine's total. Nothing runs a program to find out, so it costs next to nothing. What the system does not tell (load and memory on Windows, memory and cores on macOS) is sent as `null`. Lumberjack shows the values and their trend on the project's agents.

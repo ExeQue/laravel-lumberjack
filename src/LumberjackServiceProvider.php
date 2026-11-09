@@ -63,6 +63,8 @@ class LumberjackServiceProvider extends ServiceProvider
             $this->string('agent.host') ?? '127.0.0.1',
             (int) config('lumberjack.agent.port', 2407),
             key: ProjectFingerprint::agentKey($this->string('token'), $this->string('agent.key')),
+            spoolPath: $this->string('agent.app_spool_path'),
+            spoolMaxBytes: (int) config('lumberjack.agent.app_spool_max_bytes', AgentClient::SPOOL_MAX_BYTES),
         ));
 
         $this->app->singleton(RecordingRules::class, fn (): RecordingRules => RecordingRules::fromConfig((array) config('lumberjack', [])));

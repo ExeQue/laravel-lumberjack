@@ -55,3 +55,20 @@ describe('recording never breaks the app', function () {
         expect(true)->toBeTrue();
     });
 });
+
+describe('while the agent is away', function () {
+    it('keeps what the app sends in the configured folder', function () {
+        $path = sys_get_temp_dir().'/lumberjack-app-spool-'.bin2hex(random_bytes(4));
+        $this->withConfig(['lumberjack.agent.port' => 1, 'lumberjack.agent.app_spool_path' => $path]);
+        app()->forgetInstance(ExeQue\LumberjackAgent\AgentClient::class);
+        app()->offsetUnset(ExeQue\LumberjackAgent\AgentClient::class);
+        (new ExeQue\Lumberjack\LumberjackServiceProvider(app()))->register();
+
+        app(ExeQue\LumberjackAgent\AgentClient::class)->send(['v' => 1, 'events' => [['type' => 'log']]]);
+
+        expect(glob($path.'/*.json.gz'))->toHaveCount(1);
+
+        array_map('unlink', glob($path.'/*') ?: []);
+        rmdir($path);
+    });
+});
