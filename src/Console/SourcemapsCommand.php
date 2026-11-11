@@ -7,6 +7,7 @@ namespace ExeQue\Lumberjack\Console;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory as Http;
+use Illuminate\Http\Client\RequestException;
 use Symfony\Component\Console\Input\InputOption;
 use Throwable;
 
@@ -19,10 +20,13 @@ class SourcemapsCommand extends Command
 {
     public const string PATH = 'public/build/assets';
 
-    /** Tries per map while Lumberjack cannot be reached; an answer, even a refusal, is final. */
+    /** Tries per map while Lumberjack cannot be reached or asks to slow down; any other answer is final. */
     public const int TRIES = 3;
 
     public const int RETRY_MS = 1000;
+
+    /** The longest Retry-After waited for; Lumberjack's limit is per minute. */
+    public const int MAX_RETRY_AFTER = 60;
 
     public const int TIMEOUT = 30;
 
@@ -48,7 +52,7 @@ class SourcemapsCommand extends Command
         }
 
         $option = $this->option('path') ?: self::PATH;
-        $dir = realpath(str_starts_with($option, '/') ? $option : base_path($option));
+        $dir = realpath(preg_match('~^([a-z]:)?[/\\\\]~i', $option) === 1 ? $option : base_path($option));
         $public = realpath(public_path());
 
         if ($dir === false || ! is_dir($dir)) {
@@ -58,7 +62,7 @@ class SourcemapsCommand extends Command
         }
 
         // The server needs the URL path each map's bundle is served at.
-        if ($public === false || ! str_starts_with($dir.'/', $public.'/')) {
+        if ($public === false || ! $this->inside($dir, $public)) {
             $this->components->error("{$option} is not inside the public directory.");
 
             return self::FAILURE;
@@ -77,8 +81,13 @@ class SourcemapsCommand extends Command
 
         foreach ($maps as $map) {
             // public/build/assets/app-3f9a.js.map belongs to /build/assets/app-3f9a.js.
-            $path = substr($map, strlen($public), -strlen('.map'));
-            $error = $this->upload($http, $url, $token, $map, $path, is_string($release) ? $release : null);
+            $path = str_replace(DIRECTORY_SEPARATOR, '/', substr($map, strlen($public), -strlen('.map')));
+            $real = realpath($map);
+
+            // A symlinked map could point anywhere; only what public holds is uploaded.
+            $error = $real !== false && $this->inside($real, $public)
+                ? $this->upload($http, $url, $token, $map, $path, is_string($release) ? $release : null)
+                : 'not inside the public directory';
 
             if ($error !== null) {
                 $failed = true;
@@ -110,14 +119,36 @@ class SourcemapsCommand extends Command
 
         try {
             $response = $http->withToken($token)->timeout(self::TIMEOUT)
-                ->retry(self::TRIES, self::RETRY_MS, fn (Throwable $e): bool => $e instanceof ConnectionException, throw: false)
+                ->retry(self::TRIES, $this->retryDelay(...), fn (Throwable $e): bool => $e instanceof ConnectionException || $this->tooManyRequests($e), throw: false)
                 ->attach('file', $contents, basename($map))
                 ->post($url.'/api/ingest/sourcemaps', array_filter(['path' => $path, 'release' => $release]));
         } catch (ConnectionException) {
             return 'Lumberjack could not be reached';
+        } catch (Throwable $e) {
+            return $e->getMessage();
         }
 
         return $response->successful() ? null : "refused (HTTP {$response->status()})";
+    }
+
+    private function inside(string $path, string $public): bool
+    {
+        return str_starts_with($path.DIRECTORY_SEPARATOR, $public.DIRECTORY_SEPARATOR);
+    }
+
+    private function tooManyRequests(Throwable $e): bool
+    {
+        return $e instanceof RequestException && $e->response->status() === 429;
+    }
+
+    /**
+     * Waits as long as Lumberjack's Retry-After asks, within reason.
+     */
+    private function retryDelay(int $attempt, Throwable $e): int
+    {
+        $after = $e instanceof RequestException && $e->response->status() === 429 ? $e->response->header('Retry-After') : '';
+
+        return is_numeric($after) ? min((int) $after, self::MAX_RETRY_AFTER) * 1000 : self::RETRY_MS;
     }
 
     /**

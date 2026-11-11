@@ -59,8 +59,8 @@ class ReportsMaintenance
             'events' => [$event],
         ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_SLASHES));
 
-        // Sent, or refused as such (an agent would be refused too).
-        $sender = ($this->sender)();
+        // Sent, or refused as such (an agent would be refused too). A faked recorder keeps it.
+        $sender = $this->recorder->faked() ? null : ($this->sender)();
 
         if ($sender !== null && $body !== false && $sender->send($body) !== SendResult::Retry) {
             return;

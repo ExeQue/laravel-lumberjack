@@ -4,6 +4,12 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `php artisan lumberjack:sourcemaps` uploads a build's source maps to Lumberjack, tagged with the release, so browser errors from minified bundles show the original code. `--path` picks the directory inside `public`, `--delete` removes each map once uploaded. A 429 is retried after its `Retry-After`.
+- `artisan down` and `artisan up` are reported to Lumberjack as maintenance, straight away, and through the agent when Lumberjack cannot be reached. Turned off with `LUMBERJACK_MAINTENANCE=false`; `LUMBERJACK_MAINTENANCE_EXPECTED_MINUTES` sends how long it should take.
+- `EventType::Maintenance`, for asserting on maintenance reports under `Lumberjack::fake()`.
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixed
