@@ -28,7 +28,11 @@ class SourcemapsCommand extends Command
     /** The longest Retry-After waited for; Lumberjack's limit is per minute. */
     public const int MAX_RETRY_AFTER = 60;
 
+    /** Seconds an upload may take at least; a large map gets more, at UPLOAD_BYTES_PER_SECOND. */
     public const int TIMEOUT = 30;
+
+    /** A slow uplink's speed, so a 20 MB map is not cut off before it is sent. */
+    public const int UPLOAD_BYTES_PER_SECOND = 256 * 1024;
 
     public const int CONNECT_TIMEOUT = 5;
 
@@ -103,8 +107,8 @@ class SourcemapsCommand extends Command
         $unreachable = false;
 
         foreach ($maps as $map) {
-            // public/build/assets/app-3f9a.js.map belongs to /build/assets/app-3f9a.js.
-            $path = $prefix.'/'.basename($map, '.map');
+            // public/build/assets/app-3f9a.js.map belongs to /build/assets/app-3f9a.js, encoded as a browser asks for it.
+            $path = implode('/', array_map(rawurlencode(...), explode('/', $prefix.'/'.basename($map, '.map'))));
             $mapReal = realpath($map);
 
             // A symlinked map could point anywhere; only what the directory holds is uploaded.
@@ -131,7 +135,8 @@ class SourcemapsCommand extends Command
             $this->components->twoColumnDetail($path, '<fg=green>uploaded'.($this->option('delete') ? ', deleted' : '').'</>');
         }
 
-        return $failed ? self::FAILURE : self::SUCCESS;
+        // --no-fail: a Lumberjack that is down never stops the deploy it runs in.
+        return $failed && ! $this->option('no-fail') ? self::FAILURE : self::SUCCESS;
     }
 
     /**
@@ -147,7 +152,7 @@ class SourcemapsCommand extends Command
 
         try {
             // A redirect is reported, not followed: it would turn the upload into an empty GET.
-            $response = $http->withToken($token)->timeout(self::TIMEOUT)->connectTimeout(self::CONNECT_TIMEOUT)->withoutRedirecting()
+            $response = $http->withToken($token)->timeout(max(self::TIMEOUT, intdiv(strlen($contents), self::UPLOAD_BYTES_PER_SECOND)))->connectTimeout(self::CONNECT_TIMEOUT)->withoutRedirecting()
                 ->retry(self::TRIES, $this->retryDelay(...), fn (?Throwable $e): bool => $e instanceof ConnectionException || $this->tooManyRequests($e), throw: false)
                 ->attach('file', $contents, basename($map))
                 ->post($url.'/api/ingest/sourcemaps', array_filter(['path' => $path, 'release' => $release]));
@@ -213,6 +218,7 @@ class SourcemapsCommand extends Command
         return [
             new InputOption('path', null, InputOption::VALUE_REQUIRED, 'The directory with the maps, inside the public directory', self::PATH),
             new InputOption('delete', null, InputOption::VALUE_NONE, 'Delete each map once it is uploaded, so it is not served publicly'),
+            new InputOption('no-fail', null, InputOption::VALUE_NONE, 'Exit with 0 when uploads failed, so a deploy goes on'),
         ];
     }
 }

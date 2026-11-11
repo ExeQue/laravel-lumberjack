@@ -382,7 +382,7 @@ user=www-data
 
 ## Commands
 
-`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts), `lumberjack:sourcemaps` (`--path`, `--delete`; uploads a build's source maps, exits 1 when any failed).
+`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts), `lumberjack:sourcemaps` (`--path`, `--delete`, `--no-fail`; uploads a build's source maps, exits 1 when any failed unless `--no-fail`).
 
 ## Testing an app that uses the package
 
