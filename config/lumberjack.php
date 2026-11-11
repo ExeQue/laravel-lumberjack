@@ -105,6 +105,15 @@ return [
     'queues' => array_values(array_filter(array_map(trim(...), explode(',', (string) env('LUMBERJACK_QUEUES', ''))))),
 
     /*
+     * artisan down and artisan up tell Lumberjack the app is in maintenance, straight
+     * away. expected_minutes, how long it should take, goes with the start.
+     */
+    'maintenance' => [
+        'enabled' => (bool) env('LUMBERJACK_MAINTENANCE', true),
+        'expected_minutes' => env('LUMBERJACK_MAINTENANCE_EXPECTED_MINUTES'),
+    ],
+
+    /*
      * What is recorded. Every "ignore" list takes * wildcards.
      */
     'requests' => [

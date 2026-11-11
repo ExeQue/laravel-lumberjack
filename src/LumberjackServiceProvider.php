@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack;
 
 use Closure;
+use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
@@ -22,6 +23,7 @@ use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
 use ExeQue\Lumberjack\Listeners\RecordsSpans;
+use ExeQue\Lumberjack\Listeners\ReportsMaintenance;
 use ExeQue\Lumberjack\Logging\LumberjackHandler;
 use ExeQue\Lumberjack\Release\StackReleaseResolver;
 use ExeQue\Lumberjack\Support\CallerLocation;
@@ -251,6 +253,19 @@ class LumberjackServiceProvider extends ServiceProvider
         // Redis only reports its commands when asked to.
         if (config('lumberjack.spans.redis') && $this->app->bound('redis')) {
             $this->app->make('redis')->enableEvents();
+        }
+
+        if ((bool) config('lumberjack.maintenance.enabled', true)) {
+            $url = $this->string('url');
+            $token = $this->string('token');
+            $minutes = config('lumberjack.maintenance.expected_minutes');
+
+            $events->subscribe(new ReportsMaintenance(
+                $recorder,
+                $url !== null && $token !== null ? new Sender($this->app->make(HttpFactory::class), $url, $token, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)) : null,
+                $this->string('environment'),
+                is_numeric($minutes) ? (int) $minutes : null,
+            ));
         }
 
         $events->subscribe($commands = new RecordsCommands($recorder, $rules, $this->scheduledCommands(...)));

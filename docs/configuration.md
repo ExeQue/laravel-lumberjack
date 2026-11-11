@@ -151,6 +151,15 @@ The `ignore` lists of routes, queries, jobs, queues, commands and scheduled task
 | `schedule.always_slower_than_ms` | `LUMBERJACK_SCHEDULE_ALWAYS_SLOWER_THAN_MS` | `10000` |
 | `schedule.ignore` | | none |
 
+## Maintenance
+
+See [Maintenance](recording.md#maintenance).
+
+| Key | Env | Default | |
+|---|---|---|---|
+| `maintenance.enabled` | `LUMBERJACK_MAINTENANCE` | `true` | Whether `artisan down` and `artisan up` are reported |
+| `maintenance.expected_minutes` | `LUMBERJACK_MAINTENANCE_EXPECTED_MINUTES` | | How long maintenance should take, sent with the start |
+
 ## Spans
 
 See [Spans](recording.md#spans).
