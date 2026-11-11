@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Facades\Lumberjack;
+use ExeQue\Lumberjack\Testing\EventType;
 use Illuminate\Foundation\Events\MaintenanceModeDisabled;
 use Illuminate\Foundation\Events\MaintenanceModeEnabled;
+use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -39,6 +42,42 @@ describe('maintenance mode', function () {
         event(new MaintenanceModeEnabled());
 
         expect($this->sentEvents('maintenance')[0])->toMatchArray(['state' => 'start', 'expected_minutes' => null]);
+    });
+
+    it('keeps a refusal from the agent too, as the agent would be refused', function () {
+        Http::fake(['*' => Http::response(status: 422)]);
+
+        event(new MaintenanceModeEnabled());
+
+        Http::assertSentCount(1);
+        expect($this->sentEvents('maintenance'))->toBe([]);
+    });
+
+    it('hands the event to the agent without a URL or token', function () {
+        $this->withConfig(['lumberjack.token' => null]);
+        Http::fake();
+
+        event(new MaintenanceModeEnabled());
+
+        Http::assertNothingSent();
+        expect($this->sentEvents('maintenance')[0])->toMatchArray(['state' => 'start']);
+    });
+
+    it('sends nothing while faked, even with recording turned off, and records it for assertions', function () {
+        $this->withConfig(['lumberjack.enabled' => false]);
+        Http::fake();
+        Lumberjack::fake();
+
+        event(new MaintenanceModeEnabled());
+
+        Http::assertNothingSent();
+        Lumberjack::assertRecorded(EventType::Maintenance, ['state' => 'start']);
+    });
+
+    it('never breaks artisan down when sending itself throws', function () {
+        app()->bind(HttpFactory::class, fn () => throw new RuntimeException('boom'));
+
+        expect(fn () => event(new MaintenanceModeEnabled()))->not->toThrow(Throwable::class);
     });
 
     it('never breaks artisan down or up, whatever sending does', function () {

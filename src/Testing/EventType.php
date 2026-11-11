@@ -20,4 +20,5 @@ enum EventType: string
     case Command = 'command';
     case Health = 'health';
     case Alert = 'alert';
+    case Maintenance = 'maintenance';
 }

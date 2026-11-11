@@ -55,6 +55,9 @@ class Recorder
 
     private bool $enabled;
 
+    /** Set by Lumberjack::fake(): nothing may leave the test. */
+    private bool $faked = false;
+
     private int $exceptions = 0;
 
     /** @var WeakMap<Throwable, true> */
@@ -83,7 +86,13 @@ class Recorder
     {
         $this->client = $client;
         $this->enabled = true;
+        $this->faked = true;
         $this->events = [];
+    }
+
+    public function faked(): bool
+    {
+        return $this->faked;
     }
 
     public function enabled(): bool
