@@ -18,7 +18,7 @@ The package docs: https://exeque.github.io/laravel-lumberjack/docs/
 
 ## How it works
 
-The app never talks to Lumberjack while it records. It hands each batch to a local agent (`php artisan lumberjack:agent`) on `127.0.0.1:2407` with a 50 ms connect timeout and drops it when no agent answers. The agent sends batches on every 5 seconds, spools them on disk while Lumberjack is down, and sends a heartbeat every minute. Nothing in the package throws into a request, job or command while recording. Do not add try/catch, retries or your own HTTP calls to Lumberjack. Two things the package sends straight to Lumberjack itself: maintenance reports on `artisan down` and `artisan up` (handed to the agent when Lumberjack cannot be reached), and `php artisan lumberjack:sourcemaps` in a deploy.
+The app never talks to Lumberjack while it records. It hands each batch to a local agent (`php artisan lumberjack:agent`) on `127.0.0.1:2407` with a 50 ms connect timeout, and writes it to `storage/lumberjack/app-spool` when no agent answers. The agent sends batches on every 5 seconds, spools them on disk while Lumberjack is down, and sends a heartbeat every minute. Nothing in the package throws into a request, job or command while recording. Do not add try/catch, retries or your own HTTP calls to Lumberjack. Two things the package sends straight to Lumberjack itself: maintenance reports on `artisan down` and `artisan up` (handed to the agent when Lumberjack cannot be reached), and `php artisan lumberjack:sourcemaps` in a deploy.
 
 ## Install
 
@@ -40,7 +40,7 @@ The keys:
 
 ```dotenv
 LUMBERJACK_URL=https://lumberjack.example.com
-LUMBERJACK_TOKEN=lj_srv_...       # server token; only the agent uses it
+LUMBERJACK_TOKEN=lj_srv_...       # server token; the agent, maintenance reports and lumberjack:sourcemaps use it
 LUMBERJACK_PUBLIC_KEY=pk_...      # browser errors; without it @lumberjack renders nothing
 LUMBERJACK_ENVIRONMENT=production # defaults to APP_ENV
 LUMBERJACK_RELEASE=               # optional; resolved from .git or vendor when empty
@@ -358,7 +358,7 @@ window.Lumberjack.setUser(userId);
 window.Lumberjack.init({ ignore: [/^AbortError/, 'Load failed'] });
 ```
 
-Minified stack traces show the original code once the build's source maps are uploaded: run `php artisan lumberjack:sourcemaps --delete` in the deploy after `npm run build` (`--path` defaults to `public/build/assets`; the release must match the app's, so set `LUMBERJACK_RELEASE` when the build has no `.git`).
+Minified stack traces show the original code once the build's source maps are uploaded: set `build: { sourcemap: 'hidden' }` in `vite.config.js` (without it Vite writes no maps and the command finds nothing, exiting 0), then run `php artisan lumberjack:sourcemaps --delete` in the deploy after `npm run build` (`--path` defaults to `public/build/assets`, top level only). Lumberjack matches maps to frames by bundle path; the release only breaks a tie between maps of one path, and decides pruning (past 90 days only the last 10 releases' maps are kept), so set `LUMBERJACK_RELEASE` when the build has no `.git`.
 
 ## The agent
 
@@ -382,11 +382,11 @@ user=www-data
 
 ## Commands
 
-`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts), `lumberjack:sourcemaps` (`--path`, `--delete`, `--no-fail`; uploads a build's source maps, exits 1 when any failed unless `--no-fail`).
+`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts), `lumberjack:sourcemaps` (`--path`, `--delete`, `--no-fail`; uploads a build's source maps, exits 1 when any failed unless `--no-fail`; a missing URL or token, a missing directory, one outside `public` and `--delete` with `LUMBERJACK_ENABLED=false` exit 1 even with `--no-fail`).
 
 ## Testing an app that uses the package
 
-There is no fake. Recording hands batches to the agent, which is not running in tests, so they are dropped; turn recording off to skip the work, and keep state reads from calling Lumberjack:
+Use `Lumberjack::fake()` to assert on what would be sent (see above). Without it, recording hands batches to the agent, which is not running in tests; turn recording off to skip the work, and keep state reads from calling Lumberjack:
 
 ```xml
 <!-- phpunit.xml -->

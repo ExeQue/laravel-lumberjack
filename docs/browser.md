@@ -44,6 +44,9 @@ to it (`connect-src`).
 
 The page's origin must be listed under **allowed origins** in the project's settings.
 
+For stack traces with the original code instead of the minified bundle, upload the build's
+source maps with [`lumberjack:sourcemaps`](commands.md#lumberjack-sourcemaps).
+
 ## What it sends
 
 Uncaught errors and unhandled promise rejections, with their stack, the page's URL and the browser. Errors are sent with `navigator.sendBeacon`, so they survive the page being closed.
