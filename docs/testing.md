@@ -38,6 +38,9 @@ Each event is an array, as Lumberjack would receive it: scrubbed, and sampled li
 production. `Lumberjack::recorded(EventType::Log)` returns them. The
 [recording rules](recording.md) still apply. A failing assertion lists what was recorded.
 
+`artisan down` and `artisan up` are recorded as `EventType::Maintenance`; under `fake()` they
+are not sent to Lumberjack.
+
 With `LUMBERJACK_ENABLED=false`, the `lumberjack` log channel stays silent, so to assert on
 `log` events, keep recording on for that test.
 

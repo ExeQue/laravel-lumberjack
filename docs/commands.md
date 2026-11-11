@@ -51,20 +51,33 @@ Runs the [health checks](health-checks.md), sends their results and prints them.
 
 ## `lumberjack:sourcemaps`
 
-Uploads the source maps of a build to Lumberjack, so [browser errors](browser.md) from minified bundles show the original code. Run it in the deploy, after `vite build`:
+Uploads the source maps of a build to Lumberjack, so [browser errors](browser.md) from minified bundles show the original code. Vite writes maps only with `build.sourcemap` set; `'hidden'` writes them without pointing the bundles at them:
+
+```js
+// vite.config.js
+export default defineConfig({
+    build: { sourcemap: 'hidden' },
+});
+```
+
+Without it there are no maps, and the command warns and exits with 0. Run it in the deploy, after `vite build`. The machine that builds needs `LUMBERJACK_URL` and `LUMBERJACK_TOKEN`:
 
 ```bash
+php artisan down
 npm run build
 php artisan lumberjack:sourcemaps --delete
+php artisan up
 ```
 
 | Option | |
 |---|---|
-| `--path=public/build/assets` | The directory with the `*.map` files, relative to the app's root or absolute. It must be inside the public directory: each map is sent with the URL path of its bundle, e.g. `/build/assets/app-3f9a.js` |
+| `--path=public/build/assets` | The directory with the `*.map` files, relative to the app's root or absolute; only its top level is read, not subdirectories. It must be inside the public directory: each map is sent with the URL path of its bundle, e.g. `/build/assets/app-3f9a.js` |
 | `--delete` | Delete each map once it is uploaded, so the source is not served publicly |
-| `--no-fail` | Exit with 0 when uploads failed, so a Lumberjack that is down does not stop the deploy |
+| `--no-fail` | Exit with 0 when uploads failed, so a Lumberjack that is down does not stop the deploy. It still exits with 1 without `LUMBERJACK_URL` or `LUMBERJACK_TOKEN`, when the directory does not exist or is outside the public directory, and on `--delete` with `LUMBERJACK_ENABLED=false` |
 
-Each map goes straight to Lumberjack with `LUMBERJACK_URL` and `LUMBERJACK_TOKEN`, not through the agent, so it works on a build machine without one. It is tagged with the [release](configuration.md#release), the one the app's errors carry; build and app must agree on it, so set `LUMBERJACK_RELEASE` when the build has no `.git`. It prints one line per map and exits with 1 when any upload failed (a map that failed is never deleted). An upload is tried 3 times while Lumberjack cannot be reached, or while it answers 429 (it waits for `Retry-After`, at most 60 seconds), so builds with many chunks get through Lumberjack's rate limit; any other answer is final, and a redirect is reported rather than followed. Once Lumberjack cannot be reached or times out, the remaining maps are skipped instead of each waiting out its timeouts. A map over 20 MB, the most Lumberjack takes, is skipped and counts as failed; a large one gets longer to upload than the 30 seconds a small one does. With `LUMBERJACK_ENABLED=false` nothing is uploaded; with `--delete` that exits with 1, as the maps are still there. A 2xx that is not Lumberjack's answer (another app at `LUMBERJACK_URL`) counts as failed, so `--delete` keeps the maps, and so does a map that could not be deleted. The directory may be a symlink (a build shared between releases); a map symlinked out of it is refused. No maps in the directory is a warning, not a failure.
+Each map goes straight to Lumberjack with `LUMBERJACK_URL` and `LUMBERJACK_TOKEN`, not through the agent, so it works on a build machine without one. Lumberjack matches a frame to a map by its bundle's path, which Vite's hashed file names keep unique; the [release](configuration.md#release) a map is tagged with only breaks a tie between maps of one path (the error's release first, then the newest upload). It does decide how long a map is kept: past 90 days, Lumberjack keeps only the maps of the project's last 10 releases, so set `LUMBERJACK_RELEASE` when the build has no `.git`. It prints one line per map and exits with 1 when any upload failed (a map that failed is never deleted). An upload is tried 3 times while Lumberjack cannot be reached (5 seconds to connect), or while it answers 429 (it waits for `Retry-After`, at most 60 seconds), so builds with many chunks get through Lumberjack's rate limit of 120 uploads a minute per project; any other answer is final, and a redirect is reported rather than followed. Once Lumberjack cannot be reached or times out, the remaining maps are skipped instead of each waiting out its timeouts. A map over 20 MB, the most Lumberjack takes, is skipped and counts as failed; a large one gets longer to upload than the 30 seconds a small one does. Behind nginx, a map over 1 MB is refused with 413 unless `client_max_body_size` is raised; see [Reverse proxy](https://exeque.github.io/lumberjack/docs/docker#reverse-proxy) in the server's docs. With `LUMBERJACK_ENABLED=false` nothing is uploaded; with `--delete` that exits with 1, as the maps are still there. A 2xx that is not Lumberjack's answer (another app at `LUMBERJACK_URL`) counts as failed, so `--delete` keeps the maps, and so does a map that could not be deleted. The directory may be a symlink (a build shared between releases); a map symlinked out of it is refused. No maps in the directory is a warning, not a failure.
+
+The project's **Settings** > **Source maps** in Lumberjack lists the uploaded maps. Errors received before their maps were uploaded keep their minified frames.
 
 ## `lumberjack:test`
 

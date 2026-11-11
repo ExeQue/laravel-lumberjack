@@ -22,7 +22,8 @@ php artisan lumberjack:install   # keys, browser script, health checks, how to r
 php artisan lumberjack:agent     # under Supervisor or systemd
 php artisan lumberjack:test      # check it end to end
 
-# In the deploy, after npm run build: source maps for browser errors
+# In the deploy, after npm run build (with build.sourcemap: 'hidden' in vite.config.js):
+# source maps for browser errors
 php artisan lumberjack:sourcemaps --delete
 ```
 

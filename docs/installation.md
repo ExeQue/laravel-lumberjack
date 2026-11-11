@@ -54,7 +54,7 @@ LUMBERJACK_TOKEN=lj_srv_...
 LUMBERJACK_PUBLIC_KEY=pk_...
 ```
 
-- `LUMBERJACK_TOKEN` is the server token. Only [the agent](agent.md) uses it, to send to Lumberjack.
+- `LUMBERJACK_TOKEN` is the server token. [The agent](agent.md) uses it to send to Lumberjack, and so do [maintenance reports](recording.md#maintenance) and [`lumberjack:sourcemaps`](commands.md#lumberjack-sourcemaps), which send straight to Lumberjack.
 - `LUMBERJACK_PUBLIC_KEY` is for [browser errors](browser.md). Leave it out to send none.
 
 Put `@lumberjack` in the `<head>` of your layout for [browser errors](browser.md), and register [health checks](health-checks.md) in a service provider.

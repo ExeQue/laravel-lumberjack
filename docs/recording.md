@@ -155,6 +155,9 @@ downtime shows as planned. The start goes straight to Lumberjack rather than wit
 next batch, as the app is going down; when Lumberjack cannot be reached, it goes through
 the agent, which keeps it until Lumberjack is back. Sending never stops `down` or `up`,
 and waits at most 3 seconds for Lumberjack. A redirect is not followed: the event goes to the agent.
+An event Lumberjack refuses with a 4xx other than 401, 408 or 429 is dropped, not handed to the agent.
+When the agent is stopped too, the event waits in `storage/lumberjack/app-spool` like any batch (see [the agent](agent.md)).
+With `LUMBERJACK_ENABLED=false` nothing is reported.
 Under `Lumberjack::fake()` nothing is sent; assert with `EventType::Maintenance`.
 
 ```php
@@ -163,6 +166,10 @@ Under `Lumberjack::fake()` nothing is sent; assert with `EventType::Maintenance`
     'expected_minutes' => 15,  // sent with the start; null when unknown
 ],
 ```
+
+Without `expected_minutes`, Lumberjack uses the project's default (30 minutes). It takes 1 to
+10080 minutes and clamps anything outside. Past the expected end, the **Maintenance overrun**
+alert fires, and repeats at the project's repeat interval until maintenance ends.
 
 ## Spans
 

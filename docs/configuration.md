@@ -158,7 +158,7 @@ See [Maintenance](recording.md#maintenance).
 | Key | Env | Default | |
 |---|---|---|---|
 | `maintenance.enabled` | `LUMBERJACK_MAINTENANCE` | `true` | Whether `artisan down` and `artisan up` are reported |
-| `maintenance.expected_minutes` | `LUMBERJACK_MAINTENANCE_EXPECTED_MINUTES` | | How long maintenance should take, sent with the start |
+| `maintenance.expected_minutes` | `LUMBERJACK_MAINTENANCE_EXPECTED_MINUTES` | | How long maintenance should take, sent with the start; 1 to 10080. Without it, the project's default (30 minutes) applies |
 
 ## Spans
 
