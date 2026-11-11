@@ -102,6 +102,15 @@ describe('lumberjack:sourcemaps', function () {
         Sleep::assertSequence([Sleep::for(7000)->milliseconds()]);
     });
 
+    it('reports a redirect it does not follow as a refusal, not a crash', function () {
+        // No Location, so there is nothing to follow.
+        Http::fake(['*' => Http::response(status: 302)]);
+
+        $this->artisan('lumberjack:sourcemaps')
+            ->expectsOutputToContain('refused (HTTP 302)')
+            ->assertExitCode(1);
+    });
+
     it('skips a symlinked map that points outside the public directory', function () {
         $secret = base_path('secret.map');
         File::put($secret, 'secret');

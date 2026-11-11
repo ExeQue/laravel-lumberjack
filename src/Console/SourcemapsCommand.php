@@ -119,7 +119,7 @@ class SourcemapsCommand extends Command
 
         try {
             $response = $http->withToken($token)->timeout(self::TIMEOUT)
-                ->retry(self::TRIES, $this->retryDelay(...), fn (Throwable $e): bool => $e instanceof ConnectionException || $this->tooManyRequests($e), throw: false)
+                ->retry(self::TRIES, $this->retryDelay(...), fn (?Throwable $e): bool => $e instanceof ConnectionException || $this->tooManyRequests($e), throw: false)
                 ->attach('file', $contents, basename($map))
                 ->post($url.'/api/ingest/sourcemaps', array_filter(['path' => $path, 'release' => $release]));
         } catch (ConnectionException) {
@@ -136,7 +136,7 @@ class SourcemapsCommand extends Command
         return str_starts_with($path.DIRECTORY_SEPARATOR, $public.DIRECTORY_SEPARATOR);
     }
 
-    private function tooManyRequests(Throwable $e): bool
+    private function tooManyRequests(?Throwable $e): bool
     {
         return $e instanceof RequestException && $e->response->status() === 429;
     }
@@ -144,11 +144,11 @@ class SourcemapsCommand extends Command
     /**
      * Waits as long as Lumberjack's Retry-After asks, within reason.
      */
-    private function retryDelay(int $attempt, Throwable $e): int
+    private function retryDelay(int $attempt, ?Throwable $e): int
     {
         $after = $e instanceof RequestException && $e->response->status() === 429 ? $e->response->header('Retry-After') : '';
 
-        return is_numeric($after) ? min((int) $after, self::MAX_RETRY_AFTER) * 1000 : self::RETRY_MS;
+        return is_numeric($after) ? min(max(0, (int) $after), self::MAX_RETRY_AFTER) * 1000 : self::RETRY_MS;
     }
 
     /**
