@@ -20,7 +20,8 @@ return [
     'url' => rtrim((string) env('LUMBERJACK_URL', ''), '/'),
 
     /*
-     * Server token (secret). Only the agent uses it.
+     * Server token (secret). The agent uses it, and so do lumberjack:sourcemaps and
+     * maintenance reports, which go straight to Lumberjack.
      */
     'token' => env('LUMBERJACK_TOKEN'),
 

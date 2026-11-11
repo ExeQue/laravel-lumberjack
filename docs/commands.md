@@ -49,6 +49,22 @@ Asks the running agent to send what it has and exit, so the process manager star
 
 Runs the [health checks](health-checks.md), sends their results and prints them. It exits with 1 when a check failed, for deploy scripts. `--check=<slug>` runs one check (an unknown slug exits with 1), `--no-fail` always exits with 0. With no checks registered it says so and exits with 0. Its own runs are not recorded as commands. The scheduler runs it on its own once checks are registered.
 
+## `lumberjack:sourcemaps`
+
+Uploads the source maps of a build to Lumberjack, so [browser errors](browser.md) from minified bundles show the original code. Run it in the deploy, after `vite build`:
+
+```bash
+npm run build
+php artisan lumberjack:sourcemaps --delete
+```
+
+| Option | |
+|---|---|
+| `--path=public/build/assets` | The directory with the `*.map` files, relative to the app's root or absolute. It must be inside the public directory: each map is sent with the URL path of its bundle, e.g. `/build/assets/app-3f9a.js` |
+| `--delete` | Delete each map once it is uploaded, so the source is not served publicly |
+
+Each map goes straight to Lumberjack with `LUMBERJACK_URL` and `LUMBERJACK_TOKEN`, not through the agent, so it works on a build machine without one. It is tagged with the [release](configuration.md#release), the one the app's errors carry; build and app must agree on it, so set `LUMBERJACK_RELEASE` when the build has no `.git`. It prints one line per map and exits with 1 when any upload failed (a map that failed is never deleted). An upload is tried 3 times while Lumberjack cannot be reached; an answer, even a refusal, is final. No maps in the directory is a warning, not a failure.
+
 ## `lumberjack:test`
 
 Sends a test exception through the agent, to check an install end to end. It fails with a hint when no agent answers, and when `LUMBERJACK_ENABLED` is `false`.

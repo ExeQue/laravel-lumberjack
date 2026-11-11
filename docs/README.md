@@ -12,7 +12,7 @@
 - [Custom alerts](alerts.md) - Send your own alerts to the channels of a topic
 - [Reacting to alerts](webhooks.md) - Webhooks, `Lumberjack::onException()` and signatures
 - [Testing your app](testing.md) - Recording off in tests, and testing checks, states and webhook handlers
-- [Artisan commands](commands.md) - `lumberjack:install`, `lumberjack:agent`, `lumberjack:health`, `lumberjack:terminate` and `lumberjack:test`
+- [Artisan commands](commands.md) - `lumberjack:install`, `lumberjack:agent`, `lumberjack:health`, `lumberjack:terminate`, `lumberjack:sourcemaps` and `lumberjack:test`
 - [Configuration](configuration.md) - Every option in `config/lumberjack.php`
 - [Laravel Boost](boost.md) - Guidelines and a skill for AI assistants
 

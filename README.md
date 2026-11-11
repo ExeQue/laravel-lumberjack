@@ -21,6 +21,9 @@ composer require exeque/laravel-lumberjack
 php artisan lumberjack:install   # keys, browser script, health checks, how to run the agent
 php artisan lumberjack:agent     # under Supervisor or systemd
 php artisan lumberjack:test      # check it end to end
+
+# In the deploy, after npm run build: source maps for browser errors
+php artisan lumberjack:sourcemaps --delete
 ```
 
 ```php
