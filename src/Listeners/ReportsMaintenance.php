@@ -22,6 +22,9 @@ use Illuminate\Foundation\Events\MaintenanceModeEnabled;
  */
 class ReportsMaintenance
 {
+    /** Seconds artisan down waits at most for Lumberjack before the agent takes the event. */
+    public const int MAX_TIMEOUT = 3;
+
     /**
      * @param  Closure(): ?Sender  $sender  built when sending, so it uses the HTTP client of that moment
      */

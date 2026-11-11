@@ -265,7 +265,7 @@ class LumberjackServiceProvider extends ServiceProvider
             $events->subscribe(new ReportsMaintenance(
                 $recorder,
                 fn (): ?Sender => $url !== null && $token !== null
-                    ? new Sender($url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)), new Guzzle(['handler' => LaravelHttpStack::for($this->app->make(HttpFactory::class))]))
+                    ? new Sender($url, $token, min(ReportsMaintenance::MAX_TIMEOUT, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT))), new Guzzle(['handler' => LaravelHttpStack::for($this->app->make(HttpFactory::class))]))
                     : null,
                 $this->string('environment'),
                 is_numeric($minutes) ? (int) $minutes : null,

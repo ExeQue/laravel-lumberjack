@@ -24,7 +24,7 @@ afterEach(function () {
 
 describe('lumberjack:sourcemaps', function () {
     it('uploads each map with the public path of its bundle and the release', function () {
-        Http::fake(['https://lumberjack.test/api/ingest/sourcemaps' => Http::response(status: 201)]);
+        Http::fake(['https://lumberjack.test/api/ingest/sourcemaps' => Http::response(['path' => '/x.js'], 201)]);
 
         $this->artisan('lumberjack:sourcemaps')
             ->expectsOutputToContain('/build/assets/app-3f9a.js')
@@ -42,7 +42,7 @@ describe('lumberjack:sourcemaps', function () {
     });
 
     it('deletes each map once uploaded with --delete, and keeps one that failed', function () {
-        Http::fake(fn (Request $request) => Http::response(status: str_contains((string) $request->body(), 'vendor-77c1') ? 422 : 201));
+        Http::fake(fn (Request $request) => Http::response(['path' => '/x.js'], str_contains((string) $request->body(), 'vendor-77c1') ? 422 : 201));
 
         $this->artisan('lumberjack:sourcemaps', ['--delete' => true])
             ->expectsOutputToContain('refused (HTTP 422)')
@@ -65,7 +65,8 @@ describe('lumberjack:sourcemaps', function () {
             ->expectsOutputToContain('Lumberjack could not be reached')
             ->assertExitCode(1);
 
-        expect($tries)->toBe(6);
+        // Three tries for the first map; the second is skipped, not waited on.
+        expect($tries)->toBe(3);
     });
 
     it('does not retry a refusal', function () {
@@ -93,7 +94,7 @@ describe('lumberjack:sourcemaps', function () {
     });
 
     it('waits out a rate limit and tries again', function () {
-        Http::fake(['*' => Http::sequence()->push(status: 429, headers: ['Retry-After' => '7'])->whenEmpty(Http::response(status: 201))]);
+        Http::fake(['*' => Http::sequence()->push(status: 429, headers: ['Retry-After' => '7'])->whenEmpty(Http::response(['path' => '/x.js'], 201))]);
 
         $this->artisan('lumberjack:sourcemaps')->assertExitCode(0);
 
@@ -102,12 +103,48 @@ describe('lumberjack:sourcemaps', function () {
         Sleep::assertSequence([Sleep::for(7000)->milliseconds()]);
     });
 
-    it('reports a redirect it does not follow as a refusal, not a crash', function () {
-        // No Location, so there is nothing to follow.
-        Http::fake(['*' => Http::response(status: 302)]);
+    it('reports a redirect as a refusal instead of following it', function () {
+        Http::fake(['*' => Http::response(status: 302, headers: ['Location' => 'https://elsewhere.test'])]);
 
         $this->artisan('lumberjack:sourcemaps')
             ->expectsOutputToContain('refused (HTTP 302)')
+            ->assertExitCode(1);
+    });
+
+    it('keeps the maps when another app answers at the URL', function () {
+        Http::fake(['*' => Http::response('<html>', 200)]);
+
+        $this->artisan('lumberjack:sourcemaps', ['--delete' => true])
+            ->expectsOutputToContain('not answered by Lumberjack')
+            ->assertExitCode(1);
+
+        expect(File::exists($this->assets.'/app-3f9a.js.map'))->toBeTrue();
+    });
+
+    it('takes a build directory symlinked from outside public, with the URL path inside it', function () {
+        $shared = base_path('shared-build');
+        File::ensureDirectoryExists($shared);
+        File::put($shared.'/app-77.js.map', '{"version":3}');
+        File::deleteDirectory(public_path('build'));
+        File::ensureDirectoryExists(public_path('build'));
+        symlink($shared, public_path('build/assets'));
+        Http::fake(['*' => Http::response(['path' => '/build/assets/app-77.js'], 201)]);
+
+        try {
+            $this->artisan('lumberjack:sourcemaps')->assertExitCode(0);
+        } finally {
+            unlink(public_path('build/assets'));
+            File::deleteDirectory($shared);
+        }
+
+        Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'path' && $part['contents'] === '/build/assets/app-77.js'));
+    });
+
+    it('refuses a path that climbs out of public', function () {
+        Http::fake();
+
+        $this->artisan('lumberjack:sourcemaps', ['--path' => 'public/../storage'])
+            ->expectsOutputToContain('is not inside the public directory')
             ->assertExitCode(1);
     });
 
@@ -115,11 +152,11 @@ describe('lumberjack:sourcemaps', function () {
         $secret = base_path('secret.map');
         File::put($secret, 'secret');
         symlink($secret, $this->assets.'/evil.js.map');
-        Http::fake(['*' => Http::response(status: 201)]);
+        Http::fake(['*' => Http::response(['path' => '/x.js'], 201)]);
 
         try {
             $this->artisan('lumberjack:sourcemaps')
-                ->expectsOutputToContain('not inside the public directory')
+                ->expectsOutputToContain('not inside the directory')
                 ->assertExitCode(1);
         } finally {
             File::delete($secret);
@@ -130,7 +167,7 @@ describe('lumberjack:sourcemaps', function () {
     });
 
     it('goes on with the next map when an upload throws', function () {
-        Http::fake(fn (Request $request) => str_contains((string) $request->body(), 'app-3f9a') ? throw new RuntimeException('bad url') : Http::response(status: 201));
+        Http::fake(fn (Request $request) => str_contains((string) $request->body(), 'app-3f9a') ? throw new RuntimeException('bad url') : Http::response(['path' => '/x.js'], 201));
 
         $this->artisan('lumberjack:sourcemaps')
             ->expectsOutputToContain('bad url')
