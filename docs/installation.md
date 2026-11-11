@@ -72,7 +72,7 @@ Without `LUMBERJACK_RELEASE` the release is the commit in the app's `.git` direc
 
 ## The agent
 
-The app never talks to Lumberjack itself. It hands everything to a local agent, which sends it on, so a slow or unreachable Lumberjack cannot slow the app down. Run one per app per server, under Supervisor or systemd; see [The agent](agent.md).
+The app never talks to Lumberjack while it records. It hands everything to a local agent, which sends it on, so a slow or unreachable Lumberjack cannot slow the app down. Two things go straight to Lumberjack: [maintenance reports](recording.md#maintenance) on `artisan down` and `up` (through the agent when Lumberjack cannot be reached), and [`lumberjack:sourcemaps`](commands.md#lumberjack-sourcemaps) in a deploy. Run one per app per server, under Supervisor or systemd; see [The agent](agent.md).
 
 ```bash
 php artisan lumberjack:agent

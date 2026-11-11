@@ -45,6 +45,19 @@ describe('maintenance mode', function () {
         expect(maintenanceBatches()[0]['events'][0]['expected_minutes'])->toBeNull();
     });
 
+    it('hands the event to the agent on a redirect instead of following it into a GET', function () {
+        Http::fake([
+            'https://lumberjack.test/*' => Http::response(status: 301, headers: ['Location' => 'https://elsewhere.test/api/ingest']),
+            // Followed, the POST would arrive here as a GET and be refused, and the event lost.
+            'https://elsewhere.test/*' => Http::response(status: 405),
+        ]);
+
+        event(new MaintenanceModeEnabled());
+
+        Http::assertSentCount(1);
+        expect($this->sentEvents('maintenance')[0])->toMatchArray(['state' => 'start']);
+    });
+
     it('hands the event to the agent when Lumberjack cannot be reached', function () {
         Http::fake(['*' => Http::response('down', 503)]);
 

@@ -18,7 +18,7 @@ The package docs: https://exeque.github.io/laravel-lumberjack/docs/
 
 ## How it works
 
-The app never talks to Lumberjack while it records. It hands each batch to a local agent (`php artisan lumberjack:agent`) on `127.0.0.1:2407` with a 50 ms connect timeout and drops it when no agent answers. The agent sends batches on every 5 seconds, spools them on disk while Lumberjack is down, and sends a heartbeat every minute. Nothing in the package throws into a request, job or command while recording. Do not add try/catch, retries or your own HTTP calls to Lumberjack.
+The app never talks to Lumberjack while it records. It hands each batch to a local agent (`php artisan lumberjack:agent`) on `127.0.0.1:2407` with a 50 ms connect timeout and drops it when no agent answers. The agent sends batches on every 5 seconds, spools them on disk while Lumberjack is down, and sends a heartbeat every minute. Nothing in the package throws into a request, job or command while recording. Do not add try/catch, retries or your own HTTP calls to Lumberjack. Two things the package sends straight to Lumberjack itself: maintenance reports on `artisan down` and `artisan up` (handed to the agent when Lumberjack cannot be reached), and `php artisan lumberjack:sourcemaps` in a deploy.
 
 ## Install
 
@@ -316,7 +316,7 @@ Lumberjack::on(Status::Resolved, fn (Alert $alert) => StatusBanner::hideFor($ale
 
 ## What is recorded
 
-Exceptions, requests, queries (with the app line that ran them), jobs, artisan commands and scheduled tasks, grouped by trace id. Each section of `config/lumberjack.php` has `enabled` and `ignore` lists with `*` wildcards:
+Exceptions, requests, queries (with the app line that ran them), jobs, artisan commands and scheduled tasks, grouped by trace id. `artisan down` and `artisan up` are reported as maintenance (`maintenance.enabled`, `maintenance.expected_minutes`; `EventType::Maintenance` under `Lumberjack::fake()`). Each section of `config/lumberjack.php` has `enabled` and `ignore` lists with `*` wildcards:
 
 ```php
 'requests' => ['sample_rate' => 0.25, 'ignore' => ['up', 'horizon*'], 'ignore_status' => [404]],
@@ -358,6 +358,8 @@ window.Lumberjack.setUser(userId);
 window.Lumberjack.init({ ignore: [/^AbortError/, 'Load failed'] });
 ```
 
+Minified stack traces show the original code once the build's source maps are uploaded: run `php artisan lumberjack:sourcemaps --delete` in the deploy after `npm run build` (`--path` defaults to `public/build/assets`; the release must match the app's, so set `LUMBERJACK_RELEASE` when the build has no `.git`).
+
 ## The agent
 
 Run one agent per app per server under a process manager; it reads the app's `.env`.
@@ -380,7 +382,7 @@ user=www-data
 
 ## Commands
 
-`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts).
+`lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts), `lumberjack:sourcemaps` (`--path`, `--delete`; uploads a build's source maps, exits 1 when any failed).
 
 ## Testing an app that uses the package
 
