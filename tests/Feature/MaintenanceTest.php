@@ -45,21 +45,12 @@ describe('maintenance mode', function () {
         expect(maintenanceBatches()[0]['events'][0]['expected_minutes'])->toBeNull();
     });
 
-    it('follows a redirect to https with the POST and its body, as a proxy upgrading http answers', function () {
+    it('follows no redirect, not even to https, so the token stays with the configured address', function () {
         $this->withConfig(['lumberjack.url' => 'http://lumberjack.test']);
         Http::fake([
             'http://lumberjack.test/*' => Http::response(status: 301, headers: ['Location' => 'https://lumberjack.test/api/ingest']),
-            'https://lumberjack.test/*' => fn (Request $request) => Http::response(status: $request->method() === 'POST' && $request->body() !== '' ? 202 : 405),
+            'https://lumberjack.test/*' => Http::response(status: 202),
         ]);
-
-        event(new MaintenanceModeEnabled());
-
-        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://lumberjack.test/api/ingest' && $request->method() === 'POST');
-        expect($this->sentEvents('maintenance'))->toBe([]);
-    });
-
-    it('does not follow a redirect to plain http, and hands the event to the agent', function () {
-        Http::fake(['https://lumberjack.test/*' => Http::response(status: 301, headers: ['Location' => 'http://elsewhere.test/api/ingest'])]);
 
         event(new MaintenanceModeEnabled());
 
