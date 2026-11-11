@@ -32,7 +32,10 @@ class SourcemapsCommand extends Command
 
     public const int CONNECT_TIMEOUT = 5;
 
-    private const string UNREACHABLE = 'Lumberjack could not be reached';
+    /** The largest map Lumberjack takes. */
+    public const int MAX_BYTES = 20 * 1024 * 1024;
+
+    private const string UNREACHABLE = 'Lumberjack could not be reached or timed out';
 
     protected $name = 'lumberjack:sourcemaps';
 
@@ -41,6 +44,13 @@ class SourcemapsCommand extends Command
     public function handle(Http $http): int
     {
         if (! (bool) config('lumberjack.enabled', true)) {
+            // With --delete the deploy expects the maps gone; they are not, so it should know.
+            if ($this->option('delete')) {
+                $this->components->error('Lumberjack is disabled (LUMBERJACK_ENABLED=false); no maps uploaded, none deleted.');
+
+                return self::FAILURE;
+            }
+
             $this->components->info('Lumberjack is disabled (LUMBERJACK_ENABLED=false); no maps uploaded.');
 
             return self::SUCCESS;
@@ -59,7 +69,7 @@ class SourcemapsCommand extends Command
         $dir = rtrim(preg_match('~^([a-z]:)?[/\\\\]~i', $option) === 1 ? $option : base_path($option), '/\\');
         $real = realpath($dir);
 
-        if ($real === false || ! is_dir($real)) {
+        if ($dir === '' || $real === false || ! is_dir($real)) {
             $this->components->error("No directory {$option}.");
 
             return self::FAILURE;
@@ -74,7 +84,13 @@ class SourcemapsCommand extends Command
             return self::FAILURE;
         }
 
-        $maps = glob($dir.'/*.map') ?: [];
+        // Listed rather than globbed: a directory named like app[2] is no pattern.
+        $maps = collect(scandir($real) ?: [])
+            ->filter(fn (string $file): bool => str_ends_with($file, '.map') && is_file($real.DIRECTORY_SEPARATOR.$file))
+            ->sort()
+            ->map(fn (string $file): string => $real.DIRECTORY_SEPARATOR.$file)
+            ->values()
+            ->all();
 
         if ($maps === []) {
             $this->components->warn("No source maps in {$option}.");
@@ -96,6 +112,7 @@ class SourcemapsCommand extends Command
             $error = match (true) {
                 $unreachable => self::UNREACHABLE.', skipped',
                 $mapReal === false || ! $this->inside($mapReal, $real) => 'not inside the directory',
+                (int) filesize($map) > self::MAX_BYTES => 'larger than Lumberjack takes (20 MB)',
                 default => $this->upload($http, $url, $token, $map, $path, is_string($release) ? $release : null),
             };
             $unreachable = $unreachable || $error === self::UNREACHABLE;
@@ -159,7 +176,8 @@ class SourcemapsCommand extends Command
         $publicReal = realpath($public);
 
         $relative = match (true) {
-            preg_match('~(^|[/\\\\])\.\.([/\\\\]|$)~', $dir) !== 1 && $this->inside($dir, $public) => substr($dir, strlen($public)),
+            // As written only when plain: . and .. segments or a doubled separator would end up in the URL path.
+            preg_match('~(^|[/\\\\])\.{1,2}([/\\\\]|$)|[/\\\\]{2}~', $dir) !== 1 && $this->inside($dir, $public) => substr($dir, strlen($public)),
             $publicReal !== false && $this->inside($real, $publicReal) => substr($real, strlen($publicReal)),
             default => null,
         };

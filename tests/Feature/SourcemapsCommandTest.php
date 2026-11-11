@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use ExeQue\Lumberjack\Console\SourcemapsCommand;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
@@ -198,7 +199,67 @@ describe('lumberjack:sourcemaps', function () {
         Config::set('lumberjack.enabled', false);
 
         $this->artisan('lumberjack:sourcemaps')->assertExitCode(0);
+        $this->artisan('lumberjack:sourcemaps', ['--delete' => true])
+            ->expectsOutputToContain('none deleted')
+            ->assertExitCode(1);
 
         Http::assertNothingSent();
+        expect(File::exists($this->assets.'/app-3f9a.js.map'))->toBeTrue();
+    });
+
+    it('sends the plain URL path for a --path with . segments or doubled separators', function (string $path) {
+        Http::fake(['*' => Http::response(['path' => '/x.js'], 201)]);
+
+        $this->artisan('lumberjack:sourcemaps', ['--path' => $path])->assertExitCode(0);
+
+        Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'path' && $part['contents'] === '/build/assets/app-3f9a.js'));
+    })->with([
+        'doubled' => ['public//build/assets'],
+        'dot' => ['public/./build/assets'],
+        'trailing dot' => ['public/build/assets/.'],
+    ]);
+
+    it('finds the maps in a directory whose name looks like a glob pattern', function () {
+        $odd = public_path('build/app[2]');
+        File::ensureDirectoryExists($odd);
+        File::put($odd.'/app-1.js.map', '{"version":3}');
+        Http::fake(['*' => Http::response(['path' => '/x.js'], 201)]);
+
+        $this->artisan('lumberjack:sourcemaps', ['--path' => 'public/build/app[2]'])->assertExitCode(0);
+
+        Http::assertSentCount(1);
+    });
+
+    it('refuses the root directory as --path', function () {
+        Http::fake();
+
+        $this->artisan('lumberjack:sourcemaps', ['--path' => '/'])->assertExitCode(1);
+
+        Http::assertNothingSent();
+    });
+
+    it('skips a map larger than Lumberjack takes without reading it', function () {
+        $big = fopen($this->assets.'/huge.js.map', 'w');
+        ftruncate($big, SourcemapsCommand::MAX_BYTES + 1);
+        fclose($big);
+        Http::fake(['*' => Http::response(['path' => '/x.js'], 201)]);
+
+        $this->artisan('lumberjack:sourcemaps')
+            ->expectsOutputToContain('larger than Lumberjack takes')
+            ->assertExitCode(1);
+
+        Http::assertSentCount(2);
+    });
+
+    it('reports a rate limit that lasts all its tries as a refusal', function () {
+        Http::fake(['*' => Http::response(status: 429, headers: ['Retry-After' => '-5'])]);
+
+        $this->artisan('lumberjack:sourcemaps')
+            ->expectsOutputToContain('refused (HTTP 429)')
+            ->assertExitCode(1);
+
+        Http::assertSentCount(6);
+        // A negative Retry-After waits nothing, not a negative time.
+        Sleep::assertSequence(array_fill(0, 4, Sleep::for(0)->milliseconds()));
     });
 });

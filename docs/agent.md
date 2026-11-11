@@ -128,7 +128,8 @@ the kernel's buffer and the app carries on.
 
 ### What the app notices
 
-Nothing. The app never talks to Lumberjack while it records: it hands each batch to
+Nothing. The app never talks to Lumberjack while it records (maintenance reports on
+`artisan down` and `up` are the one exception, and fall back to the agent): it hands each batch to
 the local agent over TCP with a 50 ms connect timeout and 1 s for the whole write. If the
 agent is not there, for example while it restarts in a deploy, the batch waits in
 `storage/lumberjack/app-spool` and is sent after the next batch that gets through, a few at
