@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Listeners;
 
-use ExeQue\Lumberjack\Agent\Sender;
-use ExeQue\Lumberjack\Agent\SendResult;
+use Closure;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\Client;
 use ExeQue\Lumberjack\Support\Safely;
+use ExeQue\LumberjackAgent\Sender;
+use ExeQue\LumberjackAgent\SendResult;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Foundation\Events\MaintenanceModeDisabled;
 use Illuminate\Foundation\Events\MaintenanceModeEnabled;
@@ -21,9 +22,12 @@ use Illuminate\Foundation\Events\MaintenanceModeEnabled;
  */
 class ReportsMaintenance
 {
+    /**
+     * @param  Closure(): ?Sender  $sender  built when sending, so it uses the HTTP client of that moment
+     */
     public function __construct(
         private readonly Recorder $recorder,
-        private readonly ?Sender $sender,
+        private readonly Closure $sender,
         private readonly ?string $environment,
         private readonly ?int $expectedMinutes = null,
     ) {
@@ -56,7 +60,9 @@ class ReportsMaintenance
         ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_SLASHES));
 
         // Sent, or refused as such (an agent would be refused too).
-        if ($this->sender !== null && $body !== false && $this->sender->send($body) !== SendResult::Retry) {
+        $sender = ($this->sender)();
+
+        if ($sender !== null && $body !== false && $sender->send($body) !== SendResult::Retry) {
             return;
         }
 

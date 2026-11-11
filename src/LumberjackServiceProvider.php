@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack;
 
 use Closure;
-use ExeQue\Lumberjack\Agent\Sender;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
@@ -29,6 +28,7 @@ use ExeQue\Lumberjack\Release\StackReleaseResolver;
 use ExeQue\Lumberjack\Support\CallerLocation;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
+use ExeQue\Lumberjack\Support\LaravelHttpStack;
 use ExeQue\Lumberjack\Support\QueueWorkers;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Support\Safely;
@@ -37,6 +37,8 @@ use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\Lumberjack\Webhooks\WebhookController;
 use ExeQue\LumberjackAgent\AgentClient;
 use ExeQue\LumberjackAgent\ProjectFingerprint;
+use ExeQue\LumberjackAgent\Sender;
+use GuzzleHttp\Client as Guzzle;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Debug\ExceptionHandler;
@@ -262,7 +264,9 @@ class LumberjackServiceProvider extends ServiceProvider
 
             $events->subscribe(new ReportsMaintenance(
                 $recorder,
-                $url !== null && $token !== null ? new Sender($this->app->make(HttpFactory::class), $url, $token, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)) : null,
+                fn (): ?Sender => $url !== null && $token !== null
+                    ? new Sender($url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)), new Guzzle(['handler' => LaravelHttpStack::for($this->app->make(HttpFactory::class))]))
+                    : null,
                 $this->string('environment'),
                 is_numeric($minutes) ? (int) $minutes : null,
             ));
