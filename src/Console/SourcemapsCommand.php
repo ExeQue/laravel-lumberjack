@@ -30,6 +30,10 @@ class SourcemapsCommand extends Command
 
     public const int TIMEOUT = 30;
 
+    public const int CONNECT_TIMEOUT = 5;
+
+    private const string UNREACHABLE = 'Lumberjack could not be reached';
+
     protected $name = 'lumberjack:sourcemaps';
 
     protected $description = 'Upload the source maps of a build to Lumberjack';
@@ -52,17 +56,19 @@ class SourcemapsCommand extends Command
         }
 
         $option = $this->option('path') ?: self::PATH;
-        $dir = realpath(preg_match('~^([a-z]:)?[/\\\\]~i', $option) === 1 ? $option : base_path($option));
-        $public = realpath(public_path());
+        $dir = rtrim(preg_match('~^([a-z]:)?[/\\\\]~i', $option) === 1 ? $option : base_path($option), '/\\');
+        $real = realpath($dir);
 
-        if ($dir === false || ! is_dir($dir)) {
+        if ($real === false || ! is_dir($real)) {
             $this->components->error("No directory {$option}.");
 
             return self::FAILURE;
         }
 
         // The server needs the URL path each map's bundle is served at.
-        if ($public === false || ! $this->inside($dir, $public)) {
+        $prefix = $this->publicPath($dir, $real);
+
+        if ($prefix === null) {
             $this->components->error("{$option} is not inside the public directory.");
 
             return self::FAILURE;
@@ -78,26 +84,31 @@ class SourcemapsCommand extends Command
 
         $release = $this->laravel->make('lumberjack.release');
         $failed = false;
+        $unreachable = false;
 
         foreach ($maps as $map) {
             // public/build/assets/app-3f9a.js.map belongs to /build/assets/app-3f9a.js.
-            $path = str_replace(DIRECTORY_SEPARATOR, '/', substr($map, strlen($public), -strlen('.map')));
-            $real = realpath($map);
+            $path = $prefix.'/'.basename($map, '.map');
+            $mapReal = realpath($map);
 
-            // A symlinked map could point anywhere; only what public holds is uploaded.
-            $error = $real !== false && $this->inside($real, $public)
-                ? $this->upload($http, $url, $token, $map, $path, is_string($release) ? $release : null)
-                : 'not inside the public directory';
+            // A symlinked map could point anywhere; only what the directory holds is uploaded.
+            // Once Lumberjack cannot be reached, the rest is not tried: a deploy waits on each.
+            $error = match (true) {
+                $unreachable => self::UNREACHABLE.', skipped',
+                $mapReal === false || ! $this->inside($mapReal, $real) => 'not inside the directory',
+                default => $this->upload($http, $url, $token, $map, $path, is_string($release) ? $release : null),
+            };
+            $unreachable = $unreachable || $error === self::UNREACHABLE;
+
+            if ($error === null && $this->option('delete') && ! @unlink($map)) {
+                $error = 'uploaded, but could not be deleted';
+            }
 
             if ($error !== null) {
                 $failed = true;
                 $this->components->twoColumnDetail($path, "<fg=red>{$error}</>");
 
                 continue;
-            }
-
-            if ($this->option('delete')) {
-                @unlink($map);
             }
 
             $this->components->twoColumnDetail($path, '<fg=green>uploaded'.($this->option('delete') ? ', deleted' : '').'</>');
@@ -118,17 +129,42 @@ class SourcemapsCommand extends Command
         }
 
         try {
-            $response = $http->withToken($token)->timeout(self::TIMEOUT)
+            // A redirect is reported, not followed: it would turn the upload into an empty GET.
+            $response = $http->withToken($token)->timeout(self::TIMEOUT)->connectTimeout(self::CONNECT_TIMEOUT)->withoutRedirecting()
                 ->retry(self::TRIES, $this->retryDelay(...), fn (?Throwable $e): bool => $e instanceof ConnectionException || $this->tooManyRequests($e), throw: false)
                 ->attach('file', $contents, basename($map))
                 ->post($url.'/api/ingest/sourcemaps', array_filter(['path' => $path, 'release' => $release]));
         } catch (ConnectionException) {
-            return 'Lumberjack could not be reached';
+            return self::UNREACHABLE;
         } catch (Throwable $e) {
             return $e->getMessage();
         }
 
-        return $response->successful() ? null : "refused (HTTP {$response->status()})";
+        if (! $response->successful()) {
+            return "refused (HTTP {$response->status()})";
+        }
+
+        // Lumberjack answers 201 with the map's path; any other 2xx is another app at that URL.
+        return $response->status() === 201 && is_string($response->json('path')) ? null : 'not answered by Lumberjack (check LUMBERJACK_URL)';
+    }
+
+    /**
+     * The directory's URL path under public, as the bundles are served; null when it is not
+     * inside public. Checked as written first, so a build directory symlinked elsewhere (shared
+     * between releases) still counts, then resolved, for an absolute --path to a release.
+     */
+    private function publicPath(string $dir, string $real): ?string
+    {
+        $public = rtrim(public_path(), '/\\');
+        $publicReal = realpath($public);
+
+        $relative = match (true) {
+            preg_match('~(^|[/\\\\])\.\.([/\\\\]|$)~', $dir) !== 1 && $this->inside($dir, $public) => substr($dir, strlen($public)),
+            $publicReal !== false && $this->inside($real, $publicReal) => substr($real, strlen($publicReal)),
+            default => null,
+        };
+
+        return $relative === null ? null : str_replace(DIRECTORY_SEPARATOR, '/', $relative);
     }
 
     private function inside(string $path, string $public): bool

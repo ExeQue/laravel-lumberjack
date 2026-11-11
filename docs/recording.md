@@ -153,7 +153,8 @@ A task that runs in the background is reported when it finishes, without a durat
 `artisan down` and `artisan up` tell Lumberjack the app is in maintenance, so the
 downtime shows as planned. The start goes straight to Lumberjack rather than with the
 next batch, as the app is going down; when Lumberjack cannot be reached, it goes through
-the agent, which keeps it until Lumberjack is back. Sending never stops `down` or `up`.
+the agent, which keeps it until Lumberjack is back. Sending never stops `down` or `up`,
+and waits at most 3 seconds for Lumberjack.
 Under `Lumberjack::fake()` nothing is sent; assert with `EventType::Maintenance`.
 
 ```php

@@ -36,6 +36,15 @@ describe('maintenance mode', function () {
             ->and($this->sentEvents('maintenance'))->toBe([]);
     });
 
+    it('sends no expected minutes for a value that is not a number', function () {
+        $this->withConfig(['lumberjack.maintenance.expected_minutes' => 'soon']);
+        Http::fake(['*' => Http::response(status: 202)]);
+
+        event(new MaintenanceModeEnabled());
+
+        expect(maintenanceBatches()[0]['events'][0]['expected_minutes'])->toBeNull();
+    });
+
     it('hands the event to the agent when Lumberjack cannot be reached', function () {
         Http::fake(['*' => Http::response('down', 503)]);
 
