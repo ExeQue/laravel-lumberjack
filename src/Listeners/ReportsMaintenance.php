@@ -13,6 +13,7 @@ use ExeQue\LumberjackAgent\SendResult;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Foundation\Events\MaintenanceModeDisabled;
 use Illuminate\Foundation\Events\MaintenanceModeEnabled;
+use Throwable;
 
 /**
  * Tells Lumberjack when artisan down and artisan up put the app in and out of maintenance.
@@ -63,7 +64,12 @@ class ReportsMaintenance
         ], JSON_INVALID_UTF8_SUBSTITUTE | JSON_PARTIAL_OUTPUT_ON_ERROR | JSON_UNESCAPED_SLASHES));
 
         // Sent, or refused as such (an agent would be refused too). A faked recorder keeps it.
-        $sender = $this->recorder->faked() ? null : ($this->sender)();
+        try {
+            $sender = $this->recorder->faked() ? null : ($this->sender)();
+        } catch (Throwable) {
+            // Not built (the HTTP client cannot be resolved, say): the agent still takes it.
+            $sender = null;
+        }
 
         if ($sender !== null && $body !== false && $sender->send($body) !== SendResult::Retry) {
             return;

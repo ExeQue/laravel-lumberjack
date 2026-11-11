@@ -251,6 +251,32 @@ describe('lumberjack:sourcemaps', function () {
         Http::assertSentCount(2);
     });
 
+    it('waits at most a minute however long a rate limit asks', function () {
+        Http::fake(['*' => Http::sequence()->push(status: 429, headers: ['Retry-After' => '3600'])->whenEmpty(Http::response(['path' => '/x.js'], 201))]);
+
+        $this->artisan('lumberjack:sourcemaps')->assertExitCode(0);
+
+        Sleep::assertSequence([Sleep::for(SourcemapsCommand::MAX_RETRY_AFTER * 1000)->milliseconds()]);
+    });
+
+    it('exits with 0 on failed uploads with --no-fail, so the deploy goes on', function () {
+        Http::fake(fn () => throw new ConnectionException('Connection refused'));
+
+        $this->artisan('lumberjack:sourcemaps', ['--no-fail' => true])
+            ->expectsOutputToContain('could not be reached')
+            ->assertExitCode(0);
+    });
+
+    it('sends the URL path encoded, as a browser asks for a bundle in a folder with a space', function () {
+        File::ensureDirectoryExists(public_path('build/my assets'));
+        File::put(public_path('build/my assets/app-1.js.map'), '{"version":3}');
+        Http::fake(['*' => Http::response(['path' => '/x.js'], 201)]);
+
+        $this->artisan('lumberjack:sourcemaps', ['--path' => 'public/build/my assets'])->assertExitCode(0);
+
+        Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'path' && $part['contents'] === '/build/my%20assets/app-1.js'));
+    });
+
     it('reports a rate limit that lasts all its tries as a refusal', function () {
         Http::fake(['*' => Http::response(status: 429, headers: ['Retry-After' => '-5'])]);
 

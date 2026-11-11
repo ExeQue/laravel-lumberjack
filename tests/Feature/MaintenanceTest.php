@@ -99,7 +99,8 @@ describe('maintenance mode', function () {
     it('never breaks artisan down when sending itself throws', function () {
         app()->bind(HttpFactory::class, fn () => throw new RuntimeException('boom'));
 
-        expect(fn () => event(new MaintenanceModeEnabled()))->not->toThrow(Throwable::class);
+        expect(fn () => event(new MaintenanceModeEnabled()))->not->toThrow(Throwable::class)
+            ->and($this->sentEvents('maintenance')[0])->toMatchArray(['state' => 'start']);
     });
 
     it('never breaks artisan down or up, whatever sending does', function () {
