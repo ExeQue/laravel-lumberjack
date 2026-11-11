@@ -12,7 +12,7 @@ php artisan vendor:publish --tag=lumberjack-config
 |---|---|---|---|
 | `enabled` | `LUMBERJACK_ENABLED` | `true` | `false` turns Lumberjack off: nothing is recorded or sent, `@lumberjack` renders nothing, health checks are not scheduled and the webhook route answers 404. The commands still run and say so; the agent sends nothing and waits to be stopped |
 | `url` | `LUMBERJACK_URL` | | The Lumberjack server |
-| `token` | `LUMBERJACK_TOKEN` | | The project's server token; only the agent uses it |
+| `token` | `LUMBERJACK_TOKEN` | | The project's server token; the agent uses it, and so do `lumberjack:sourcemaps` and maintenance reports |
 | `public_key` | `LUMBERJACK_PUBLIC_KEY` | | For [browser errors](browser.md); without it `@lumberjack` renders nothing |
 | `environment` | `LUMBERJACK_ENVIRONMENT` | `APP_ENV` | |
 | `release` | `LUMBERJACK_RELEASE` | | Wins over the resolver; see [Release](#release) |

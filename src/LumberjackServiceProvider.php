@@ -9,6 +9,7 @@ use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
 use ExeQue\Lumberjack\Console\InstallCommand;
+use ExeQue\Lumberjack\Console\SourcemapsCommand;
 use ExeQue\Lumberjack\Console\TerminateCommand;
 use ExeQue\Lumberjack\Console\TestCommand;
 use ExeQue\Lumberjack\DataSources\DataSourceEndpoint;
@@ -148,7 +149,7 @@ class LumberjackServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->publishes([__DIR__.'/../config/lumberjack.php' => config_path('lumberjack.php')], 'lumberjack-config');
             // Also when turned off: they say so and do nothing.
-            $this->commands([DataSourcesTestCommand::class, AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class]);
+            $this->commands([DataSourcesTestCommand::class, AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class, SourcemapsCommand::class]);
         }
 
         // Also when turned off, so @lumberjack still compiles (to nothing) and a log channel
