@@ -45,12 +45,21 @@ describe('maintenance mode', function () {
         expect(maintenanceBatches()[0]['events'][0]['expected_minutes'])->toBeNull();
     });
 
-    it('hands the event to the agent on a redirect instead of following it into a GET', function () {
+    it('follows a redirect to https with the POST and its body, as a proxy upgrading http answers', function () {
+        $this->withConfig(['lumberjack.url' => 'http://lumberjack.test']);
         Http::fake([
-            'https://lumberjack.test/*' => Http::response(status: 301, headers: ['Location' => 'https://elsewhere.test/api/ingest']),
-            // Followed, the POST would arrive here as a GET and be refused, and the event lost.
-            'https://elsewhere.test/*' => Http::response(status: 405),
+            'http://lumberjack.test/*' => Http::response(status: 301, headers: ['Location' => 'https://lumberjack.test/api/ingest']),
+            'https://lumberjack.test/*' => fn (Request $request) => Http::response(status: $request->method() === 'POST' && $request->body() !== '' ? 202 : 405),
         ]);
+
+        event(new MaintenanceModeEnabled());
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://lumberjack.test/api/ingest' && $request->method() === 'POST');
+        expect($this->sentEvents('maintenance'))->toBe([]);
+    });
+
+    it('does not follow a redirect to plain http, and hands the event to the agent', function () {
+        Http::fake(['https://lumberjack.test/*' => Http::response(status: 301, headers: ['Location' => 'http://elsewhere.test/api/ingest'])]);
 
         event(new MaintenanceModeEnabled());
 

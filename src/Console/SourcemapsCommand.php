@@ -107,8 +107,9 @@ class SourcemapsCommand extends Command
         $unreachable = false;
 
         foreach ($maps as $map) {
-            // public/build/assets/app-3f9a.js.map belongs to /build/assets/app-3f9a.js, encoded as a browser asks for it.
-            $path = implode('/', array_map(rawurlencode(...), explode('/', $prefix.'/'.basename($map, '.map'))));
+            // public/build/assets/app-3f9a.js.map belongs to /build/assets/app-3f9a.js. Encoded as a browser
+            // encodes a path, only where a URL needs it (space, #, ?, non-ASCII); Lumberjack decodes both.
+            $path = (string) preg_replace_callback('~[\x00-\x20"#<>?`{}\x7F-\xFF]~', fn (array $char): string => rawurlencode($char[0]), $prefix.'/'.basename($map, '.map'));
             $mapReal = realpath($map);
 
             // A symlinked map could point anywhere; only what the directory holds is uploaded.

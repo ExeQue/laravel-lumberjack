@@ -267,14 +267,15 @@ describe('lumberjack:sourcemaps', function () {
             ->assertExitCode(0);
     });
 
-    it('sends the URL path encoded, as a browser asks for a bundle in a folder with a space', function () {
-        File::ensureDirectoryExists(public_path('build/my assets'));
-        File::put(public_path('build/my assets/app-1.js.map'), '{"version":3}');
+    it('encodes the URL path as a browser does, only where a URL needs it', function () {
+        File::ensureDirectoryExists(public_path('build/my assets[2]'));
+        File::put(public_path('build/my assets[2]/a@b(1)+é.js.map'), '{"version":3}');
         Http::fake(['*' => Http::response(['path' => '/x.js'], 201)]);
 
-        $this->artisan('lumberjack:sourcemaps', ['--path' => 'public/build/my assets'])->assertExitCode(0);
+        $this->artisan('lumberjack:sourcemaps', ['--path' => 'public/build/my assets[2]'])->assertExitCode(0);
 
-        Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'path' && $part['contents'] === '/build/my%20assets/app-1.js'));
+        // new URL('/build/my assets[2]/a@b(1)+é.js', location).pathname
+        Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'path' && $part['contents'] === '/build/my%20assets[2]/a@b(1)+%C3%A9.js'));
     });
 
     it('reports a rate limit that lasts all its tries as a refusal', function () {
