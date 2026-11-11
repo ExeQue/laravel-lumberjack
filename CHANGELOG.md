@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-11
+
 ### Added
 
 - `php artisan lumberjack:sourcemaps` uploads a build's source maps to Lumberjack, tagged with the release, so browser errors from minified bundles show the original code. `--path` picks the directory inside `public`, `--delete` removes each map once uploaded, `--no-fail` keeps a deploy going when Lumberjack is down. A 429 is retried after its `Retry-After`; once Lumberjack cannot be reached, the remaining maps are skipped.
@@ -94,7 +96,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.4.0...v0.5.0
