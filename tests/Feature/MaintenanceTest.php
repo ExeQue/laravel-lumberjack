@@ -44,8 +44,10 @@ describe('maintenance mode', function () {
     it('never breaks artisan down or up, whatever sending does', function () {
         Http::fake(['*' => fn () => throw new RuntimeException('boom')]);
 
-        $this->artisan('down')->assertExitCode(0);
-        $this->artisan('up')->assertExitCode(0);
+        // The events artisan down and up fire, not the commands themselves: a real down puts the
+        // shared testbench app in maintenance, and parallel tests then get 503.
+        expect(fn () => event(new MaintenanceModeEnabled()))->not->toThrow(Throwable::class)
+            ->and(fn () => event(new MaintenanceModeDisabled()))->not->toThrow(Throwable::class);
 
         expect(array_column($this->sentEvents('maintenance'), 'state'))->toBe(['start', 'end']);
     });
