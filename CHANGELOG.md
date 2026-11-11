@@ -10,6 +10,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 - `artisan down` and `artisan up` are reported to Lumberjack as maintenance, straight away, and through the agent when Lumberjack cannot be reached. Turned off with `LUMBERJACK_MAINTENANCE=false`; `LUMBERJACK_MAINTENANCE_EXPECTED_MINUTES` sends how long it should take.
 - `EventType::Maintenance`, for asserting on maintenance reports under `Lumberjack::fake()`.
 
+### Changed
+
+- The agent no longer follows a redirect from `LUMBERJACK_URL`: a batch stays in the spool instead of going elsewhere. Following one never got through anyway, as a redirect loses the token. Set `LUMBERJACK_URL` to the address Lumberjack answers on, such as `https://` when a proxy upgrades http.
+
 ## [0.6.1] - 2026-11-09
 
 ### Fixed
