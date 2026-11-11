@@ -126,8 +126,9 @@ outage the spool drains a few batches per tick rather than all at once. Meanwhil
 still connect: the agent listens with a backlog of 1,024 connections, so a batch goes into
 the kernel's buffer and the app carries on.
 
-A redirect from `LUMBERJACK_URL` is not followed (it would turn a batch into an empty GET):
-the batch stays in the spool, so point `LUMBERJACK_URL` at the address Lumberjack answers on.
+A redirect from `LUMBERJACK_URL`, such as a proxy's http-to-https upgrade, is followed with
+the batch's POST and body kept, but only to https. Any other redirect keeps the batch in the
+spool, so point `LUMBERJACK_URL` at the address Lumberjack answers on.
 
 ### What the app notices
 

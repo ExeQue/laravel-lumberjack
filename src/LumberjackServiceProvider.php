@@ -26,6 +26,7 @@ use ExeQue\Lumberjack\Listeners\ReportsMaintenance;
 use ExeQue\Lumberjack\Logging\LumberjackHandler;
 use ExeQue\Lumberjack\Release\StackReleaseResolver;
 use ExeQue\Lumberjack\Support\CallerLocation;
+use ExeQue\Lumberjack\Support\Client;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\LaravelHttpStack;
@@ -265,7 +266,7 @@ class LumberjackServiceProvider extends ServiceProvider
             $events->subscribe(new ReportsMaintenance(
                 $recorder,
                 fn (): ?Sender => $url !== null && $token !== null
-                    ? new Sender($url, $token, min(ReportsMaintenance::MAX_TIMEOUT, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT))), new Guzzle(['handler' => LaravelHttpStack::for($this->app->make(HttpFactory::class)), 'allow_redirects' => false]))
+                    ? new Sender($url, $token, min(ReportsMaintenance::MAX_TIMEOUT, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT))), new Guzzle(['handler' => LaravelHttpStack::for($this->app->make(HttpFactory::class)), 'allow_redirects' => Client::REDIRECTS]))
                     : null,
                 $this->string('environment'),
                 is_numeric($minutes) ? (int) $minutes : null,

@@ -15,6 +15,13 @@ use Illuminate\Foundation\Application;
  */
 final class Client
 {
+    /**
+     * Redirects Lumberjack's address may answer with: followed with the POST and its body
+     * kept (http to https behind a proxy), only to https. Guzzle's default turns a POST
+     * into an empty GET on a 301 or 302.
+     */
+    public const array REDIRECTS = ['max' => 5, 'strict' => true, 'protocols' => ['https']];
+
     public const string SDK = 'lumberjack.php.laravel';
 
     public const string PACKAGE = 'exeque/laravel-lumberjack';

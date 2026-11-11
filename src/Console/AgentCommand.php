@@ -68,7 +68,7 @@ class AgentCommand extends Command
 
         $agent = new Agent(
             // Through Laravel's HTTP stack, so its global middleware and Http::fake() apply.
-            new Sender($url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)), new Guzzle(['handler' => LaravelHttpStack::for($http), 'allow_redirects' => false])),
+            new Sender($url, $token, max(1, (int) config('lumberjack.agent.send_timeout', Sender::TIMEOUT)), new Guzzle(['handler' => LaravelHttpStack::for($http), 'allow_redirects' => ClientInfo::REDIRECTS])),
             new Spool((string) config('lumberjack.agent.spool_path'), (int) config('lumberjack.agent.spool_max_bytes'), $warn),
             (int) config('lumberjack.agent.interval', 5),
             gethostname() ?: null,

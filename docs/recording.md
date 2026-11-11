@@ -154,7 +154,7 @@ A task that runs in the background is reported when it finishes, without a durat
 downtime shows as planned. The start goes straight to Lumberjack rather than with the
 next batch, as the app is going down; when Lumberjack cannot be reached, it goes through
 the agent, which keeps it until Lumberjack is back. Sending never stops `down` or `up`,
-and waits at most 3 seconds for Lumberjack. A redirect is not followed: the event goes to the agent.
+and waits at most 3 seconds for Lumberjack. A redirect to https is followed with the event kept; any other goes to the agent.
 Under `Lumberjack::fake()` nothing is sent; assert with `EventType::Maintenance`.
 
 ```php
