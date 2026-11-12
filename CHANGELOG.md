@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-12
+
 ### Added
 
 - `php artisan lumberjack:sourcemaps --dry-run` lists each map with the URL path and release it would be sent with, running the same checks, without uploading or deleting anything.
@@ -100,7 +102,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.5.0...v0.6.0
