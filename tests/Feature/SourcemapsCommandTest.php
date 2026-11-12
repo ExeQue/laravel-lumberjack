@@ -54,6 +54,20 @@ describe('lumberjack:sourcemaps', function () {
             ->and(File::exists($this->assets.'/app-3f9a.js'))->toBeTrue();
     });
 
+    it('lists the maps with --dry-run without uploading or deleting them', function () {
+        Http::fake();
+        File::put($this->assets.'/big-1.js.map', str_repeat(' ', SourcemapsCommand::MAX_BYTES + 1));
+
+        $this->artisan('lumberjack:sourcemaps', ['--dry-run' => true, '--delete' => true])
+            ->expectsOutputToContain('Release: abc123')
+            ->expectsOutputToContain('would be uploaded, then deleted')
+            ->expectsOutputToContain('larger than Lumberjack takes')
+            ->assertExitCode(1);
+
+        Http::assertNothingSent();
+        expect(File::exists($this->assets.'/app-3f9a.js.map'))->toBeTrue();
+    });
+
     it('retries only when Lumberjack cannot be reached', function () {
         $tries = 0;
         Http::fake(function () use (&$tries) {

@@ -103,7 +103,12 @@ class SourcemapsCommand extends Command
         }
 
         $release = $this->laravel->make('lumberjack.release');
+        $dryRun = (bool) $this->option('dry-run');
         $failed = false;
+
+        if ($dryRun) {
+            $this->components->info('Dry run: nothing is uploaded or deleted. Release: '.(is_string($release) ? $release : 'none').'.');
+        }
         $unreachable = false;
 
         foreach ($maps as $map) {
@@ -118,11 +123,12 @@ class SourcemapsCommand extends Command
                 $unreachable => self::UNREACHABLE.', skipped',
                 $mapReal === false || ! $this->inside($mapReal, $real) => 'not inside the directory',
                 (int) filesize($map) > self::MAX_BYTES => 'larger than Lumberjack takes (20 MB)',
+                $dryRun => null,
                 default => $this->upload($http, $url, $token, $map, $path, is_string($release) ? $release : null),
             };
             $unreachable = $unreachable || $error === self::UNREACHABLE;
 
-            if ($error === null && $this->option('delete') && ! @unlink($map)) {
+            if ($error === null && ! $dryRun && $this->option('delete') && ! @unlink($map)) {
                 $error = 'uploaded, but could not be deleted';
             }
 
@@ -133,7 +139,8 @@ class SourcemapsCommand extends Command
                 continue;
             }
 
-            $this->components->twoColumnDetail($path, '<fg=green>uploaded'.($this->option('delete') ? ', deleted' : '').'</>');
+            $done = $dryRun ? 'would be uploaded'.($this->option('delete') ? ', then deleted' : '') : 'uploaded'.($this->option('delete') ? ', deleted' : '');
+            $this->components->twoColumnDetail($path, "<fg=green>{$done}</>");
         }
 
         // --no-fail: a Lumberjack that is down never stops the deploy it runs in.
@@ -219,6 +226,7 @@ class SourcemapsCommand extends Command
         return [
             new InputOption('path', null, InputOption::VALUE_REQUIRED, 'The directory with the maps, inside the public directory', self::PATH),
             new InputOption('delete', null, InputOption::VALUE_NONE, 'Delete each map once it is uploaded, so it is not served publicly'),
+            new InputOption('dry-run', null, InputOption::VALUE_NONE, 'List what would be uploaded, with the same checks, without uploading or deleting'),
             new InputOption('no-fail', null, InputOption::VALUE_NONE, 'Exit with 0 when uploads failed, so a deploy goes on'),
         ];
     }

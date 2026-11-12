@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `php artisan lumberjack:sourcemaps --dry-run` lists each map with the URL path and release it would be sent with, running the same checks, without uploading or deleting anything.
+
 ## [0.7.0] - 2026-11-11
 
 ### Added
