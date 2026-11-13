@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-13
+
 ### Added
 
 - **Activity**: `Lumberjack::activity('order.placed')` records what happens in the app, with `group()`, `byUser()`, `by()` (any model, or a type and key), `on()` for each subject (an upload is done to the image and its gallery) and `with()` for a payload, sent with the request or job on `send()`. Nobody is the actor unless the code says so, and an actor, a subject or a model in the payload is sent as its type and key only. Requires a Lumberjack server with activity.
@@ -109,7 +111,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.6.0...v0.6.1
