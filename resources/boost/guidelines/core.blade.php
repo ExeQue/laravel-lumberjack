@@ -53,4 +53,5 @@ if (! Lumberjack::health('media-bucket')->isHealthy()) {
 - Never call Lumberjack's HTTP API from request code. Data goes through the agent (only maintenance reports and `lumberjack:sourcemaps` uploads go direct); health states are read with `Lumberjack::health()` and `Lumberjack::healthStates()`, which are cached.
 - Register health checks, webhook handlers (`Lumberjack::on()`, `Lumberjack::onException()`) and log channels in `boot()`, never in a request, job or `register()`.
 - A health check slug is its identity in Lumberjack; changing one starts a new check.
-- For anything beyond this (all built-in checks and their parameters, custom checks, release resolvers, webhooks, what is recorded, spans, log channels, the agent, testing), activate the `lumberjack-development` skill.
+- Activity: `Lumberjack::activity('order.placed')->group('billing')`. Names are `{thing}.{past-tense verb}`, lowercase, never with ids or personal data in them; the group is the feature area (`billing`, `media`, `auth`), a handful per app. The actor is never implied: `byUser()` or `by()` when someone did it.
+- For anything beyond this (all built-in checks and their parameters, custom checks, activity, release resolvers, webhooks, what is recorded, spans, log channels, the agent, testing), activate the `lumberjack-development` skill.

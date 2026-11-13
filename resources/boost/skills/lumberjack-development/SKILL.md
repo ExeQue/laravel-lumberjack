@@ -1,6 +1,6 @@
 ---
 name: lumberjack-development
-description: "Use when setting up or changing Lumberjack monitoring in a Laravel app with exeque/laravel-lumberjack: installing it, health checks (built-in, custom, closure, firing from code, reading states), release resolvers, reacting to alerts with webhook handlers (Lumberjack::on, Lumberjack::onException), what is recorded and ignored (recording rules, spans, sampling), log channels with the lumberjack driver, the browser script (@lumberjack), running and deploying the agent, and testing an app that uses the package."
+description: "Use when setting up or changing Lumberjack monitoring in a Laravel app with exeque/laravel-lumberjack: installing it, health checks (built-in, custom, closure, firing from code, reading states), release resolvers, reacting to alerts with webhook handlers (Lumberjack::on, Lumberjack::onException), what is recorded and ignored (recording rules, spans, sampling), log channels with the lumberjack driver, the browser script (@lumberjack), recording and forgetting activity (Lumberjack::activity, naming and groups, actors), running and deploying the agent, and testing an app that uses the package."
 ---
 
 # Lumberjack development
@@ -10,6 +10,7 @@ description: "Use when setting up or changing Lumberjack monitoring in a Laravel
 - Installing Lumberjack in an app, or changing its `.env` keys or `config/lumberjack.php`.
 - Adding, changing or testing health checks, or reading their state to adapt the app.
 - Sending custom alerts from the app.
+- Recording activity (what users and the app do), or forgetting an actor's activity.
 - Reacting to Lumberjack alerts in the app (webhooks).
 - Leaving things out of what is recorded, or recording more (spans, logs).
 - Running the agent in production (Supervisor, systemd, Docker, Kubernetes) or after a deploy.
@@ -379,6 +380,20 @@ user=www-data
 - After a deploy: `php artisan lumberjack:terminate` (next to `queue:restart`), so it restarts on the new code.
 - Unsent batches wait in `storage/lumberjack/spool` (100 MB at most) and are retried in order.
 - Every minute's heartbeat carries queue sizes (`LUMBERJACK_QUEUES=default,redis:emails`; empty is the default queue) and host metrics (CPU load, memory, disk).
+
+## Activity
+
+```php
+Lumberjack::activity('image.uploaded')->group('media')->byUser()->on($image)->on($image->gallery)->send();
+```
+
+- **Name:** `{thing}.{past-tense verb}` in lowercase, such as `order.placed`, `image.uploaded`, `invite.accepted`. It says what happened, once, not what the code did (`order.placed`, not `place_order_clicked`). Names are counted and charted as written, so never put ids, emails or other values in one: those go in subjects or the payload. Renaming one starts a new series.
+- **Group:** the feature area it belongs to, such as `billing`, `media`, `auth`. A handful per app, stable, lowercase, never per user or per record. Leave it out only when the app has one area (it is then `default`).
+- **Actor:** never implied. Call `byUser()` or `by($model)` / `by('system', 'scheduler')` when someone did it; leave it out otherwise.
+- **No personal data:** actors, subjects and models in the payload go as type and key only. Do not put names, emails or free text from users in the payload. A class implementing `ActsAsLumberjackActor` decides its own type and key with `toLumberjackActor(): Actor`.
+- **Events:** prefer `#[RecordsLumberjackActivity('order.placed', group: 'billing', actor: '@order.customer', subject: 'order:@order.uuid')]` on an existing domain event over a call in a controller; `TracksLumberjackActivity` when it needs logic.
+- **Forgetting:** call `Lumberjack::forgetActor($user)` when an account is deleted (it throws `ForgetActorFailedException` on failure, so queue it to retry).
+- **Testing:** `Lumberjack::fake()` then `Lumberjack::assertActivityRecorded('order.placed', group: 'billing', times: 1)`, or a closure taking a `RecordedActivity` (`$activity->isBy(User::class, $user->id)`).
 
 ## Commands
 

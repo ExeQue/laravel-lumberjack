@@ -7,6 +7,7 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 ### Added
 
 - **Activity**: a class implementing `ActsAsLumberjackActor` says who it is with `toLumberjackActor()`, returning an `Actor` (a type and a key), such as a user model that stands for an API client. `by()`, `byUser()`, `on()`, `@path` in `#[RecordsLumberjackActivity]`, a model in the payload and `forgetActor()` use it in place of the class and key. `by()` and `forgetActor()` also take an `Actor`.
+- The Boost guideline and the `lumberjack-development` skill cover activity: how to name one (`{thing}.{past-tense verb}`, such as `order.placed`), what a group is for (the feature area), actors and forgetting. The naming is in the docs too.
 
 ## [0.9.0] - 2026-11-13
 

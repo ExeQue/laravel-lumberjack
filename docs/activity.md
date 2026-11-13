@@ -41,6 +41,11 @@ Lumberjack::activity('image.uploaded')->byUser()->on($image)->on($image->gallery
 
 Nothing is sent before `send()`, and `when()` works on every method.
 
+### Naming
+
+- **Name:** `{thing}.{past-tense verb}` in lowercase, such as `order.placed`, `image.uploaded`, `invite.accepted`. It says what happened, once, not what the code did (`order.placed`, not `place_order_clicked`). Names are counted and charted as written, so never put ids, emails or other values in one: those go in subjects or the payload. Renaming one starts a new series.
+- **Group:** the feature area it belongs to, such as `billing`, `media`, `auth`. A handful per app, stable, lowercase, never per user or per record. Leave it out only when the app has one area (it is then `default`).
+
 ### No personal data by default
 
 An actor or a subject is sent as its type and key only. The type is the model's morph
