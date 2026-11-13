@@ -6,8 +6,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ### Added
 
-- **Activity**: `Lumberjack::activity('order.placed')` records what happens in the app, with `group()`, `byUser()`, `by()` (any model, or a type and key), `on()` for the subject and `with()` for a payload, sent with the request or job on `send()`. Nobody is the actor unless the code says so, and an actor, a subject or a model in the payload is sent as its type and key only. Requires a Lumberjack server with activity.
-- An event class records itself when dispatched, with `#[RecordsLumberjackActivity]` (payload values, the actor and the subject read from the event with `@path`, such as `@order.uuid`) or by implementing `TracksLumberjackActivity` and returning a `PendingActivity` from `toLumberjackActivity()`.
+- **Activity**: `Lumberjack::activity('order.placed')` records what happens in the app, with `group()`, `byUser()`, `by()` (any model, or a type and key), `on()` for each subject (an upload is done to the image and its gallery) and `with()` for a payload, sent with the request or job on `send()`. Nobody is the actor unless the code says so, and an actor, a subject or a model in the payload is sent as its type and key only. Requires a Lumberjack server with activity.
+- An event class records itself when dispatched, with `#[RecordsLumberjackActivity]` (payload values, the actor and the subjects read from the event with `@path`, such as `@order.uuid`) or by implementing `TracksLumberjackActivity` and returning a `PendingActivity` from `toLumberjackActivity()`.
 - `Lumberjack::forgetActor($user)` deletes an actor's activity in Lumberjack, such as when an account is deleted, and throws `ForgetActorFailedException` when it did not happen.
 - `Lumberjack::assertActivityRecorded()`, `assertActivityNotRecorded()`, `activities()`, `assertActorForgotten()` and `EventType::Activity` under `Lumberjack::fake()`.
 

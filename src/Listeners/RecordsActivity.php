@@ -63,8 +63,11 @@ final class RecordsActivity
     private function fromAttribute(RecordsLumberjackActivity $attribute, object $event): PendingActivity
     {
         $activity = (new PendingActivity($this->recorder, $attribute->name))
-            ->by(...self::reference($attribute->actor, $event))
-            ->on(...self::reference($attribute->subject, $event));
+            ->by(...self::reference($attribute->actor, $event));
+
+        foreach ((array) $attribute->subject as $subject) {
+            $activity->on(...self::reference($subject, $event));
+        }
 
         if ($attribute->group !== null) {
             $activity->group($attribute->group);

@@ -10,7 +10,7 @@ use ExeQue\Lumberjack\Attributes\RecordsLumberjackActivity;
     'order.placed',
     group: 'billing',
     actor: '@order.customer',
-    subject: 'order:@order.uuid',
+    subject: ['order:@order.uuid', '@order.customer'],
     payload: [
         'order' => '@order.uuid',
         'total' => '@order.total',

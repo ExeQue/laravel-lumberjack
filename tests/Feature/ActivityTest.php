@@ -35,6 +35,8 @@ describe('Lumberjack::activity()', function () {
             ->group('billing')
             ->by($this->customer)
             ->on('order', 42)
+            ->on('cart', 7)
+            ->on('order', 42)
             ->with(['total' => 499, 'paid_at' => new DateTimeImmutable('2026-11-13 10:00:00+00:00')])
             ->with(['currency' => 'DKK'])
             ->send();
@@ -44,7 +46,7 @@ describe('Lumberjack::activity()', function () {
             'name' => 'order.placed',
             'group' => 'billing',
             'actor' => ['type' => Customer::class, 'id' => '17'],
-            'subject' => ['type' => 'order', 'id' => '42'],
+            'subjects' => [['type' => 'order', 'id' => '42'], ['type' => 'cart', 'id' => '7']],
             'payload' => ['total' => 499, 'paid_at' => '2026-11-13T10:00:00+00:00', 'currency' => 'DKK'],
         ]);
     });
@@ -82,7 +84,7 @@ describe('an event with #[RecordsLumberjackActivity]', function () {
             'name' => 'order.placed',
             'group' => 'billing',
             'actor' => ['type' => Customer::class, 'id' => '17'],
-            'subject' => ['type' => 'order', 'id' => '9f1c'],
+            'subjects' => [['type' => 'order', 'id' => '9f1c'], ['type' => Customer::class, 'id' => '17']],
             'payload' => [
                 'order' => '9f1c',
                 'total' => 499,
@@ -121,7 +123,7 @@ describe('an event implementing TracksLumberjackActivity', function () {
         expect(($this->activity)())->toHaveCount(1)
             ->and(($this->activity)()[0])->toMatchArray([
                 'name' => 'order.refunded',
-                'subject' => ['type' => 'order', 'id' => '9f1c'],
+                'subjects' => [['type' => 'order', 'id' => '9f1c']],
                 'payload' => ['amount' => 100],
             ]);
     });
@@ -172,7 +174,7 @@ describe('faking', function () {
         Lumberjack::forgetActor('user', 17);
 
         Lumberjack::assertActivityRecorded('order.placed', group: 'billing', times: 1);
-        Lumberjack::assertActivityRecorded(fn (RecordedActivity $a): bool => $a->isBy(Customer::class, 17) && $a->payload['total'] === 499);
+        Lumberjack::assertActivityRecorded(fn (RecordedActivity $a): bool => $a->isBy(Customer::class, 17) && $a->isOn('order', '9f1c') && $a->payload['total'] === 499);
         Lumberjack::assertActivityNotRecorded('order.refunded');
         Lumberjack::assertActorForgotten('user', 17);
 

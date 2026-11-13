@@ -21,6 +21,13 @@ Lumberjack::activity('order.placed')
     ->send();
 ```
 
+An activity can be done to several things. An upload is done to the image and to the
+gallery it lands in, and shows up under either on the Activity page:
+
+```php
+Lumberjack::activity('image.uploaded')->byUser()->on($image)->on($image->gallery)->send();
+```
+
 | Method                    | Sets                                                                                      |
 | ------------------------- | ----------------------------------------------------------------------------------------- |
 | `activity($name)`         | The name: letters, digits, `.`, `_`, `:` and `-`, at most 128 characters.                 |
@@ -28,7 +35,7 @@ Lumberjack::activity('order.placed')
 | `byUser($guard = null)`   | The logged in user as the actor. Without a logged in user it has no actor.               |
 | `by($model)`              | Who did it: any model, such as a team.                                                    |
 | `by($type, $id)`          | Who did it, when it is not a model: `by('system', 'scheduler')`.                          |
-| `on($model)`, `on($t, $id)` | What it was done to.                                                                    |
+| `on($model)`, `on($t, $id)` | What it was done to. Call it again for each further subject, at most 10.     |
 | `with($payload)`          | What else to keep, merged into what is there. At most 16 KB as JSON.                      |
 | `send()`                  | Records it. It goes out with the rest of the request or job.                              |
 
@@ -56,7 +63,7 @@ use ExeQue\Lumberjack\Attributes\RecordsLumberjackActivity;
     'order.placed',
     group: 'billing',
     actor: '@order.customer',
-    subject: 'order:@order.uuid',
+    subject: ['order:@order.uuid', '@order.customer'],
     payload: [
         'total' => '@order.total',
         'items' => '@order.items.count',
@@ -74,8 +81,8 @@ final class OrderPlaced
   `@order.total` is `$event->order->total`, and properties, model attributes, relations
   and arrays all work. A path that leads nowhere gives `null`. `@@` is a literal `@`, and
   every other value is sent as written. Nested arrays are read the same way.
-- **Actor and subject:** `@path` to a model, or `type:id`, whose id may be a path too
-  (`order:@order.uuid`).
+- **Actor and subjects:** `@path` to a model, or `type:id`, whose id may be a path too
+  (`order:@order.uuid`). `subject` takes one, or a list of them.
 - **`byUser: true`:** the logged in user is the actor when no actor is given.
 - **Name and group** are always as written.
 

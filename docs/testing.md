@@ -83,8 +83,8 @@ Lumberjack::assertActivityNotRecorded('order.refunded');
 Lumberjack::assertActorForgotten($user);
 ```
 
-A `RecordedActivity` has `name`, `group`, `actor`, `subject` and `payload`, and `isBy()`
-and `isOn()` to compare the actor or subject with a type and key. Without a group it is
+A `RecordedActivity` has `name`, `group`, `actor`, `subjects` and `payload`, and `isBy()`
+and `isOn()` to check the actor, or one of the subjects, against a type and key. Without a group it is
 `default`, as on the server. `Lumberjack::activities()` returns them. Under the fake,
 `Lumberjack::forgetActor()` asks nobody and returns 0.
 

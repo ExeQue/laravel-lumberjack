@@ -11,14 +11,14 @@ final readonly class RecordedActivity
 {
     /**
      * @param  array{type: string, id: string}|null  $actor
-     * @param  array{type: string, id: string}|null  $subject
+     * @param  list<array{type: string, id: string}>  $subjects
      * @param  array<array-key, mixed>  $payload
      */
     public function __construct(
         public string $name,
         public string $group,
         public ?array $actor,
-        public ?array $subject,
+        public array $subjects,
         public array $payload,
     ) {
     }
@@ -32,7 +32,7 @@ final readonly class RecordedActivity
             name: $event['name'],
             group: $event['group'] ?? 'default',
             actor: $event['actor'] ?? null,
-            subject: $event['subject'] ?? null,
+            subjects: $event['subjects'] ?? [],
             payload: $event['payload'] ?? [],
         );
     }
@@ -43,9 +43,9 @@ final readonly class RecordedActivity
         return $this->actor === ['type' => $type, 'id' => (string) $id];
     }
 
-    /** Whether the subject is this type and key. */
+    /** Whether this type and key is among its subjects. */
     public function isOn(string $type, string|int $id): bool
     {
-        return $this->subject === ['type' => $type, 'id' => (string) $id];
+        return in_array(['type' => $type, 'id' => (string) $id], $this->subjects, true);
     }
 }

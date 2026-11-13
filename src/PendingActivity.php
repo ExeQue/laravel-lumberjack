@@ -53,11 +53,18 @@ class PendingActivity
     }
 
     /**
-     * What it was done to: a model, or a type and its key.
+     * What it was done to: a model, or a type and its key. Call it again for each further
+     * subject, such as an image and the gallery it was uploaded to. Lumberjack keeps ten.
      */
     public function on(Model|string|null $subject, string|int|null $id = null): static
     {
-        return $this->reference('subject', Reference::of($subject, $id));
+        $reference = Reference::of($subject, $id)?->toArray();
+
+        if ($reference !== null && ! in_array($reference, $this->event['subjects'] ?? [], true)) {
+            $this->event['subjects'][] = $reference;
+        }
+
+        return $this;
     }
 
     /**
