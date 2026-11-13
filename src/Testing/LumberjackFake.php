@@ -337,7 +337,7 @@ class LumberjackFake
             'exception' => "exception: {$event['class']}: {$event['message']}",
             'log' => 'log: '.($event['message'] ?? ''),
             'alert' => "alert: {$event['title']}",
-            'event' => "activity: {$event['name']}",
+            'activity' => "activity: {$event['name']}",
             default => (string) $event['type'],
         }, $events));
     }

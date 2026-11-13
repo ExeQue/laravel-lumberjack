@@ -51,7 +51,7 @@ class ActivityActors
         try {
             $response = $this->http->withToken($this->token)->timeout(self::TIMEOUT)->acceptJson()
                 ->retry(3, 200, fn (Throwable $e): bool => $e instanceof ConnectionException, throw: false)
-                ->delete($this->url.'/api/events/actor', $reference->toArray());
+                ->delete($this->url.'/api/activity/actor', $reference->toArray());
         } catch (Throwable $e) {
             throw ForgetActorFailedException::unreachable($e);
         }

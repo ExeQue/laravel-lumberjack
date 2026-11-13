@@ -3,7 +3,7 @@
 # Activity
 
 Record what happens in your app, such as an order placed or a user signed in. Lumberjack
-lists each activity on its Events page with who did it and what it was done to, and
+lists each activity on its Activity page with who did it and what it was done to, and
 counts them per hour for charts and widgets.
 
 There are three ways to record one. All of them send the same thing.

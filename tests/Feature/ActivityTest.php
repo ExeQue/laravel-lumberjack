@@ -26,7 +26,7 @@ beforeEach(function () {
     app(Recorder::class)->capture();
     $this->customer = Customer::make(17);
     $this->order = new Order('9f1c', 499, $this->customer, ['print', 'frame']);
-    $this->activity = fn (): array => tap(app(Recorder::class))->flush() ? $this->sentEvents('event') : [];
+    $this->activity = fn (): array => tap(app(Recorder::class))->flush() ? $this->sentEvents('activity') : [];
 });
 
 describe('Lumberjack::activity()', function () {
@@ -40,7 +40,7 @@ describe('Lumberjack::activity()', function () {
             ->send();
 
         expect(($this->activity)()[0])->toMatchArray([
-            'type' => 'event',
+            'type' => 'activity',
             'name' => 'order.placed',
             'group' => 'billing',
             'actor' => ['type' => Customer::class, 'id' => '17'],
@@ -140,7 +140,7 @@ describe('forgetting an actor', function () {
     });
 
     it('asks Lumberjack with the server token and answers how many it deleted', function () {
-        Http::fake(['lumberjack.test/api/events/actor' => Http::response(['deleted' => 3])]);
+        Http::fake(['lumberjack.test/api/activity/actor' => Http::response(['deleted' => 3])]);
 
         expect(Lumberjack::forgetActor($this->customer))->toBe(3);
 

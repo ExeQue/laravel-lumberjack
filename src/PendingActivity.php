@@ -23,7 +23,7 @@ class PendingActivity
 
     public function __construct(private readonly Recorder $recorder, string $name)
     {
-        $this->event = ['type' => 'event', 'name' => $name];
+        $this->event = ['type' => 'activity', 'name' => $name];
     }
 
     /** The group it is counted in. Without one it is "default". */
