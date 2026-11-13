@@ -71,6 +71,23 @@ A `RecordedAlert` has `title`, `topic`, `level`, `message`, `url`, `fields`, `ta
 `links`, `dedupeKey` and `dedupeMinutes`. Without a topic or a level, they are `default`
 and `info`, as on the server. `Lumberjack::alerts()` returns them.
 
+### Activity
+
+[Activity](activity.md) can be matched by name and group, or with a check:
+
+```php
+Lumberjack::assertActivityRecorded('order.placed');
+Lumberjack::assertActivityRecorded('order.placed', group: 'billing', times: 1);
+Lumberjack::assertActivityRecorded(fn (RecordedActivity $activity) => $activity->isBy(User::class, $user->id));
+Lumberjack::assertActivityNotRecorded('order.refunded');
+Lumberjack::assertActorForgotten($user);
+```
+
+A `RecordedActivity` has `name`, `group`, `actor`, `subject` and `payload`, and `isBy()`
+and `isOn()` to compare the actor or subject with a type and key. Without a group it is
+`default`, as on the server. `Lumberjack::activities()` returns them. Under the fake,
+`Lumberjack::forgetActor()` asks nobody and returns 0.
+
 ### Assertions in a closure
 
 Type a closure with an assertable class and it makes assertions rather than answering true or

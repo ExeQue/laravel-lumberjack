@@ -65,6 +65,7 @@ export default defineConfig({
           { text: 'Health checks', link: '/docs/health-checks' },
           { text: 'Data sources', link: '/docs/data-sources' },
           { text: 'Custom alerts', link: '/docs/alerts' },
+          { text: 'Activity', link: '/docs/activity' },
           { text: 'Reacting to alerts', link: '/docs/webhooks' },
           { text: 'Testing your app', link: '/docs/testing' },
           { text: 'Artisan commands', link: '/docs/commands' },

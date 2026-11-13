@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack;
 
 use Closure;
+use ExeQue\Lumberjack\Activity\ActivityActors;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
@@ -18,6 +19,7 @@ use ExeQue\Lumberjack\DataSources\Http\DataSourcesController;
 use ExeQue\Lumberjack\DataSources\Http\VerifyPullSignature;
 use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Health\HealthStates;
+use ExeQue\Lumberjack\Listeners\RecordsActivity;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
@@ -120,6 +122,12 @@ class LumberjackServiceProvider extends ServiceProvider
         $this->app->singleton(DataSourceRegistry::class, fn (Application $app): DataSourceRegistry => new DataSourceRegistry($app, (array) config('lumberjack.data_sources.sources', [])));
 
         $this->app->singleton(HealthRegistry::class, fn (Application $app): HealthRegistry => new HealthRegistry($app, (array) config('lumberjack.health.checks', [])));
+
+        $this->app->singleton(ActivityActors::class, fn (Application $app): ActivityActors => new ActivityActors(
+            $app->make(HttpFactory::class),
+            $this->string('url') ?? '',
+            $this->string('token'),
+        ));
 
         $this->app->singleton(HealthStates::class, fn (Application $app): HealthStates => new HealthStates(
             $app->make(CacheFactory::class),
@@ -247,6 +255,10 @@ class LumberjackServiceProvider extends ServiceProvider
                 $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->job->getQueue(), ($e->job->timeout() ?? 60) + 30);
             }
         }));
+
+        // An event class that tracks itself (TracksLumberjackActivity or #[RecordsLumberjackActivity]).
+        $activities = new RecordsActivity($recorder);
+        $events->listen('*', Safely::wrap(fn (string $name, array $payload) => $activities->handle($name, $payload)));
 
         $events->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
         $events->subscribe(new RecordsScheduledTasks($recorder, $rules));

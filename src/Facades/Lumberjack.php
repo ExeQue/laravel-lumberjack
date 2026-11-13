@@ -5,20 +5,25 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Facades;
 
 use Closure;
+use ExeQue\Lumberjack\Activity\ActivityActors;
 use ExeQue\Lumberjack\DataSources\DataSourceRegistry;
+use ExeQue\Lumberjack\Exceptions\ForgetActorFailedException;
 use ExeQue\Lumberjack\Health\HealthCheckHandle;
 use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Health\HealthStateSnapshot;
 use ExeQue\Lumberjack\LumberjackServiceProvider;
+use ExeQue\Lumberjack\PendingActivity;
 use ExeQue\Lumberjack\PendingAlert;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Testing\EventType;
 use ExeQue\Lumberjack\Testing\FakeAgentClient;
 use ExeQue\Lumberjack\Testing\LumberjackFake;
+use ExeQue\Lumberjack\Testing\RecordedActivity;
 use ExeQue\Lumberjack\Testing\RecordedAlert;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\LumberjackAgent\AgentClient;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Facade;
 use RuntimeException;
 
@@ -76,6 +81,28 @@ class Lumberjack extends Facade
     }
 
     /**
+     * An activity with this name: something that happened in the app, recorded with the
+     * request or job by send().
+     */
+    public static function activity(string $name): PendingActivity
+    {
+        return new PendingActivity(app(Recorder::class), $name);
+    }
+
+    /**
+     * Deletes every activity of one actor in Lumberjack, such as when the account behind it
+     * is deleted: a model, or a type and its key. Throws when Lumberjack did not do it.
+     *
+     * @return int activities deleted
+     *
+     * @throws ForgetActorFailedException
+     */
+    public static function forgetActor(Model|string $actor, string|int|null $id = null): int
+    {
+        return app(ActivityActors::class)->forget($actor, $id);
+    }
+
+    /**
      * Keeps everything the app records from here on for assertions, instead of sending
      * it. Works with recording turned off too.
      */
@@ -93,7 +120,9 @@ class Lumberjack extends Facade
             $provider->startRecording();
         }
 
-        $fake = new LumberjackFake($recorder, $client);
+        $actors = $app->make(ActivityActors::class);
+        $actors->fake();
+        $fake = new LumberjackFake($recorder, $client, $actors);
         $app->instance(LumberjackFake::class, $fake);
 
         return $fake;
@@ -173,6 +202,36 @@ class Lumberjack extends Facade
     public static function assertNothingAlerted(): void
     {
         self::faked()->assertNothingAlerted();
+    }
+
+    /**
+     * @param  string|(Closure(RecordedActivity): bool)|null  $activity  a name, or a check of each activity
+     * @return list<RecordedActivity>
+     */
+    public static function activities(string|Closure|null $activity = null, ?string $group = null): array
+    {
+        return self::faked()->activities($activity, $group);
+    }
+
+    /**
+     * @param  string|(Closure(RecordedActivity): bool)|null  $activity  a name, or a check of each activity
+     */
+    public static function assertActivityRecorded(string|Closure|null $activity = null, ?string $group = null, ?int $times = null): void
+    {
+        self::faked()->assertActivityRecorded($activity, $group, $times);
+    }
+
+    /**
+     * @param  string|(Closure(RecordedActivity): bool)|null  $activity  a name, or a check of each activity
+     */
+    public static function assertActivityNotRecorded(string|Closure|null $activity = null, ?string $group = null): void
+    {
+        self::faked()->assertActivityNotRecorded($activity, $group);
+    }
+
+    public static function assertActorForgotten(Model|string $actor, string|int|null $id = null): void
+    {
+        self::faked()->assertActorForgotten($actor, $id);
     }
 
     private static function faked(): LumberjackFake

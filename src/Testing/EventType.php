@@ -21,4 +21,5 @@ enum EventType: string
     case Health = 'health';
     case Alert = 'alert';
     case Maintenance = 'maintenance';
+    case Activity = 'event';
 }

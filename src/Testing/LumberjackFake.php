@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack\Testing;
 
 use Closure;
+use ExeQue\Lumberjack\Activity\ActivityActors;
+use ExeQue\Lumberjack\Activity\Reference;
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Testing\Assertable\AssertableAlert;
 use ExeQue\Lumberjack\Testing\Assertable\AssertableEvent;
 use ExeQue\Lumberjack\Testing\Assertable\AssertableRecord;
 use ExeQue\Lumberjack\Testing\Assertable\AssertableReport;
+use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\Assert;
 use ReflectionFunction;
 use ReflectionNamedType;
@@ -28,7 +31,62 @@ class LumberjackFake
     public function __construct(
         private readonly Recorder $recorder,
         private readonly FakeAgentClient $client,
+        private readonly ActivityActors $actors,
     ) {
+    }
+
+    /**
+     * The activities recorded so far.
+     *
+     * @param  string|(Closure(RecordedActivity): bool)|null  $activity  a name, or a check of each activity
+     * @return list<RecordedActivity>
+     */
+    public function activities(string|Closure|null $activity = null, ?string $group = null): array
+    {
+        $activities = array_map(RecordedActivity::fromEvent(...), $this->recorded(EventType::Activity));
+
+        return array_values(array_filter($activities, fn (RecordedActivity $recorded): bool => match (true) {
+            $group !== null && $recorded->group !== $group => false,
+            $activity instanceof Closure => (bool) $activity($recorded),
+            $activity !== null => $recorded->name === $activity,
+            default => true,
+        }));
+    }
+
+    /**
+     * @param  string|(Closure(RecordedActivity): bool)|null  $activity  a name, or a check of each activity
+     */
+    public function assertActivityRecorded(string|Closure|null $activity = null, ?string $group = null, ?int $times = null): void
+    {
+        $this->assertFound(count($this->activities($activity, $group)), $times, $this->describeActivity($activity, $group), $this->activityListing($this->activities()));
+    }
+
+    /**
+     * @param  string|(Closure(RecordedActivity): bool)|null  $activity  a name, or a check of each activity
+     */
+    public function assertActivityNotRecorded(string|Closure|null $activity = null, ?string $group = null): void
+    {
+        $found = $this->activities($activity, $group);
+
+        Assert::assertEmpty($found, "Expected no {$this->describeActivity($activity, $group)}.".$this->activityListing($found));
+    }
+
+    /**
+     * The actors the app asked Lumberjack to forget.
+     *
+     * @return list<Reference>
+     */
+    public function forgottenActors(): array
+    {
+        return $this->actors->forgotten();
+    }
+
+    public function assertActorForgotten(Model|string $actor, string|int|null $id = null): void
+    {
+        $wanted = Reference::of($actor, $id);
+        $forgotten = array_map(fn (Reference $r): string => "{$r->type}:{$r->id}", $this->forgottenActors());
+
+        Assert::assertContains($wanted !== null ? "{$wanted->type}:{$wanted->id}" : '', $forgotten, 'Expected the actor to be forgotten.'.$this->list('Forgotten', $forgotten));
     }
 
     /**
@@ -279,8 +337,25 @@ class LumberjackFake
             'exception' => "exception: {$event['class']}: {$event['message']}",
             'log' => 'log: '.($event['message'] ?? ''),
             'alert' => "alert: {$event['title']}",
+            'event' => "activity: {$event['name']}",
             default => (string) $event['type'],
         }, $events));
+    }
+
+    /**
+     * @param  string|Closure|null  $activity
+     */
+    private function describeActivity(string|Closure|null $activity, ?string $group): string
+    {
+        return trim('an activity'.(is_string($activity) ? " \"{$activity}\"" : '').($activity instanceof Closure ? ' matching the check' : '').($group !== null ? " in group {$group}" : ''));
+    }
+
+    /**
+     * @param  list<RecordedActivity>  $activities
+     */
+    private function activityListing(array $activities): string
+    {
+        return $this->list('Recorded', array_map(fn (RecordedActivity $a): string => "\"{$a->name}\" (group: {$a->group})", $activities));
     }
 
     /**
