@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack\Listeners;
 
 use ExeQue\Lumberjack\Activity\Payload;
 use ExeQue\Lumberjack\Attributes\RecordsLumberjackActivity;
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use ExeQue\Lumberjack\Contracts\TracksLumberjackActivity;
 use ExeQue\Lumberjack\PendingActivity;
 use ExeQue\Lumberjack\Recorder;
@@ -85,10 +86,11 @@ final class RecordsActivity
     }
 
     /**
-     * An actor or subject as the attribute gives it: "@path" to a model, or "type:id"
+     * An actor or subject as the attribute gives it: "@path" to a model (or an object acting
+     * as an actor), or "type:id"
      * whose id may be "@path" too ("order:@order.uuid").
      *
-     * @return array{0: Model|string|null, 1: string|int|null}
+     * @return array{0: ActsAsLumberjackActor|Model|string|null, 1: string|int|null}
      */
     private static function reference(?string $value, object $event): array
     {
@@ -99,7 +101,7 @@ final class RecordsActivity
         if (str_starts_with($value, '@') && ! str_starts_with($value, '@@')) {
             $model = Payload::read($value, $event);
 
-            return $model instanceof Model ? [$model, null] : [null, null];
+            return $model instanceof ActsAsLumberjackActor || $model instanceof Model ? [$model, null] : [null, null];
         }
 
         if (! str_contains($value, ':')) {

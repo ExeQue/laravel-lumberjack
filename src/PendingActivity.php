@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack;
 
+use ExeQue\Lumberjack\Activity\Actor;
 use ExeQue\Lumberjack\Activity\Payload;
 use ExeQue\Lumberjack\Activity\Reference;
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Traits\Conditionable;
 
@@ -35,9 +37,10 @@ class PendingActivity
     }
 
     /**
-     * Who did it: a model, or a type and its key ("system", "scheduler").
+     * Who did it: an object acting as an actor (ActsAsLumberjackActor), an Actor, a model,
+     * or a type and its key ("system", "scheduler").
      */
-    public function by(Model|string|null $actor, string|int|null $id = null): static
+    public function by(ActsAsLumberjackActor|Actor|Model|string|null $actor, string|int|null $id = null): static
     {
         return $this->reference('actor', Reference::of($actor, $id));
     }
@@ -49,14 +52,15 @@ class PendingActivity
     {
         $user = auth()->guard($guard)->user();
 
-        return $user instanceof Model ? $this->by($user) : $this;
+        return $user instanceof ActsAsLumberjackActor || $user instanceof Model ? $this->by($user) : $this;
     }
 
     /**
-     * What it was done to: a model, or a type and its key. Call it again for each further
+     * What it was done to: a model, or a type and its key; an object acting as an actor is
+     * known the same way here (a user invited to a team). Call it again for each further
      * subject, such as an image and the gallery it was uploaded to. Lumberjack keeps ten.
      */
-    public function on(Model|string|null $subject, string|int|null $id = null): static
+    public function on(ActsAsLumberjackActor|Model|string|null $subject, string|int|null $id = null): static
     {
         $reference = Reference::of($subject, $id)?->toArray();
 

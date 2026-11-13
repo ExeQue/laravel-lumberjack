@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- **Activity**: a class implementing `ActsAsLumberjackActor` says who it is with `toLumberjackActor()`, returning an `Actor` (a type and a key), such as a user model that stands for an API client. `by()`, `byUser()`, `on()`, `@path` in `#[RecordsLumberjackActivity]`, a model in the payload and `forgetActor()` use it in place of the class and key. `by()` and `forgetActor()` also take an `Actor`.
+
 ## [0.9.0] - 2026-11-13
 
 ### Added

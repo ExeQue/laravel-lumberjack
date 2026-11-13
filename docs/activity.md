@@ -33,7 +33,7 @@ Lumberjack::activity('image.uploaded')->byUser()->on($image)->on($image->gallery
 | `activity($name)`         | The name: letters, digits, `.`, `_`, `:` and `-`, at most 128 characters.                 |
 | `group($group)`           | The group it is counted in. Without one, `default`.                                       |
 | `byUser($guard = null)`   | The logged in user as the actor. Without a logged in user it has no actor.               |
-| `by($model)`              | Who did it: any model, such as a team.                                                    |
+| `by($model)`              | Who did it: any model, such as a team, or an `Actor`.                                     |
 | `by($type, $id)`          | Who did it, when it is not a model: `by('system', 'scheduler')`.                          |
 | `on($model)`, `on($t, $id)` | What it was done to. Call it again for each further subject, at most 10.     |
 | `with($payload)`          | What else to keep, merged into what is there. At most 16 KB as JSON.                      |
@@ -48,6 +48,32 @@ alias, or its class without one. Nobody is the actor unless the code says so. A 
 in the payload is sent the same way, never its attributes. Dates are sent as ISO 8601,
 enums as their value, and anything `Arrayable` as its array. The payload is scrubbed like
 everything else, see [What is recorded](recording.md).
+
+### An actor that says who it is
+
+When the type and key are not how an actor should be known, such as a user model that
+stands for an API client, the class implements `ActsAsLumberjackActor` and returns an
+`Actor` from `toLumberjackActor()`:
+
+```php
+use ExeQue\Lumberjack\Activity\Actor;
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
+
+class User extends Authenticatable implements ActsAsLumberjackActor
+{
+    public function toLumberjackActor(): Actor
+    {
+        return $this->is_api_client
+            ? new Actor('api-client', $this->client_name)
+            : new Actor('user', $this->getKey());
+    }
+}
+```
+
+`by()`, `byUser()`, `on()`, a `@path` in `#[RecordsLumberjackActivity]`, a model in the
+payload and `forgetActor()` all use it in place of the class and key, so forgetting finds
+what was recorded. `by(new Actor('system', 'scheduler'))` works too. Keep personal data out
+of the key: it is sent as is.
 
 ## An event that records itself
 
@@ -123,7 +149,7 @@ call `send()`. When a class has both the contract and the attribute, the contrac
 When an account is deleted, delete its activity in Lumberjack too:
 
 ```php
-Lumberjack::forgetActor($user);           // a model
+Lumberjack::forgetActor($user);           // a model, or an ActsAsLumberjackActor
 Lumberjack::forgetActor('user', 17);      // or a type and its key
 ```
 

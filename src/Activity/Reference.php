@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Activity;
 
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -18,11 +19,20 @@ final readonly class Reference
     }
 
     /**
-     * A model becomes its morph alias (or class) and key; anything else is a type with
-     * the given key. Null when there is no key to refer to.
+     * An object that acts as an actor becomes what it says it is, an Actor itself, a model
+     * its morph alias (or class) and key; anything else is a type with the given key. Null
+     * when there is no key to refer to.
      */
-    public static function of(Model|string|null $type, string|int|null $id = null): ?self
+    public static function of(ActsAsLumberjackActor|Actor|Model|string|null $type, string|int|null $id = null): ?self
     {
+        if ($type instanceof ActsAsLumberjackActor) {
+            $type = $type->toLumberjackActor();
+        }
+
+        if ($type instanceof Actor) {
+            return $type->type !== '' && $type->id !== '' ? new self($type->type, $type->id) : null;
+        }
+
         if ($type instanceof Model) {
             $key = $type->getKey();
 

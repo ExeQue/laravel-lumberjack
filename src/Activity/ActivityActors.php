@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace ExeQue\Lumberjack\Activity;
 
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use ExeQue\Lumberjack\Exceptions\ForgetActorFailedException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Client\ConnectionException;
@@ -34,7 +35,7 @@ class ActivityActors
      *
      * @throws ForgetActorFailedException
      */
-    public function forget(Model|string $actor, string|int|null $id = null): int
+    public function forget(ActsAsLumberjackActor|Actor|Model|string $actor, string|int|null $id = null): int
     {
         $reference = Reference::of($actor, $id) ?? throw ForgetActorFailedException::noActor();
 

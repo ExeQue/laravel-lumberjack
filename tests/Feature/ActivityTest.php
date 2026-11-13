@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use ExeQue\Lumberjack\Activity\ActivityActors;
+use ExeQue\Lumberjack\Activity\Actor;
 use ExeQue\Lumberjack\Activity\Payload;
+use ExeQue\Lumberjack\Activity\Reference;
 use ExeQue\Lumberjack\Exceptions\ForgetActorFailedException;
 use ExeQue\Lumberjack\Facades\Lumberjack;
 use ExeQue\Lumberjack\Listeners\RecordsActivity;
@@ -14,13 +16,14 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\AssertionFailedError;
+use Tests\Fixtures\Activity\ApiClient;
 use Tests\Fixtures\Activity\Customer;
 use Tests\Fixtures\Activity\Order;
 use Tests\Fixtures\Activity\OrderPlaced;
 use Tests\Fixtures\Activity\RefundIssued;
 use Tests\Fixtures\Activity\SignedIn;
 
-covers(PendingActivity::class, Payload::class, RecordsActivity::class, ActivityActors::class, RecordedActivity::class);
+covers(PendingActivity::class, Payload::class, Actor::class, Reference::class, RecordsActivity::class, ActivityActors::class, RecordedActivity::class);
 
 beforeEach(function () {
     app(Recorder::class)->capture();
@@ -64,6 +67,24 @@ describe('Lumberjack::activity()', function () {
         Lumberjack::activity('signed.in')->byUser()->send();
 
         expect(($this->activity)()[0]['actor']['id'])->toBe('5');
+    });
+
+    it('takes the actor an object says it is, before its class and key', function () {
+        $client = ApiClient::make(3, 'billing');
+        Auth::setUser($client);
+
+        Lumberjack::activity('a')->by($client)->send();
+        Lumberjack::activity('b')->byUser()->send();
+        Lumberjack::activity('c')->by(new Actor('system', 'scheduler'))->send();
+        Lumberjack::activity('d')->with(['client' => $client])->send();
+
+        $sent = ($this->activity)();
+
+        expect(array_column(array_slice($sent, 0, 3), 'actor'))->toBe([
+            ['type' => 'api-client', 'id' => 'billing'],
+            ['type' => 'api-client', 'id' => 'billing'],
+            ['type' => 'system', 'id' => 'scheduler'],
+        ])->and($sent[3]['payload']['client'])->toBe(['type' => 'api-client', 'id' => 'billing']);
     });
 
     it('sends a model in the payload as its type and key, never its attributes', function () {
@@ -149,6 +170,14 @@ describe('forgetting an actor', function () {
         Http::assertSent(fn (Request $request): bool => $request->method() === 'DELETE'
             && $request->hasHeader('Authorization', 'Bearer lj_srv_x')
             && $request->data() === ['type' => Customer::class, 'id' => '17']);
+    });
+
+    it('forgets an object as the actor it says it is, as it was recorded', function () {
+        Http::fake(['lumberjack.test/api/activity/actor' => Http::response(['deleted' => 1])]);
+
+        Lumberjack::forgetActor(ApiClient::make(3, 'billing'));
+
+        Http::assertSent(fn (Request $request): bool => $request->data() === ['type' => 'api-client', 'id' => 'billing']);
     });
 
     it('throws when Lumberjack does not do it', function () {

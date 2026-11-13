@@ -6,6 +6,8 @@ namespace ExeQue\Lumberjack\Facades;
 
 use Closure;
 use ExeQue\Lumberjack\Activity\ActivityActors;
+use ExeQue\Lumberjack\Activity\Actor;
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use ExeQue\Lumberjack\DataSources\DataSourceRegistry;
 use ExeQue\Lumberjack\Exceptions\ForgetActorFailedException;
 use ExeQue\Lumberjack\Health\HealthCheckHandle;
@@ -97,7 +99,7 @@ class Lumberjack extends Facade
      *
      * @throws ForgetActorFailedException
      */
-    public static function forgetActor(Model|string $actor, string|int|null $id = null): int
+    public static function forgetActor(ActsAsLumberjackActor|Actor|Model|string $actor, string|int|null $id = null): int
     {
         return app(ActivityActors::class)->forget($actor, $id);
     }

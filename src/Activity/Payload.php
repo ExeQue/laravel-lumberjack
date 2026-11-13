@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack\Activity;
 
 use BackedEnum;
 use DateTimeInterface;
+use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
@@ -60,7 +61,7 @@ final class Payload
     private static function value(mixed $value): mixed
     {
         return match (true) {
-            $value instanceof Model => Reference::of($value)?->toArray(),
+            $value instanceof ActsAsLumberjackActor, $value instanceof Model => Reference::of($value)?->toArray(),
             $value instanceof DateTimeInterface => $value->format(DateTimeInterface::ATOM),
             $value instanceof BackedEnum => $value->value,
             $value instanceof UnitEnum => $value->name,
