@@ -28,6 +28,7 @@ use ExeQue\Lumberjack\Listeners\ReportsMaintenance;
 use ExeQue\Lumberjack\Logging\LumberjackHandler;
 use ExeQue\Lumberjack\Release\StackReleaseResolver;
 use ExeQue\Lumberjack\Support\CallerLocation;
+use ExeQue\Lumberjack\Support\Client;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
 use ExeQue\Lumberjack\Support\LaravelHttpStack;
@@ -46,6 +47,7 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Foundation\Console\AboutCommand;
 use Illuminate\Http\Client\Factory as HttpFactory;
 use Illuminate\Http\Request;
 use Illuminate\Log\LogManager;
@@ -162,6 +164,13 @@ class LumberjackServiceProvider extends ServiceProvider
             $this->publishes([__DIR__.'/../config/lumberjack.php' => config_path('lumberjack.php')], 'lumberjack-config');
             // Also when turned off: they say so and do nothing.
             $this->commands([DataSourcesTestCommand::class, AgentCommand::class, TerminateCommand::class, TestCommand::class, HealthCommand::class, InstallCommand::class, SourcemapsCommand::class]);
+
+            AboutCommand::add('Lumberjack', fn (): array => [
+                'Version' => Client::version(),
+                'Enabled' => AboutCommand::format($enabled, console: fn (bool $value): string => $value ? '<fg=green;options=bold>ENABLED</>' : 'OFF'),
+                'URL' => $this->string('url') ?? '',
+                'Environment' => $this->string('environment') ?? '',
+            ]);
         }
 
         // Also when turned off, so @lumberjack still compiles (to nothing) and a log channel

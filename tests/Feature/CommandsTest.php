@@ -122,3 +122,15 @@ describe('a command called from inside a request', function () {
             ->and(array_column($this->sentEvents('command'), 'status'))->toBe(['started', 'finished']);
     });
 });
+
+it('shows Lumberjack in artisan about', function () {
+    config(['lumberjack.url' => 'https://lumberjack.example.com']);
+
+    Artisan::call('about', ['--only' => 'lumberjack', '--json' => true]);
+
+    expect(json_decode(Artisan::output(), true)['lumberjack'])->toMatchArray([
+        'enabled' => true,
+        'url' => 'https://lumberjack.example.com',
+        'environment' => 'testing',
+    ]);
+});

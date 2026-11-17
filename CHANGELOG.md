@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- `php artisan about` has a Lumberjack section: the SDK version, whether it is enabled, the server URL and the environment.
+
 ## [0.10.0] - 2026-11-13
 
 ### Added
