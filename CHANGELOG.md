@@ -4,6 +4,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- The `lumberjack-setup` skill is also a prompt of Laravel Boost's MCP server, so it runs right after `composer require`, without installing the skill: `/mcp__laravel-boost__lumberjack-setup` in Claude Code.
+
 ## [0.14.0] - 2026-11-19
 
 ### Added

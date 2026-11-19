@@ -66,11 +66,11 @@ jobs:
       - name: Execute tests
         run: vendor/bin/pest -p --ci
 
-  # laravel/ai, prism-php/prism and livewire/livewire are only dev dependencies: the SDK must work without them.
+  # laravel/ai, prism-php/prism, livewire/livewire and laravel/boost are only dev dependencies: the SDK must work without them.
   tests-without-ai:
     runs-on: ubuntu-latest
 
-    name: Without Laravel AI, Prism and Livewire
+    name: Without Laravel AI, Prism, Livewire and Boost
 
     steps:
       - name: Checkout code
@@ -85,7 +85,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          composer remove --dev laravel/ai prism-php/prism livewire/livewire --no-interaction --no-update
+          composer remove --dev laravel/ai prism-php/prism livewire/livewire laravel/boost --no-interaction --no-update
           composer update --prefer-stable --prefer-dist --no-interaction --with-all-dependencies
 
       - name: Execute tests

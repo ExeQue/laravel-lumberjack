@@ -10,6 +10,7 @@ use ExeQue\Lumberjack\Ai\AiCallRecorder;
 use ExeQue\Lumberjack\Ai\AiContext;
 use ExeQue\Lumberjack\Ai\LaravelAi\RecordsLaravelAi;
 use ExeQue\Lumberjack\Ai\Prism\RecordingPrismManager;
+use ExeQue\Lumberjack\Boost\LumberjackSetupPrompt;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
@@ -189,6 +190,11 @@ class LumberjackServiceProvider extends ServiceProvider
                 'URL' => $this->string('url') ?? '',
                 'Environment' => $this->string('environment') ?? '',
             ]);
+
+            // The setup skill as a prompt of Boost's MCP server, usable without installing it.
+            if (class_exists(\Laravel\Boost\Mcp\Boost::class)) {
+                config(['boost.mcp.prompts.include' => array_values(array_unique([...(array) config('boost.mcp.prompts.include', []), LumberjackSetupPrompt::class]))]);
+            }
         }
 
         // Also when turned off, so @lumberjack still compiles (to nothing) and a log channel

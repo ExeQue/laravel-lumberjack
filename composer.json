@@ -27,6 +27,7 @@
         "brianium/paratest": "<7.28",
         "larastan/larastan": "^3.0",
         "laravel/ai": "^0.11|^1.0",
+        "laravel/boost": "^2.0",
         "laravel/horizon": "^5.50",
         "laravel/pint": "^1.20",
         "league/flysystem-aws-s3-v3": "^3.0",
@@ -38,7 +39,8 @@
     "suggest": {
         "laravel/ai": "Records the token usage of every Laravel AI call (0.11 or 1.x)",
         "prism-php/prism": "Records the token usage of every Prism call (0.100 to 0.103)",
-        "livewire/livewire": "Records each Livewire update under the component and method it called (3 or 4)"
+        "livewire/livewire": "Records each Livewire update under the component and method it called (3 or 4)",
+        "laravel/boost": "Offers the lumberjack-setup prompt on Boost's MCP server, and installs the Lumberjack guideline and skills"
     },
     "conflict": {
         "laravel/ai": "<0.11",
