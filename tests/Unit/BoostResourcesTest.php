@@ -6,12 +6,14 @@ use ExeQue\Lumberjack\Facades\Lumberjack;
 use ExeQue\Lumberjack\Health\HealthCheckHandle;
 use ExeQue\Lumberjack\Health\HealthRegistry;
 use ExeQue\Lumberjack\Webhooks\Handlers;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 
 // A cheap guard against the AI guidelines drifting from the API they describe.
 
 const BOOST_GUIDELINE = __DIR__.'/../../resources/boost/guidelines/core.blade.php';
 const BOOST_SKILL = __DIR__.'/../../resources/boost/skills/lumberjack-development/SKILL.md';
+const BOOST_SETUP_SKILL = __DIR__.'/../../resources/boost/skills/lumberjack-setup/SKILL.md';
 
 function boostText(): string
 {
@@ -82,5 +84,35 @@ describe('the Boost resources', function () {
 
         expect($builtIns)->toHaveCount(15)
             ->and($listed)->toEqualCanonicalizing($builtIns);
+    });
+});
+
+describe('the setup skill', function () {
+    it('has its name and a description', function () {
+        expect(file_get_contents(BOOST_SETUP_SKILL))->toMatch('/\A---\nname: lumberjack-setup\ndescription: "Use when [^"]+"\n---\n/');
+    });
+
+    it('only names commands, options and env keys that exist', function () {
+        $skill = (string) file_get_contents(BOOST_SETUP_SKILL);
+        $commands = array_keys(Artisan::all());
+        $definitions = [Artisan::all()['lumberjack:install']->getDefinition(), Artisan::all()['lumberjack:agent']->getDefinition()];
+        $config = (string) file_get_contents(__DIR__.'/../../config/lumberjack.php');
+
+        preg_match_all('/\b(lumberjack:[a-z:-]+)/', $skill, $named);
+        preg_match_all('/\b(LUMBERJACK_[A-Z_]+)/', $skill, $keys);
+
+        foreach (array_unique($named[1]) as $command) {
+            expect($commands)->toContain($command);
+        }
+
+        foreach (array_unique($keys[1]) as $key) {
+            expect($config)->toContain("'{$key}'");
+        }
+
+        preg_match_all('/--([a-z-]+)=/', $skill, $given);
+
+        foreach (array_unique($given[1]) as $option) {
+            expect(array_filter($definitions, fn ($definition) => $definition->hasOption($option)))->not->toBeEmpty("--{$option} is not an option");
+        }
     });
 });

@@ -1,8 +1,9 @@
 # Laravel Boost
 
-The package ships guidelines and a skill for [Laravel Boost](https://github.com/laravel/boost), so an AI assistant working on your app knows how to use Lumberjack.
+The package ships a guideline and two skills for [Laravel Boost](https://github.com/laravel/boost), so an AI assistant working on your app knows how to use Lumberjack.
 
 - **A guideline**, always in the assistant's context: what the package does, how to install it, how to register and fire health checks, and the rules it must keep (the package never blocks the app, the app never calls Lumberjack's API from request code, checks, webhook handlers and log channels are registered in `boot()`, and a check's slug is its identity).
+- **The `lumberjack-setup` skill**, to set Lumberjack up to fit the app: the assistant reads `composer.json`, the config and the deploy files, runs `lumberjack:install` with the health checks, layouts and queues the app uses, and sets only the keys its stack calls for (sampling for a busy app, the release for a Docker deploy, the log channel, the agent next to the app's other processes). In Claude Code, run it with `/lumberjack-setup`; other assistants pick it up when asked to set Lumberjack up.
 - **The `lumberjack-development` skill**, loaded when the assistant works on Lumberjack: every built-in health check with its parameters, custom and closure checks, thresholds, reading states, release resolvers, webhook handlers, what is recorded, sampling, spans, log channels, the browser script, the agent and how to test an app that uses the package.
 
 ## Installing them
