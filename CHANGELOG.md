@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-19
+
 ### Added
 
 - **AI token usage**: every AI call is recorded as an `ai_call` with provider, model, operation, tokens (input with cached tokens included, output, cache reads and writes, reasoning), duration, status, the key's fingerprint, label and owner, and the actor. Always at sample rate 1.0, whatever the request or job sampling: it is accounting. The API key never leaves the app, only `sha256("driver:key")`; prompts and responses are never sent. Requires Lumberjack server 0.13.0 or newer.
@@ -134,7 +136,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.8.0...v0.9.0
