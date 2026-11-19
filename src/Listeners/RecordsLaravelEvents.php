@@ -6,6 +6,7 @@ namespace ExeQue\Lumberjack\Listeners;
 
 use ExeQue\Lumberjack\Recorder;
 use ExeQue\Lumberjack\Support\CallerLocation;
+use ExeQue\Lumberjack\Support\InertiaRequest;
 use ExeQue\Lumberjack\Support\JobParameters;
 use ExeQue\Lumberjack\Support\RecordingRules;
 use ExeQue\Lumberjack\Support\Safely;
@@ -21,6 +22,7 @@ use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Queue\Events\JobReleasedAfterException;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Routing\Events\RouteMatched;
+use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
@@ -48,6 +50,7 @@ class RecordsLaravelEvents
         private readonly Recorder $recorder,
         private readonly RecordingRules $rules,
         private readonly ?CallerLocation $location = null,
+        private readonly ?RecordsLivewire $livewire = null,
     ) {
     }
 
@@ -81,6 +84,7 @@ class RecordsLaravelEvents
         $this->recorder->flush();
         $this->recorder->reset();
         $this->traceUsed = false;
+        $this->livewire?->reset();
     }
 
     public function routeMatched(RouteMatched $event): void
@@ -89,6 +93,8 @@ class RecordsLaravelEvents
         if ($this->traceUsed) {
             $this->newRequest();
         }
+
+        $this->livewire?->reset();
 
         if (! $this->rules->requests) {
             return;
@@ -122,10 +128,11 @@ class RecordsLaravelEvents
         $routeName = is_object($route) ? $route->getName() : null;
         $route = is_object($route) ? '/'.ltrim($route->uri(), '/') : '/'.ltrim($request->path(), '/');
         $domain = self::domain($request);
+        [$route, $kind, $context] = $this->describe($request, $event->response, $route);
 
         // Every request is counted, sampled or not, so the server knows the true traffic.
         if (! $this->rules->ignoresStatus($status)) {
-            $this->recorder->countRequest($request->method(), $route, $status, $duration, $domain);
+            $this->recorder->countRequest($request->method(), $route, $status, $duration, $domain, $kind ?? '');
         }
 
         // A request that was not sampled is still recorded when it was slow.
@@ -155,7 +162,25 @@ class RecordsLaravelEvents
             'duration_ms' => $duration,
             'memory_peak' => memory_get_peak_usage(true),
             'timestamp' => $start,
+            ...array_filter(['kind' => $kind, 'context' => $context]),
         ]);
+    }
+
+    /**
+     * A Livewire update under the component and method it called instead of Livewire's
+     * one update route, and an Inertia request with what kind of visit it was.
+     *
+     * @return array{string, string|null, array<string, mixed>|null} the route, the kind and the context
+     */
+    private function describe(Request $request, Response $response, string $route): array
+    {
+        if ($this->livewire?->handled()) {
+            return [(string) $this->livewire->route(), 'livewire', ['livewire' => $this->livewire->context()]];
+        }
+
+        $inertia = $this->rules->inertia ? InertiaRequest::describe($request, $response) : null;
+
+        return $inertia === null ? [$route, null, null] : [$route, $inertia['kind'], ['inertia' => $inertia['context']]];
     }
 
     /**

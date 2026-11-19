@@ -92,8 +92,52 @@ characters. The route name (`orders.show`) is sent when the route has one.
     'ignore' => ['up', 'horizon*', 'telescope*'],  // route URIs or paths
     'ignore_methods' => ['OPTIONS', 'HEAD'],
     'ignore_status' => [404],                      // e.g. for a site crawlers hammer
+    'livewire' => true,                            // Livewire updates per component and method
+    'inertia' => true,                             // Inertia visits, partial reloads and prefetches
 ],
 ```
+
+### Livewire
+
+Every Livewire update goes to the same route, so its timings would mix a quick poll with a
+slow save. When Livewire 3 or 4 is installed, an update is recorded and counted under the
+component and method it called instead, with the kind `livewire`:
+
+| Update | Route |
+|---|---|
+| a call of `save` on `cart.checkout` | `livewire:cart.checkout@save` |
+| a poll or `$refresh` | `livewire:cart.checkout@$refresh` |
+| an event the component listens to | `livewire:cart.checkout@__dispatch:cart-updated` |
+| property updates without a call | `livewire:cart.checkout@(update)` |
+| several methods of one component | `livewire:cart.checkout@(batch)` |
+| several components at once | `livewire:(batch)` |
+
+The route name stays Livewire's own (`livewire.update`). The request also carries the
+components it updated, the methods they ran, how many properties each updated and the page
+they live on, and each call and render is a `livewire` span on its trace. The names come
+from Livewire's hooks after it checked the snapshot, and a call counts only once its method
+ran, so a browser cannot make up routes. The page that first renders the components is an
+ordinary request. Turn it off with `LUMBERJACK_REQUESTS_LIVEWIRE=false`.
+
+### Inertia
+
+An Inertia request keeps its route but gets a kind, so a partial reload that loads deferred
+props is not averaged with the full visit:
+
+| Kind | When |
+|---|---|
+| `inertia` | a visit answered with a page object |
+| `inertia-partial` | a partial reload, with `only` or `except` props |
+| `inertia-prefetch` | a prefetch (`Purpose: prefetch`) |
+
+The request also carries the page component, the props a partial reload asked for, left
+out or reset, and whether it was sent back for a full reload because the asset version was
+outdated. It is read from Inertia's headers and the start of the page object, so Inertia
+need not be installed for the SDK. The first page load is an ordinary request. Turn it off
+with `LUMBERJACK_REQUESTS_INERTIA=false`.
+
+Kinds need Lumberjack server 0.14.0 or newer; an older one counts these requests under
+their route without telling the kinds apart.
 
 ## Queries
 
@@ -183,6 +227,7 @@ in Lumberjack, so the trace shows it in order with the queries and log lines.
 | `mail` | each message sent: the mailable class and how many recipients | addresses and the subject |
 | `notification` | each notification sent: its class and channel | the notifiable |
 | `redis` | each command, its first argument (usually the key) and duration. Off by default; there can be very many | the values |
+| `livewire` | each Livewire call and render: the component and method, and its duration. Part of [Livewire](#livewire) | the parameters and the HTML |
 
 ```php
 // config/lumberjack.php

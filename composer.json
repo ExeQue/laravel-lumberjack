@@ -30,13 +30,15 @@
         "laravel/horizon": "^5.50",
         "laravel/pint": "^1.20",
         "league/flysystem-aws-s3-v3": "^3.0",
+        "livewire/livewire": "^3.6|^4.0",
         "orchestra/testbench": "^10.0|^11.0",
         "pestphp/pest": "^4.0|^5.0",
         "prism-php/prism": ">=0.100 <0.104"
     },
     "suggest": {
         "laravel/ai": "Records the token usage of every Laravel AI call (0.11 or 1.x)",
-        "prism-php/prism": "Records the token usage of every Prism call (0.100 to 0.103)"
+        "prism-php/prism": "Records the token usage of every Prism call (0.100 to 0.103)",
+        "livewire/livewire": "Records each Livewire update under the component and method it called (3 or 4)"
     },
     "conflict": {
         "laravel/ai": "<0.11",

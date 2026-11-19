@@ -53,11 +53,19 @@ final class Safely
 
     public static function run(callable $callback, mixed ...$arguments): void
     {
+        self::value($callback, ...$arguments);
+    }
+
+    /** As run, for a callback whose value is wanted: null when it threw. */
+    public static function value(callable $callback, mixed ...$arguments): mixed
+    {
         try {
-            $callback(...$arguments);
+            return $callback(...$arguments);
         } catch (Throwable $e) {
             // ponytail: to PHP's error log, not Laravel's: Laravel's may be Lumberjack itself.
             @error_log('Lumberjack could not record an event: '.$e::class.': '.$e->getMessage());
+
+            return null;
         }
     }
 

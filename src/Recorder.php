@@ -26,10 +26,10 @@ class Recorder
 
     public const int MAX_HELD = 1000;
 
-    /** Distinct method, route, domain and status rows counted between two flushes; more go in one "other" row. */
+    /** Distinct method, route, domain, kind and status rows counted between two flushes; more go in one "other" row. */
     public const int MAX_COUNTED = 500;
 
-    /** @var array<string, array{method: string, route: string, domain: string, status: int, count: int, duration_ms_sum: float}> */
+    /** @var array<string, array{method: string, route: string, domain: string, status: int, count: int, duration_ms_sum: float, kind?: string}> */
     private array $counts = [];
 
     private ?float $countedFrom = null;
@@ -204,21 +204,22 @@ class Recorder
      * Every request the rules record, sampled or not, is counted, so the server knows the
      * true traffic. Sent as one request_counts event with the next flush.
      */
-    public function countRequest(string $method, string $route, int $status, float $durationMs, string $domain = ''): void
+    public function countRequest(string $method, string $route, int $status, float $durationMs, string $domain = '', string $kind = ''): void
     {
         if (! $this->enabled) {
             return;
         }
 
-        $key = $method.' '.$domain.' '.$route.' '.$status;
+        $key = $method.' '.$domain.' '.$kind.' '.$route.' '.$status;
 
         if (! isset($this->counts[$key]) && count($this->counts) >= self::MAX_COUNTED) {
             $key = 'other';
-            [$method, $route, $domain, $status] = ['*', 'other', '', 0];
+            [$method, $route, $domain, $status, $kind] = ['*', 'other', '', 0, ''];
         }
 
         $this->countedFrom ??= microtime(true);
-        $this->counts[$key] ??= ['method' => $method, 'route' => $route, 'domain' => $domain, 'status' => $status, 'count' => 0, 'duration_ms_sum' => 0.0];
+        // An ordinary request's row carries no kind, as before kinds were counted.
+        $this->counts[$key] ??= ['method' => $method, 'route' => $route, 'domain' => $domain, 'status' => $status, 'count' => 0, 'duration_ms_sum' => 0.0] + ($kind !== '' ? ['kind' => $kind] : []);
         $this->counts[$key]['count']++;
         $this->counts[$key]['duration_ms_sum'] += $durationMs;
     }

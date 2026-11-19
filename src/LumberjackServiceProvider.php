@@ -26,6 +26,7 @@ use ExeQue\Lumberjack\Health\HealthStates;
 use ExeQue\Lumberjack\Listeners\RecordsActivity;
 use ExeQue\Lumberjack\Listeners\RecordsCommands;
 use ExeQue\Lumberjack\Listeners\RecordsLaravelEvents;
+use ExeQue\Lumberjack\Listeners\RecordsLivewire;
 use ExeQue\Lumberjack\Listeners\RecordsScheduledTasks;
 use ExeQue\Lumberjack\Listeners\RecordsSpans;
 use ExeQue\Lumberjack\Listeners\ReportsMaintenance;
@@ -293,7 +294,9 @@ class LumberjackServiceProvider extends ServiceProvider
         $activities = new RecordsActivity($recorder);
         $events->listen('*', Safely::wrap(fn (string $name, array $payload) => $activities->handle($name, $payload)));
 
-        $events->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__)));
+        $livewire = $rules->requests && $rules->livewire && RecordsLivewire::available() ? new RecordsLivewire($recorder) : null;
+        $livewire?->listen();
+        $events->subscribe(new RecordsLaravelEvents($recorder, $rules, new CallerLocation($this->string('base_path') ?? $this->app->basePath(), __DIR__), $livewire));
         $events->subscribe(new RecordsScheduledTasks($recorder, $rules));
         $events->subscribe(new RecordsSpans($recorder, (array) config('lumberjack.spans', [])));
 

@@ -128,6 +128,8 @@ The `ignore` lists of routes, queries, jobs, queues, commands and scheduled task
 | `requests.ignore` | | `up`, `horizon*`, `telescope*`, `_debugbar*` |
 | `requests.ignore_methods` | | `OPTIONS`, `HEAD` |
 | `requests.ignore_status` | | none |
+| `requests.livewire` | `LUMBERJACK_REQUESTS_LIVEWIRE` | `true` |
+| `requests.inertia` | `LUMBERJACK_REQUESTS_INERTIA` | `true` |
 | `queries.enabled` | `LUMBERJACK_QUERIES` | `true` |
 | `queries.slower_than_ms` | `LUMBERJACK_QUERIES_SLOWER_THAN_MS` | `0` |
 | `queries.always_slower_than_ms` | `LUMBERJACK_QUERIES_ALWAYS_SLOWER_THAN_MS` | `500` |

@@ -19,11 +19,12 @@ abstract class TestCase extends Orchestra
 
     protected function getPackageProviders($app): array
     {
-        // The AI packages are dev dependencies; CI also runs the suite without them.
+        // The AI packages and Livewire are dev dependencies; CI also runs the suite without them.
         return array_values(array_filter([
             LumberjackServiceProvider::class,
             'Laravel\\Ai\\AiServiceProvider',
             'Prism\\Prism\\PrismServiceProvider',
+            'Livewire\\LivewireServiceProvider',
         ], class_exists(...)));
     }
 

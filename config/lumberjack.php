@@ -133,6 +133,14 @@ return [
 
         // Status codes, e.g. [404] for a site that crawlers hammer.
         'ignore_status' => [],
+
+        // A Livewire update is recorded under the component and method it called
+        // (livewire:cart.checkout@save), with each call and render a span on its trace.
+        'livewire' => (bool) env('LUMBERJACK_REQUESTS_LIVEWIRE', true),
+
+        // An Inertia visit, partial reload or prefetch is told apart from an ordinary
+        // request, with the page component and the props a partial reload asked for.
+        'inertia' => (bool) env('LUMBERJACK_REQUESTS_INERTIA', true),
     ],
 
     'queries' => [
