@@ -8,6 +8,10 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 - The `lumberjack-setup` Boost skill (`/lumberjack-setup` in Claude Code): the assistant looks at what the app runs with and how it is deployed, runs `lumberjack:install` with the health checks, layouts and queues it uses, and sets only the `.env` keys and config its stack calls for.
 
+### Fixed
+
+- `lumberjack:install --layout=auto` says where `@lumberjack` is already instead of printing nothing when every layout has it.
+
 ## [0.13.0] - 2026-11-19
 
 ### Added

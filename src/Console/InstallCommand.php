@@ -258,6 +258,13 @@ class InstallCommand extends Command
 
         if ($given === ['auto']) {
             $files = array_map(fn (string $layout): string => $views.'/'.$layout, $this->autoLayouts());
+
+            if ($files === []) {
+                $found = LayoutInjector::layouts($views);
+                $this->components->twoColumnDetail('@lumberjack', $found === [] ? 'no layout with a </head> found' : 'already in '.implode(', ', $found));
+
+                return;
+            }
         } elseif ($given !== []) {
             $files = array_map(fn (string $path): string => str_starts_with($path, '/') ? $path : $this->laravel->basePath($path), $given);
         } elseif ($this->input->isInteractive()) {

@@ -109,7 +109,9 @@ describe('the setup skill', function () {
             expect($config)->toContain("'{$key}'");
         }
 
-        preg_match_all('/--([a-z-]+)=/', $skill, $given);
+        // Composer's own options are not the package's.
+        $ours = implode("\n", array_filter(explode("\n", $skill), fn (string $line): bool => ! str_contains($line, 'composer ')));
+        preg_match_all('/--([a-z-]+)=/', $ours, $given);
 
         foreach (array_unique($given[1]) as $option) {
             expect(array_filter($definitions, fn ($definition) => $definition->hasOption($option)))->not->toBeEmpty("--{$option} is not an option");

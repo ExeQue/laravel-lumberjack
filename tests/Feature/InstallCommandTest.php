@@ -107,6 +107,14 @@ describe('lumberjack:install', function () {
         expect(installed('resources/views/layouts/app.blade.php'))->toContain("    @lumberjack\n</head>");
     });
 
+    it('says @lumberjack is there already when --layout=auto runs again', function () {
+        ($this->install)(['--layout' => ['auto']])->assertSuccessful();
+
+        ($this->install)(['--layout' => ['auto']])
+            ->expectsOutputToContain('already in layouts/app.blade.php')
+            ->assertSuccessful();
+    });
+
     it('stops before writing anything when --layout=auto finds several layouts', function () {
         File::put($this->base.'/resources/views/admin.blade.php', "<html><head></head></html>\n");
 
