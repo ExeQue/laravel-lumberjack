@@ -128,7 +128,8 @@ class RecordsLaravelEvents
         $routeName = is_object($route) ? $route->getName() : null;
         $route = is_object($route) ? '/'.ltrim($route->uri(), '/') : '/'.ltrim($request->path(), '/');
         $domain = self::domain($request);
-        [$route, $kind, $context] = $this->describe($request, $event->response, $route);
+        // What Livewire or Inertia tell is extra: should it fail, the request still counts.
+        [$route, $kind, $context] = Safely::value($this->describe(...), $request, $event->response, $route) ?? [$route, null, null];
 
         // Every request is counted, sampled or not, so the server knows the true traffic.
         if (! $this->rules->ignoresStatus($status)) {

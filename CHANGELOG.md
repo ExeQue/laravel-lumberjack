@@ -6,7 +6,7 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ### Added
 
-- **Livewire**: an update is recorded and counted under the component and method it called (`livewire:cart.checkout@save`, `@$refresh`, `@(update)`, `livewire:(batch)`) instead of Livewire's one update route, with the kind `livewire` and the components, calls, property updates and page as its context. Each call and render is a `livewire` span on the trace. Names come from Livewire's hooks (3 and 4) after the snapshot is checked, and a call counts only once its method ran.
+- **Livewire**: an update is recorded and counted under the component and method it called (`livewire:cart.checkout@save`, `@$refresh`, `@(update)`, `livewire:(batch)`) instead of Livewire's one update route, with the kind `livewire` and the components, calls, property updates and page as its context. Each call and render is a `livewire` span on the trace. Names come from Livewire's hooks (3 and 4) after the snapshot is checked, and a call counts only once Livewire handled it, so a method the component does not have never makes a route.
 - **Inertia**: a visit, partial reload or prefetch carries the kind `inertia`, `inertia-partial` or `inertia-prefetch`, also in the request counts, with the page component, the partial reload's `only`, `except` and `reset` props and an outdated asset version as its context. Read from Inertia's headers, so Inertia need not be installed.
 - Config `requests.livewire` (`LUMBERJACK_REQUESTS_LIVEWIRE`) and `requests.inertia` (`LUMBERJACK_REQUESTS_INERTIA`), both on. Kinds need Lumberjack server 0.14.0 or newer.
 

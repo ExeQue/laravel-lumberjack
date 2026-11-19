@@ -25,6 +25,11 @@ describe('recording never breaks the app', function () {
         expect($ran)->toBeTrue();
     });
 
+    it('hands back what a callback returns, and null when it threw', function () {
+        expect(Safely::value(fn (int $n): int => $n * 2, 21))->toBe(42)
+            ->and(Safely::value(fn () => throw new RuntimeException('Recorder broke')))->toBeNull();
+    });
+
     it('remembers at most MAX_PROBLEMS problems, so a long-running worker does not grow', function () {
         $log = ini_set('error_log', '/dev/null');
 

@@ -11,8 +11,10 @@ use ExeQue\Lumberjack\Support\Safely;
 /**
  * Tells what a Livewire update did through Livewire's own hooks (3 and 4): which
  * components it hydrated, the methods they ran and the properties it updated. They fire
- * after Livewire checked the snapshot's checksum, and a call counts only once its method
- * ran, so the names come from the app and never from what the browser sent.
+ * after Livewire checked the snapshot's checksum, and a call counts only once Livewire is
+ * done with it, which a method the component does not have never is: the names come from
+ * the app, never from what the browser sent. A call another listener answered early (a
+ * #[Json] method that failed validation) still counts.
  *
  * Each call and render is a "livewire" span on the trace. The request itself gets a
  * route of its own: the component and method, instead of Livewire's one update route.
@@ -115,7 +117,7 @@ class RecordsLivewire
     }
 
     /**
-     * Times the call and returns what Livewire runs once the method has run: only then is
+     * Times the call and returns what Livewire runs once it is done with it: only then is
      * it counted, so a method the component does not have never makes a route.
      */
     public function called(object $component, mixed $method, mixed $params = []): ?Closure

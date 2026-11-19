@@ -115,8 +115,9 @@ component and method it called instead, with the kind `livewire`:
 The route name stays Livewire's own (`livewire.update`). The request also carries the
 components it updated, the methods they ran, how many properties each updated and the page
 they live on, and each call and render is a `livewire` span on its trace. The names come
-from Livewire's hooks after it checked the snapshot, and a call counts only once its method
-ran, so a browser cannot make up routes. The page that first renders the components is an
+from Livewire's hooks after it checked the snapshot, and a call counts only once Livewire
+handled it, so a method the component does not have never makes a route and a browser
+cannot make up routes. The page that first renders the components is an
 ordinary request. Turn it off with `LUMBERJACK_REQUESTS_LIVEWIRE=false`.
 
 ### Inertia
@@ -133,7 +134,8 @@ props is not averaged with the full visit:
 The request also carries the page component, the props a partial reload asked for, left
 out or reset, and whether it was sent back for a full reload because the asset version was
 outdated. It is read from Inertia's headers and the start of the page object, so Inertia
-need not be installed for the SDK. The first page load is an ordinary request. Turn it off
+need not be installed for the SDK. Like any header, they are what the client says. The
+first page load is an ordinary request. Turn it off
 with `LUMBERJACK_REQUESTS_INERTIA=false`.
 
 Kinds need Lumberjack server 0.14.0 or newer; an older one counts these requests under

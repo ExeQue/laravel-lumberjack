@@ -81,6 +81,38 @@ describe('a Livewire update', function () {
             ->and(collect($this->sentEvents('span'))->pluck('target')->all())->not->toContain('counter@notAMethod');
     });
 
+    it('hands the method\'s return value back to the browser untouched', function () {
+        $snapshots = $this->livewireSnapshots();
+
+        $this->livewireUpdate([['snapshot' => $snapshots['counter'], 'updates' => ['count' => 21], 'calls' => [['method' => 'doubled']]]])
+            ->assertOk()
+            ->assertJsonPath('components.0.effects.returns.0', 42);
+    });
+
+    it('leaves the app\'s exception alone and counts no call for a method that threw', function () {
+        $this->withoutExceptionHandling();
+        $snapshots = $this->livewireSnapshots();
+        $this->agent->payloads = [];
+
+        expect(fn () => $this->livewireUpdate([['snapshot' => $snapshots['counter'], 'calls' => [['method' => 'explode']]]]))
+            ->toThrow(RuntimeException::class, 'The counter broke.');
+
+        expect(collect($this->sentEvents('span'))->pluck('target')->all())->not->toContain('counter@explode');
+    });
+
+    it('starts each update afresh, as a long-lived worker serves one after another', function () {
+        $snapshots = $this->livewireSnapshots();
+        $this->agent->payloads = [];
+
+        $this->livewireUpdate([['snapshot' => $snapshots['counter'], 'calls' => [['method' => 'increment']]]]);
+        $this->livewireUpdate([['snapshot' => $snapshots['greeting'], 'updates' => ['name' => 'you']]]);
+
+        $second = $this->sentEvents('request')[1];
+
+        expect($second['route'])->toBe('livewire:greeting@(update)')
+            ->and(array_column($second['context']['livewire']['components'], 'name'))->toBe(['greeting']);
+    });
+
     it('leaves the page that rendered the components an ordinary request', function () {
         $this->livewireSnapshots();
         app(Recorder::class)->flush();
