@@ -337,6 +337,8 @@ Sampling: `requests`, `jobs`, `commands` and `schedule` each take a `sample_rate
 'queries' => ['always_slower_than_ms' => 500],
 ```
 
+Livewire and Inertia requests are told apart on their own (`requests.livewire`, `requests.inertia`, both on): a Livewire update is recorded under `livewire:component@method` instead of Livewire's update route, with each call and render a `livewire` span; an Inertia visit, partial reload or prefetch keeps its route and gets the kind `inertia`, `inertia-partial` or `inertia-prefetch`. Nothing to set up.
+
 Spans on each trace: `cache`, `http` (Laravel HTTP client), `mail`, `notifications` on by default, `redis` off (`LUMBERJACK_SPANS_REDIS=true`); `spans.ignore_cache_keys` takes wildcards. Env switches: `LUMBERJACK_REQUESTS`, `LUMBERJACK_QUERIES`, `LUMBERJACK_JOBS`, `LUMBERJACK_EXCEPTIONS`, `LUMBERJACK_COMMANDS`, `LUMBERJACK_SCHEDULE`, `LUMBERJACK_SPANS_*`, `LUMBERJACK_SAMPLE_RATE`, `LUMBERJACK_JOBS_SAMPLE_RATE`, `LUMBERJACK_COMMANDS_SAMPLE_RATE`, `LUMBERJACK_SCHEDULE_SAMPLE_RATE`.
 
 ## Log channels
