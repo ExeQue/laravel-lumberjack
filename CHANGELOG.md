@@ -4,6 +4,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-19
+
 ### Added
 
 - **Livewire**: an update is recorded and counted under the component and method it called (`livewire:cart.checkout@save`, `@$refresh`, `@(update)`, `livewire:(batch)`) instead of Livewire's one update route, with the kind `livewire` and the components, calls, property updates and page as its context. Each call and render is a `livewire` span on the trace. Names come from Livewire's hooks (3 and 4) after the snapshot is checked, and a call counts only once Livewire handled it, so a method the component does not have never makes a route.
@@ -142,7 +144,8 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 First public release.
 
-[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/ExeQue/laravel-lumberjack/compare/v0.9.0...v0.10.0
