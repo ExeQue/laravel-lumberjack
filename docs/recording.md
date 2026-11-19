@@ -106,7 +106,7 @@ component and method it called instead, with the kind `livewire`:
 | Update | Route |
 |---|---|
 | a call of `save` on `cart.checkout` | `livewire:cart.checkout@save` |
-| a poll or `$refresh` | `livewire:cart.checkout@$refresh` |
+| a poll or `$refresh` | `livewire:cart.checkout@$refresh` (Livewire 3: `@(update)`, it sends them without a call) |
 | an event the component listens to | `livewire:cart.checkout@__dispatch:cart-updated` |
 | property updates without a call | `livewire:cart.checkout@(update)` |
 | several methods of one component | `livewire:cart.checkout@(batch)` |

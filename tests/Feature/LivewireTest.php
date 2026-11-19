@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Composer\InstalledVersions;
 use ExeQue\Lumberjack\Listeners\RecordsLivewire;
 use ExeQue\Lumberjack\Recorder;
 use Livewire\Livewire;
@@ -47,6 +48,11 @@ describe('a Livewire update', function () {
     });
 
     it('names a route for what the update did', function (Closure $components, string $route) {
+        // Livewire 3 sends $refresh as a commit without a call.
+        if ($route === 'livewire:counter@$refresh' && version_compare((string) InstalledVersions::getVersion('livewire/livewire'), '4.0.0', '<')) {
+            $this->markTestSkipped('Livewire 3 sends no $refresh call.');
+        }
+
         $snapshots = $this->livewireSnapshots();
         $this->agent->payloads = [];
 
