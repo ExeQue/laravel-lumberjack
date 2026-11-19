@@ -11,6 +11,7 @@
 - [Data sources](data-sources.md) - Offer figures, series, lists and tables to status screens, connected once in Lumberjack, which then pulls them
 - [Custom alerts](alerts.md) - Send your own alerts to the channels of a topic
 - [Activity](activity.md) - Record what happens in your app, by hand or from your own events
+- [AI token usage](ai.md) - Tokens, keys and who caused them, of every Laravel AI, Prism or hand-recorded AI call
 - [Reacting to alerts](webhooks.md) - Webhooks, `Lumberjack::onException()` and signatures
 - [Testing your app](testing.md) - Recording off in tests, and testing checks, states and webhook handlers
 - [Artisan commands](commands.md) - `lumberjack:install`, `lumberjack:agent`, `lumberjack:health`, `lumberjack:terminate`, `lumberjack:sourcemaps` and `lumberjack:test`

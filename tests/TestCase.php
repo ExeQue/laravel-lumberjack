@@ -19,11 +19,19 @@ abstract class TestCase extends Orchestra
 
     protected function getPackageProviders($app): array
     {
-        return [LumberjackServiceProvider::class];
+        // The AI packages are dev dependencies; CI also runs the suite without them.
+        return array_values(array_filter([
+            LumberjackServiceProvider::class,
+            'Laravel\\Ai\\AiServiceProvider',
+            'Prism\\Prism\\PrismServiceProvider',
+        ], class_exists(...)));
     }
 
     protected function defineEnvironment($app): void
     {
+        // What a process says once is said again in each test, whatever ran before.
+        LumberjackServiceProvider::flushState();
+
         $this->agent = new FakeAgentClient();
         $app->instance(AgentClient::class, $this->agent);
         // Nothing a test does may reach a real Lumberjack.

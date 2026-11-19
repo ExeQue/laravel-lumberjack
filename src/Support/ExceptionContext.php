@@ -35,6 +35,12 @@ class ExceptionContext
         $this->request = $request;
     }
 
+    /** Whether a request is being served right now, rather than a job or a command. */
+    public function servesRequest(): bool
+    {
+        return $this->request() !== null;
+    }
+
     /**
      * @return array<string, mixed>
      */

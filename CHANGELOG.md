@@ -4,6 +4,16 @@ All notable changes are written here, newest first, in the [Keep a Changelog](ht
 
 ## [Unreleased]
 
+### Added
+
+- **AI token usage**: every AI call is recorded as an `ai_call` with provider, model, operation, tokens (input with cached tokens included, output, cache reads and writes, reasoning), duration, status, the key's fingerprint, label and owner, and the actor. Always at sample rate 1.0, whatever the request or job sampling: it is accounting. The API key never leaves the app, only `sha256("driver:key")`; prompts and responses are never sent. Requires Lumberjack server 0.13.0 or newer.
+- Laravel AI (0.11 and 1.x) and Prism (0.100 to 0.103) are recorded on their own when installed: every agent step (text, structured, streamed), embeddings, images, audio, transcriptions, reranking and classification, failed calls and failovers included. A stream read only in part is still recorded, without tokens for Laravel AI. A newer Prism than 0.103 is left alone, said once in the logs. Each client's token counts are normalized to the same meaning per driver.
+- `Lumberjack::ai(fn () => ..., by:, owner:, label:)` sets who calls are made for, such as a tenant bringing its own key; scopes nest, carry over to a stream or streamed response returned from the callback (and to AI calls its tools make, unless a tool opens its own scope) and are cleared for each request and job. `Lumberjack::resolveAiKeyUsing()` works them out per call, with `AiCall::usesKey()` telling which key was used. The actor defaults to the logged in user while a request is served.
+- A Laravel AI agent can say who its calls are for by implementing `HasLumberjackAiOwner`, `HasLumberjackAiActor` and `HasLumberjackAiLabel`, one method each, read once per run; each counts for the agent's own steps over the scopes around it, and for the calls its tools, plain sub-agents and conversation title make.
+- `Lumberjack::aiUsage()` records a call the app made itself. Fingerprints hash the driver in lowercase, so `OpenAI` and `openai` give the same one.
+- `Lumberjack::aiCalls()`, `assertAiCallRecorded()`, `assertAiCallNotRecorded()` and `EventType::AiCall` under `Lumberjack::fake()`.
+- Config `ai.enabled` (`LUMBERJACK_AI`), `ai.laravel_ai` and `ai.prism`.
+
 ## [0.11.0] - 2026-11-17
 
 ### Added

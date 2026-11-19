@@ -65,3 +65,53 @@ jobs:
 
       - name: Execute tests
         run: vendor/bin/pest -p --ci
+
+  # laravel/ai and prism-php/prism are only dev dependencies: the SDK must work without them.
+  tests-without-ai:
+    runs-on: ubuntu-latest
+
+    name: Without Laravel AI and Prism
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.3
+          extensions: dom, curl, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, zlib
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          composer remove --dev laravel/ai prism-php/prism --no-interaction --no-update
+          composer update --prefer-stable --prefer-dist --no-interaction --with-all-dependencies
+
+      - name: Execute tests
+        run: vendor/bin/pest -p --ci
+
+  # Laravel AI 0.x reports usage differently; prefer-stable alone would only test 1.x.
+  tests-laravel-ai-0:
+    runs-on: ubuntu-latest
+
+    name: Laravel AI 0.11
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: dom, curl, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, zlib
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          composer require --dev "laravel/ai:^0.11" --no-interaction --no-update
+          composer update --prefer-stable --prefer-dist --no-interaction --with-all-dependencies
+
+      - name: Execute tests
+        run: vendor/bin/pest -p --ci

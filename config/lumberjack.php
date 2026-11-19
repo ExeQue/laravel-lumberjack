@@ -221,6 +221,23 @@ return [
         'ignore_cache_keys' => [],
     ],
 
+    /*
+     * Token usage of every AI call: provider, model, tokens, which API key (only a
+     * fingerprint of it, never the key), the key's owner and who caused the call.
+     * Recorded on its own from Laravel AI and Prism when they are installed, and by
+     * hand with Lumberjack::aiUsage(). Prompts and responses are never sent.
+     *
+     * There is no sample rate: AI calls are accounting, so every call is recorded,
+     * whatever the request, job or command sample rates are.
+     */
+    'ai' => [
+        'enabled' => (bool) env('LUMBERJACK_AI', true),
+
+        // Each integration on its own, e.g. when you record its calls by hand instead.
+        'laravel_ai' => true,
+        'prism' => true,
+    ],
+
     'schedule' => [
         'enabled' => (bool) env('LUMBERJACK_SCHEDULE', true),
 

@@ -27,6 +27,9 @@ describe('a long-running worker', function () {
 
                 // What the agent received is not the package's memory.
                 $this->agent->payloads = [];
+                // Collected per job, so cyclic garbage the GC would reclaim in time is not
+                // counted (it grows PHP's object store until the GC runs).
+                gc_collect_cycles();
             }
         };
 
@@ -34,12 +37,12 @@ describe('a long-running worker', function () {
         gc_collect_cycles();
         $before = memory_get_usage();
 
-        $work(3000);
+        $work(5000);
         gc_collect_cycles();
 
-        // About 100 KB is the allocator settling; a leak of one small entry per job
-        // already passes 400 KB over these 3000 jobs.
-        expect(memory_get_usage() - $before)->toBeLessThan(256 * 1024);
+        // With the garbage collected per job it stays within a few KB; a leak of one small
+        // entry per job comes to about 560 KB over these 5000 jobs.
+        expect(memory_get_usage() - $before)->toBeLessThan(64 * 1024);
     });
 
     it('forgets the source files of one exception before the next', function () {

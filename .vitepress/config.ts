@@ -66,6 +66,7 @@ export default defineConfig({
           { text: 'Data sources', link: '/docs/data-sources' },
           { text: 'Custom alerts', link: '/docs/alerts' },
           { text: 'Activity', link: '/docs/activity' },
+          { text: 'AI token usage', link: '/docs/ai' },
           { text: 'Reacting to alerts', link: '/docs/webhooks' },
           { text: 'Testing your app', link: '/docs/testing' },
           { text: 'Artisan commands', link: '/docs/commands' },

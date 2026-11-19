@@ -7,6 +7,9 @@ namespace ExeQue\Lumberjack\Facades;
 use Closure;
 use ExeQue\Lumberjack\Activity\ActivityActors;
 use ExeQue\Lumberjack\Activity\Actor;
+use ExeQue\Lumberjack\Activity\Reference;
+use ExeQue\Lumberjack\Ai\AiCall;
+use ExeQue\Lumberjack\Ai\AiCallRecorder;
 use ExeQue\Lumberjack\Contracts\ActsAsLumberjackActor;
 use ExeQue\Lumberjack\DataSources\DataSourceRegistry;
 use ExeQue\Lumberjack\Exceptions\ForgetActorFailedException;
@@ -18,16 +21,20 @@ use ExeQue\Lumberjack\LumberjackServiceProvider;
 use ExeQue\Lumberjack\PendingActivity;
 use ExeQue\Lumberjack\PendingAlert;
 use ExeQue\Lumberjack\Recorder;
+use ExeQue\Lumberjack\Support\Safely;
 use ExeQue\Lumberjack\Testing\EventType;
 use ExeQue\Lumberjack\Testing\FakeAgentClient;
 use ExeQue\Lumberjack\Testing\LumberjackFake;
 use ExeQue\Lumberjack\Testing\RecordedActivity;
+use ExeQue\Lumberjack\Testing\RecordedAiCall;
 use ExeQue\Lumberjack\Testing\RecordedAlert;
 use ExeQue\Lumberjack\Webhooks\Handlers;
 use ExeQue\LumberjackAgent\AgentClient;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Facade;
 use RuntimeException;
+use SensitiveParameter;
+use Throwable;
 
 /**
  * @method static Handlers on(\ExeQue\Lumberjack\Webhooks\Status|list<\ExeQue\Lumberjack\Webhooks\Status> $statuses, callable $handler)
@@ -102,6 +109,89 @@ class Lumberjack extends Facade
     public static function forgetActor(ActsAsLumberjackActor|Actor|Model|string $actor, string|int|null $id = null): int
     {
         return app(ActivityActors::class)->forget($actor, $id);
+    }
+
+    /**
+     * Runs the callback with AI calls made for this actor, with a key of this owner (a
+     * tenant bringing its own key) and label. Scopes nest: an inner one overrides only
+     * what it sets. Returns what the callback returns; a stream it returns (a generator, or
+     * Laravel AI's streamable response) keeps the scope while it is read later.
+     *
+     * @template TResult
+     *
+     * @param  Closure(): TResult  $callback
+     * @return TResult
+     */
+    public static function ai(Closure $callback, ActsAsLumberjackActor|Actor|Model|null $by = null, ActsAsLumberjackActor|Actor|Model|null $owner = null, ?string $label = null): mixed
+    {
+        $reference = static function (ActsAsLumberjackActor|Actor|Model|null $value): ?Reference {
+            try {
+                return Reference::of($value);
+            } catch (Throwable $e) {
+                Safely::problem('Lumberjack could not tell who an AI call is for: '.$e::class);
+
+                return null;
+            }
+        };
+
+        // The callback always runs: it is the app's own work.
+        return app(Recorder::class)->aiContext()->run($callback, $reference($by), $reference($owner), $label);
+    }
+
+    /**
+     * Works out the actor, the key's owner and its label of each AI call: return an array
+     * with any of by, owner and label, or null to leave the call as it is. Comes before a
+     * Lumberjack::ai() scope. AiCall::usesKey() tells which key the call was made with.
+     *
+     * @param  (Closure(AiCall): ?array<string, mixed>)|null  $resolver
+     */
+    public static function resolveAiKeyUsing(?Closure $resolver): void
+    {
+        app(AiCallRecorder::class)->resolveKeysUsing($resolver);
+    }
+
+    /**
+     * Records an AI call the app made itself, not through Laravel AI or Prism. $input is
+     * every input token, cached ones included; $output every output token, reasoning
+     * included. The key is only fingerprinted, never sent. Never throws.
+     *
+     * @param  string  $operation  text, structured, stream, embeddings, image, audio, transcription or rerank
+     */
+    public static function aiUsage(
+        string $provider,
+        string $model,
+        ?int $input = null,
+        ?int $output = null,
+        ?int $cacheRead = null,
+        ?int $cacheWrite = null,
+        ?int $reasoning = null,
+        #[SensitiveParameter] ?string $key = null,
+        string $operation = 'text',
+        ?float $durationMs = null,
+        ?string $driver = null,
+        ?string $error = null,
+        ActsAsLumberjackActor|Actor|Model|null $by = null,
+        ActsAsLumberjackActor|Actor|Model|null $owner = null,
+        ?string $label = null,
+    ): void {
+        $driver = strtolower($driver ?? $provider);
+        $call = new AiCall(
+            source: 'manual',
+            provider: $provider,
+            driver: $driver,
+            model: $model,
+            operation: $operation,
+            inputTokens: $input,
+            outputTokens: $output,
+            cacheReadTokens: $cacheRead,
+            cacheWriteTokens: $cacheWrite,
+            reasoningTokens: $reasoning,
+            durationMs: $durationMs,
+            error: $error,
+            keySha256: AiCall::fingerprint($driver, $key),
+        );
+
+        Safely::run(fn () => app(AiCallRecorder::class)->record($call, ['by' => $by, 'owner' => $owner, 'label' => $label]));
     }
 
     /**
@@ -229,6 +319,31 @@ class Lumberjack extends Facade
     public static function assertActivityNotRecorded(string|Closure|null $activity = null, ?string $group = null): void
     {
         self::faked()->assertActivityNotRecorded($activity, $group);
+    }
+
+    /**
+     * @param  string|(Closure(RecordedAiCall): bool)|null  $call  a model, or a check of each call
+     * @return list<RecordedAiCall>
+     */
+    public static function aiCalls(string|Closure|null $call = null, ?string $provider = null): array
+    {
+        return self::faked()->aiCalls($call, $provider);
+    }
+
+    /**
+     * @param  string|(Closure(RecordedAiCall): bool)|null  $call  a model, or a check of each call
+     */
+    public static function assertAiCallRecorded(string|Closure|null $call = null, ?string $provider = null, ?int $times = null): void
+    {
+        self::faked()->assertAiCallRecorded($call, $provider, $times);
+    }
+
+    /**
+     * @param  string|(Closure(RecordedAiCall): bool)|null  $call  a model, or a check of each call
+     */
+    public static function assertAiCallNotRecorded(string|Closure|null $call = null, ?string $provider = null): void
+    {
+        self::faked()->assertAiCallNotRecorded($call, $provider);
     }
 
     public static function assertActorForgotten(Model|string $actor, string|int|null $id = null): void

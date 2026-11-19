@@ -8,8 +8,8 @@ use Illuminate\Support\Str;
 use Throwable;
 
 /**
- * What gets recorded, from the requests, queries, jobs, exceptions and
- * schedule sections of the config. Every pattern takes * wildcards.
+ * What gets recorded, from the requests, queries, jobs, exceptions, schedule
+ * and ai sections of the config. Every pattern takes * wildcards.
  */
 final readonly class RecordingRules
 {
@@ -27,6 +27,7 @@ final readonly class RecordingRules
         $exceptions = $section('exceptions');
         $schedule = $section('schedule');
         $commands = $section('commands');
+        $ai = $section('ai');
 
         return new self(
             requests: (bool) ($requests['enabled'] ?? true),
@@ -57,6 +58,9 @@ final readonly class RecordingRules
             commandsSampleRate: (float) ($commands['sample_rate'] ?? 1.0),
             commandsAlwaysSlowerThanMs: (float) ($commands['always_slower_than_ms'] ?? 0),
             ignoreCommands: $list($commands, 'ignore'),
+            ai: (bool) ($ai['enabled'] ?? true),
+            aiLaravelAi: (bool) ($ai['laravel_ai'] ?? true),
+            aiPrism: (bool) ($ai['prism'] ?? true),
         );
     }
 
@@ -101,6 +105,9 @@ final readonly class RecordingRules
         public float $commandsSampleRate = 1.0,
         public float $commandsAlwaysSlowerThanMs = 0,
         public array $ignoreCommands = [],
+        public bool $ai = true,
+        public bool $aiLaravelAi = true,
+        public bool $aiPrism = true,
     ) {
     }
 

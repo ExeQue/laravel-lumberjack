@@ -88,6 +88,26 @@ and `isOn()` to check the actor, or one of the subjects, against a type and key.
 `default`, as on the server. `Lumberjack::activities()` returns them. Under the fake,
 `Lumberjack::forgetActor()` asks nobody and returns 0.
 
+### AI calls
+
+[AI calls](ai.md) can be matched by model and provider, or with a check:
+
+```php
+use ExeQue\Lumberjack\Testing\RecordedAiCall;
+
+Lumberjack::assertAiCallRecorded('gpt-5');
+Lumberjack::assertAiCallRecorded('gpt-5', provider: 'openai', times: 1);
+Lumberjack::assertAiCallRecorded(fn (RecordedAiCall $call) => $call->isOwnedBy('team', $team->id) && $call->usesKey($team->openai_key));
+Lumberjack::assertAiCallNotRecorded(provider: 'anthropic');
+```
+
+A `RecordedAiCall` has `source`, `provider`, `driver`, `model`, `operation`, the tokens
+(`inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheWriteTokens`, `reasoningTokens`),
+`durationMs`, `status`, `error`, `keySha256`, `label`, `owner`, `actor`, `invocationId` and
+`step`, and `usesKey()`, `isOwnedBy()`, `isBy()` and `failed()`. `Lumberjack::aiCalls()`
+returns them; `EventType::AiCall` works with `assertRecorded()`. Fake the AI client as
+usual (`Prism::fake()`, `Agent::fake()`): faked calls are recorded too.
+
 ### Assertions in a closure
 
 Type a closure with an assertable class and it makes assertions rather than answering true or

@@ -22,4 +22,5 @@ enum EventType: string
     case Alert = 'alert';
     case Maintenance = 'maintenance';
     case Activity = 'activity';
+    case AiCall = 'ai_call';
 }

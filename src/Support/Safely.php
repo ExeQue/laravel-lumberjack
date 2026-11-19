@@ -45,6 +45,12 @@ final class Safely
         }
     }
 
+    /** Forgets the problems said, as a new process would; for tests. */
+    public static function flushState(): void
+    {
+        self::$problems = [];
+    }
+
     public static function run(callable $callback, mixed ...$arguments): void
     {
         try {

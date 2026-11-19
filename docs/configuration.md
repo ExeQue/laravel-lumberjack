@@ -173,6 +173,16 @@ See [Spans](recording.md#spans).
 | `spans.redis` | `LUMBERJACK_SPANS_REDIS` | `false` | Turns on Redis events for it |
 | `spans.ignore_cache_keys` | | none | Cache keys to leave out, `*` wildcards; the framework's own are always left out |
 
+## AI
+
+See [AI token usage](ai.md). There is no sample rate: every AI call is recorded.
+
+| Key             | Env             | Default |                                                                          |
+| --------------- | --------------- | ------- | ------------------------------------------------------------------------ |
+| `ai.enabled`    | `LUMBERJACK_AI` | `true`  | `false` records no AI calls, by hand or from Laravel AI or Prism         |
+| `ai.laravel_ai` |                 | `true`  | Whether calls made through Laravel AI are recorded, when it is installed |
+| `ai.prism`      |                 | `true`  | Whether calls made through Prism are recorded, when it is installed      |
+
 ## Health checks
 
 See [Health checks](health-checks.md).

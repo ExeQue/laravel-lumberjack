@@ -6,6 +6,10 @@ namespace ExeQue\Lumberjack;
 
 use Closure;
 use ExeQue\Lumberjack\Activity\ActivityActors;
+use ExeQue\Lumberjack\Ai\AiCallRecorder;
+use ExeQue\Lumberjack\Ai\AiContext;
+use ExeQue\Lumberjack\Ai\LaravelAi\RecordsLaravelAi;
+use ExeQue\Lumberjack\Ai\Prism\RecordingPrismManager;
 use ExeQue\Lumberjack\Console\AgentCommand;
 use ExeQue\Lumberjack\Console\DataSourcesTestCommand;
 use ExeQue\Lumberjack\Console\HealthCommand;
@@ -54,13 +58,16 @@ use Illuminate\Log\LogManager;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Queue\Events\WorkerStopping;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Routing\Events\RouteMatched;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\View\Compilers\BladeCompiler;
+use Laravel\Ai\Events\StepCompleted;
 use Monolog\Handler\NullHandler;
 use Monolog\Logger;
+use Prism\Prism\PrismManager;
 use Throwable;
 
 class LumberjackServiceProvider extends ServiceProvider
@@ -69,6 +76,9 @@ class LumberjackServiceProvider extends ServiceProvider
     public const int HEALTH_LOCK_MINUTES = 5;
 
     private bool $recording = false;
+
+    /** @var array<string, true> problems said once a day, asked about once per process */
+    private static array $said = [];
 
     public function register(): void
     {
@@ -101,6 +111,13 @@ class LumberjackServiceProvider extends ServiceProvider
             ],
             (bool) config('lumberjack.enabled', true),
             $app->make(Scrubber::class),
+        ));
+
+        $this->app->singleton(AiContext::class, fn (Application $app): AiContext => $app->make(Recorder::class)->aiContext());
+        $this->app->singleton(AiCallRecorder::class, fn (Application $app): AiCallRecorder => new AiCallRecorder(
+            $app->make(Recorder::class),
+            $app->make(RecordingRules::class)->ai,
+            $app->make(ExceptionContext::class),
         ));
 
         // LUMBERJACK_RELEASE, else what the configured resolver works out.
@@ -259,9 +276,16 @@ class LumberjackServiceProvider extends ServiceProvider
         // Each worker's sign of life, for how many work each queue; a long job never loops.
         $events->listen(Looping::class, Safely::wrap(fn (Looping $e) => $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->queue)));
         $events->listen(WorkerStopping::class, Safely::wrap(fn () => $this->app->make(QueueWorkers::class)->stop()));
-        $events->listen(JobProcessing::class, Safely::wrap(function (JobProcessing $e): void {
+        $events->listen(JobProcessing::class, Safely::wrap(function (JobProcessing $e) use ($recorder, $context): void {
             if ($e->connectionName !== 'sync') {
                 $this->app->make(QueueWorkers::class)->beat($e->connectionName, $e->job->getQueue(), ($e->job->timeout() ?? 60) + 30);
+            }
+
+            // A job of its own (sync, deferred and background ones run inside the request or
+            // a process of their own): no request is served, and no stream scope carries over.
+            if (! $e->job instanceof SyncJob) {
+                $context->serving(null);
+                $recorder->aiContext()->clear();
             }
         }));
 
@@ -293,11 +317,99 @@ class LumberjackServiceProvider extends ServiceProvider
             ));
         }
 
+        // On its own: a failure here never costs the commands and the flush below.
+        if ($rules->ai) {
+            Safely::run($this->recordAi(...), $rules);
+        }
+
         $events->subscribe($commands = new RecordsCommands($recorder, $rules, $this->scheduledCommands(...)));
 
         // Inside the app's terminate: whatever goes wrong here stays here.
         $this->app->terminating(Safely::wrap($commands->finishOpen(...)));
         $this->app->terminating(Safely::wrap($recorder->flush(...)));
+    }
+
+    /**
+     * AI calls from Laravel AI and Prism, each only when it is installed and turned on.
+     */
+    private function recordAi(RecordingRules $rules): void
+    {
+        $ai = $this->app->make(AiCallRecorder::class);
+
+        if ($rules->aiLaravelAi && class_exists(StepCompleted::class)) {
+            $this->app->make('events')->subscribe($laravelAi = new RecordsLaravelAi($ai));
+            // Before the flush registered after this: what a request left open goes with it.
+            $this->app->terminating(Safely::wrap($laravelAi->recordOpen(...)));
+        }
+
+        if (! $rules->aiPrism || ! class_exists(PrismManager::class)) {
+            return;
+        }
+
+        // Worked out when the manager is first made (rebinding() below makes it at boot when
+        // Prism is bound), once. A newer Prism may add base methods the decorator does not
+        // forward: left alone, and said.
+        $supported = null;
+        $wrap = function (PrismManager $manager, Application $app) use ($ai, &$supported): PrismManager {
+            if (! ($supported ??= $this->prismSupported())) {
+                return $manager;
+            }
+
+            return RecordingPrismManager::wraps($manager) ? $manager : new RecordingPrismManager($manager, $ai, $app);
+        };
+
+        $this->app->extend(PrismManager::class, $wrap);
+
+        // Prism::fake() swaps the manager in with instance(), which skips extenders.
+        $this->app->rebinding(PrismManager::class, function (Application $app, PrismManager $manager) use ($wrap): void {
+            if (($wrapped = $wrap($manager, $app)) !== $manager) {
+                $app->instance(PrismManager::class, $wrapped);
+            }
+        });
+    }
+
+    private function prismSupported(): bool
+    {
+        $version = RecordingPrismManager::installedVersion();
+
+        if (RecordingPrismManager::supports($version)) {
+            return true;
+        }
+
+        $this->sayOncePerDay('prism-version:'.$version, 'Prism '.($version ?? '(unknown version)').' is not a version this SDK was tested with ('.RecordingPrismManager::SUPPORTED_FROM.' to 0.103); its AI calls are not recorded, update exeque/laravel-lumberjack or record them with Lumberjack::aiUsage().');
+
+        return false;
+    }
+
+    /** Forgets what this process said, as a new one would; for tests. */
+    public static function flushState(): void
+    {
+        self::$said = [];
+        Safely::flushState();
+    }
+
+    /**
+     * A problem every process would meet, said once a day across them (the cache shared),
+     * else once per process.
+     */
+    private function sayOncePerDay(string $key, string $message): void
+    {
+        // Once per process at most, so the cache is asked once.
+        if (isset(self::$said[$key])) {
+            return;
+        }
+
+        self::$said[$key] = true;
+
+        try {
+            if (! $this->app->make(CacheFactory::class)->store()->add('lumberjack:problem:'.$key, true, 86400)) {
+                return;
+            }
+        } catch (Throwable) {
+            // No cache: Safely says it once per process.
+        }
+
+        Safely::problem($message);
     }
 
     /**

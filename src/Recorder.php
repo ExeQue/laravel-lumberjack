@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace ExeQue\Lumberjack;
 
 use Closure;
+use ExeQue\Lumberjack\Ai\AiContext;
 use ExeQue\Lumberjack\Support\Client;
 use ExeQue\Lumberjack\Support\ExceptionContext;
 use ExeQue\Lumberjack\Support\ExceptionPresenter;
@@ -74,6 +75,7 @@ class Recorder
         private array $config,
         bool $enabled = true,
         private readonly Scrubber $scrubber = new Scrubber(),
+        private readonly AiContext $aiContext = new AiContext(),
     ) {
         $this->enabled = $enabled;
         $this->reported = new WeakMap();
@@ -121,7 +123,7 @@ class Recorder
 
     /**
      * A new request in a long-lived worker (Octane, a test): a new trace, and nothing of
-     * the last request's run carries over.
+     * the last request's run (nor its Lumberjack::ai() scopes) carries over.
      */
     public function reset(): void
     {
@@ -130,6 +132,13 @@ class Recorder
         $this->capturing = false;
         $this->tentative = false;
         $this->held = [];
+        $this->aiContext->clear();
+    }
+
+    /** The Lumberjack::ai() scopes of the current request or job. */
+    public function aiContext(): AiContext
+    {
+        return $this->aiContext;
     }
 
     public function capturing(): bool
@@ -237,7 +246,8 @@ class Recorder
 
         $event = $this->scrubber->event($event + ['trace_id' => $this->traceId(), 'timestamp' => microtime(true)]);
 
-        // A run's queries and spans weigh what the run weighs.
+        // A run's queries and spans weigh what the run weighs. Everything else, ai_call
+        // above all (accounting), goes out whether the run was sampled or not.
         if ($this->inRun && in_array($event['type'] ?? null, ['query', 'span'], true)) {
             $event += ['sample_rate' => $this->sampleRate, 'sampled' => ! $this->tentative];
         }

@@ -72,6 +72,42 @@ class LumberjackFake
     }
 
     /**
+     * The AI calls recorded so far.
+     *
+     * @param  string|(Closure(RecordedAiCall): bool)|null  $call  a model, or a check of each call
+     * @return list<RecordedAiCall>
+     */
+    public function aiCalls(string|Closure|null $call = null, ?string $provider = null): array
+    {
+        $calls = array_map(RecordedAiCall::fromEvent(...), $this->recorded(EventType::AiCall));
+
+        return array_values(array_filter($calls, fn (RecordedAiCall $recorded): bool => match (true) {
+            $provider !== null && $recorded->provider !== $provider => false,
+            $call instanceof Closure => (bool) $call($recorded),
+            $call !== null => $recorded->model === $call,
+            default => true,
+        }));
+    }
+
+    /**
+     * @param  string|(Closure(RecordedAiCall): bool)|null  $call  a model, or a check of each call
+     */
+    public function assertAiCallRecorded(string|Closure|null $call = null, ?string $provider = null, ?int $times = null): void
+    {
+        $this->assertFound(count($this->aiCalls($call, $provider)), $times, $this->describeAiCall($call, $provider), $this->aiCallListing($this->aiCalls()));
+    }
+
+    /**
+     * @param  string|(Closure(RecordedAiCall): bool)|null  $call  a model, or a check of each call
+     */
+    public function assertAiCallNotRecorded(string|Closure|null $call = null, ?string $provider = null): void
+    {
+        $found = $this->aiCalls($call, $provider);
+
+        Assert::assertEmpty($found, "Expected no {$this->describeAiCall($call, $provider)}.".$this->aiCallListing($found));
+    }
+
+    /**
      * The actors the app asked Lumberjack to forget.
      *
      * @return list<Reference>
@@ -338,6 +374,7 @@ class LumberjackFake
             'log' => 'log: '.($event['message'] ?? ''),
             'alert' => "alert: {$event['title']}",
             'activity' => "activity: {$event['name']}",
+            'ai_call' => "ai_call: {$event['provider']}/{$event['model']}",
             default => (string) $event['type'],
         }, $events));
     }
@@ -356,6 +393,19 @@ class LumberjackFake
     private function activityListing(array $activities): string
     {
         return $this->list('Recorded', array_map(fn (RecordedActivity $a): string => "\"{$a->name}\" (group: {$a->group})", $activities));
+    }
+
+    private function describeAiCall(string|Closure|null $call, ?string $provider): string
+    {
+        return trim('an AI call'.(is_string($call) ? " to model \"{$call}\"" : '').($call instanceof Closure ? ' matching the check' : '').($provider !== null ? " on provider {$provider}" : ''));
+    }
+
+    /**
+     * @param  list<RecordedAiCall>  $calls
+     */
+    private function aiCallListing(array $calls): string
+    {
+        return $this->list('Recorded', array_map(fn (RecordedAiCall $c): string => "{$c->provider}/{$c->model} ({$c->operation}, {$c->status}, in {$c->inputTokens}, out {$c->outputTokens})", $calls));
     }
 
     /**

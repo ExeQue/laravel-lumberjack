@@ -395,6 +395,28 @@ Lumberjack::activity('image.uploaded')->group('media')->byUser()->on($image)->on
 - **Forgetting:** call `Lumberjack::forgetActor($user)` when an account is deleted (it throws `ForgetActorFailedException` on failure, so queue it to retry).
 - **Testing:** `Lumberjack::fake()` then `Lumberjack::assertActivityRecorded('order.placed', group: 'billing', times: 1)`, or a closure taking a `RecordedActivity` (`$activity->isBy(User::class, $user->id)`).
 
+## AI token usage
+
+Laravel AI (0.11, 1.x) and Prism (0.100 to 0.103) calls are recorded on their own as `ai_call`, always (no sample rate). Only `sha256("driver:key")` of the API key is sent; never prompts or responses.
+
+```php
+// A tenant's own key: say whose it is. Return a stream from the callback to keep the scope.
+Lumberjack::ai(fn () => $agent->prompt($text, provider: $team->aiProvider()), owner: $team, label: 'byok');
+
+// Or let the agent say it: HasLumberjackAiOwner, HasLumberjackAiActor, HasLumberjackAiLabel (one method each, null = not set, read once per run so keep it cheap). Also counts for its tools' calls and plain sub-agents.
+class SupportAgent implements Agent, HasLumberjackAiOwner { public function lumberjackAiOwner(): Team { return $this->team; } }
+
+// Work out label/owner/by per call, e.g. for a second app key.
+Lumberjack::resolveAiKeyUsing(fn (AiCall $call) => $call->usesKey(config('services.openai.backup_key')) ? ['label' => 'backup'] : null);
+
+// A call made with another client: input includes cached tokens.
+Lumberjack::aiUsage(provider: 'openai', model: 'gpt-5', input: 1200, output: 300, cacheRead: 800, key: $key);
+```
+
+- **Actor:** the logged in user while a request is served (none by default in jobs and commands); `by:` for anything else (a job acting for a user). Precedence: given to `aiUsage()`, resolver, the agent's `HasLumberjackAi*` contracts (its own steps), a `Lumberjack::ai()` opened inside the agent's run, the agents and stream scopes of the run and the runs around it (inner over outer), the reader's scopes (innermost first), logged in user. A scope does not reach a queued agent (`$agent->queue()`): use the contracts there.
+- **Config:** `ai.enabled` (`LUMBERJACK_AI`), `ai.laravel_ai`, `ai.prism`.
+- **Testing:** `Lumberjack::assertAiCallRecorded('gpt-5', provider: 'openai')`, or a closure taking a `RecordedAiCall` (`$call->usesKey($key)`, `isOwnedBy()`, `isBy()`).
+
 ## Commands
 
 `lumberjack:install`, `lumberjack:agent`, `lumberjack:terminate`, `lumberjack:test` (sends a test exception through the agent), `lumberjack:health` (`--check=<slug>`, `--all`, `--no-fail`; exits 1 when a check failed, for deploy scripts), `lumberjack:sourcemaps` (`--path`, `--delete`, `--dry-run` to list what would be sent, `--no-fail`; uploads a build's source maps, exits 1 when any failed unless `--no-fail`; a missing URL or token, a missing directory, one outside `public` and `--delete` with `LUMBERJACK_ENABLED=false` exit 1 even with `--no-fail`).
